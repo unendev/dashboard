@@ -1,0 +1,1 @@
+# /log的笔记，退化为"memo"，与electron互通（改用obsidian）
