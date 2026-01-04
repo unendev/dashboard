@@ -1,1 +1,2 @@
-# /log的笔记，退化为"memo"，与electron互通（改用obsidian）
+# bug
+1. 藏宝阁丢失——改为只有点击叉叉才退出，避免误触（ing）
