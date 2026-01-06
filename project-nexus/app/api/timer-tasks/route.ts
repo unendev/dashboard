@@ -4,21 +4,22 @@ import { createTimerTaskSchema } from '@/lib/validations/timer-task';
 import { ZodError } from 'zod';
 import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
+import { LogCategory } from '@prisma/client';
 
 async function ensureCategoryPath(categoryPath: string) {
   if (!categoryPath || categoryPath === '未分类') return;
   const parts = categoryPath.split('/').map(p => p.trim()).filter(p => p);
   let parentId: string | null = null;
   for (const part of parts) {
-    const existing = await prisma.logCategory.findFirst({ where: { name: part, parentId } });
+    const existing: LogCategory | null = await prisma.logCategory.findFirst({ where: { name: part, parentId } });
     if (existing) {
       parentId = existing.id;
     } else {
       try {
-        const newCat = await prisma.logCategory.create({ data: { name: part, parentId } });
+        const newCat: LogCategory = await prisma.logCategory.create({ data: { name: part, parentId } });
         parentId = newCat.id;
       } catch (e) {
-        const retry = await prisma.logCategory.findFirst({ where: { name: part, parentId } });
+        const retry: LogCategory | null = await prisma.logCategory.findFirst({ where: { name: part, parentId } });
         if (retry) parentId = retry.id;
       }
     }
@@ -63,10 +64,18 @@ export async function POST(request: NextRequest) {
 
     const newTask = await TimerDB.addTask({
       ...validated,
+      isRunning: validated.isRunning ?? false,
+      isPaused: validated.isPaused ?? false,
+      startTime: validated.startTime ?? null,
+      pausedTime: validated.pausedTime ?? 0,
+      completedAt: validated.completedAt ? new Date(validated.completedAt).getTime() : null,
+      parentId: validated.parentId ?? null,
+      instanceTag: validated.instanceTag ?? null,
       userId,
       instanceTagNames: body.instanceTagNames || [],
       order: body.order || 0,
-      version: 1
+      version: 1,
+      taskDefinitionId: null
     });
 
     console.log('✅ [API/TIMER] Task created in DB:', {
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
       name: newTask.name,
       instanceTag: newTask.instanceTag,
       // Ensure to check relation if loaded
-      instanceTagsCount: newTask.instanceTags?.length
+      instanceTagsCount: (newTask as any).instanceTags?.length
     });
 
     if (newTask.categoryPath) {

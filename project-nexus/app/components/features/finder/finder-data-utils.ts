@@ -1,4 +1,4 @@
-import { Treasure } from "@/lib/types/treasure";
+
 
 export type TagNode = {
     id: string;

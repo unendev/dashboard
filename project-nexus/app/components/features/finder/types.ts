@@ -12,3 +12,8 @@ export interface FinderState {
     path: string[];
     selectedTreasureId: string | null;
 }
+
+export interface FinderColumn {
+    id: string;
+    items: any[];
+}

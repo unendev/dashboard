@@ -141,7 +141,7 @@ export function TimerTask({
   const currentTime = getCurrentDisplayTime(task);
   const hasChildren = task.children && task.children.length > 0;
   const isCollapsed = collapsedTasks.has(task.id);
-  const isCollapsed = collapsedTasks.has(task.id);
+
   // 单标签逻辑：直接使用 instanceTag
   const hasInstanceTag = !!(task.instanceTag && task.instanceTag.trim() !== '');
   const indentStyle = { marginLeft: `${level * 20}px` };

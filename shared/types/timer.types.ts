@@ -42,8 +42,6 @@ export interface TimerTask {
   order?: number;
   version?: number;
   createdAt: string;
-  version?: number;
-  createdAt: string;
   updatedAt: string;
   // 新增：多标签支持
   instanceTags?: { instanceTag: { name: string } }[];

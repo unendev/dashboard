@@ -1,134 +1,211 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Loader2 } from 'lucide-react';
-// import useSWR, { mutate } from 'swr'; // Removed for local only
-// import { fetcher } from '@/lib/api'; // Removed for local only
-// import { fetchWithRetry } from '@/lib/fetch-utils'; // Removed for local only
-import { MarkdownView } from '../components/shared/MarkdownView';
+import { Plus, X, Settings2 } from 'lucide-react';
 
-const MEMO_STORAGE_KEY = 'memo-content-v1';
-const TASK_MEMO_STORAGE_KEY = 'task-memo-content-v1';
-const MEMO_UPDATED_KEY = 'memo-updated-at';
+// Scheme B: "The Config"
+// Features: Dynamic Key-Value Editor, Clean UI, Task Isolation
 
-// interface MemoData { ... } // Not needed for local only
-
-export default function MemoPage() {
-  // Parse query params manually since we are in HashRouter and location.search depends on where the hash is
-  // Electron URL: file://.../index.html#/memo?type=task
-  // or http://.../#/memo?type=task&id=123
-  const [memoType, setMemoType] = useState<'default' | 'task'>('default');
-  const [taskId, setTaskId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 简单的解析逻辑，兼容 Hash 路由后面的参数
-    const hash = window.location.hash; // #/memo?type=task&id=...
-    const urlParams = new URLSearchParams(hash.split('?')[1]);
-
-    if (urlParams.get('type') === 'task') {
-      setMemoType('task');
-      setTaskId(urlParams.get('id')); // Get Task ID
-    }
-  }, []);
-
-  const storageKey = memoType === 'task' && taskId ? `${TASK_MEMO_STORAGE_KEY}-${taskId}` : MEMO_STORAGE_KEY;
-  const pageTitle = memoType === 'task' ? '任务备注' : '备忘录';
-
-  // const { data: memo, isLoading } = useSWR<MemoData>('/api/widget/memo', fetcher); // Removed
-  const isLoading = false; // Mock loading state
-  const [content, setContent] = useState('');
-
-  // Initial load effect depend on key change
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey) || '';
-    setContent(saved);
-  }, [storageKey]);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Removed server sync useEffect
-  /* 
-  // 当从服务器加载到数据时同步到本地状态
-  useEffect(() => {
-    // ... logic removed ...
-  }, [memo, isEditing]);
-  */
-
-  useEffect(() => {
-    if (isEditing && textAreaRef.current) {
-      textAreaRef.current.focus();
-    }
-  }, [isEditing]);
-
-  // 自动保存逻辑（仅本地）
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
-
-    // 立即保存到本地
-    const now = Date.now();
-    localStorage.setItem(storageKey, newContent);
-    localStorage.setItem(MEMO_UPDATED_KEY, now.toString());
-
-    // Removed server sync
-  };
-
-  return (
-    <div className="flex flex-col h-screen w-full bg-zinc-900 text-zinc-100 select-none overflow-hidden">
-      {/* 标题栏 */}
-      <div
-        className="flex items-center justify-between px-3 py-2 border-b border-zinc-700 bg-zinc-800 shrink-0"
-        data-drag="true"
-      >
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs font-medium text-zinc-300">{pageTitle}</h2>
-          {isLoading && <Loader2 size={10} className="animate-spin text-zinc-500" />}
-        </div>
-        <button
-          onClick={() => window.close()}
-          className="w-5 h-5 rounded flex items-center justify-center text-zinc-500 hover:text-white hover:bg-zinc-600 transition-colors"
-          data-drag="false"
-        >
-          <X size={12} />
-        </button>
-      </div>
-
-      {/* 编辑/预览区域 */}
-      <div
-        className="flex-1 min-h-0 overflow-hidden cursor-text"
-        onClick={() => setIsEditing(true)}
-      >
-        {isEditing ? (
-          <textarea
-            ref={textAreaRef}
-            className="w-full h-full bg-zinc-900 p-3 text-sm text-zinc-200 resize-none focus:outline-none leading-relaxed overflow-y-auto"
-            value={content}
-            onChange={handleContentChange}
-            onBlur={() => setIsEditing(false)}
-            placeholder="输入笔记... (支持 Markdown)"
-          />
-        ) : (
-          <div className="w-full h-full p-3 overflow-y-auto">
-            {content ? (
-              <MarkdownView content={content} className="text-sm" />
-            ) : (
-              <div className="text-zinc-500 text-sm">
-                {isLoading ? '加载中...' : '点击开始编辑...'}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 状态栏 */}
-      <div className="px-3 py-1.5 border-t border-zinc-700 bg-zinc-800 flex items-center justify-between shrink-0">
-        <span className="text-[10px] text-zinc-500">
-          {content.length} 字符
-        </span>
-        <span className="text-[10px] text-zinc-500">
-          本地存储
-        </span>
-      </div>
-    </div>
-  );
+interface EnvVariable {
+    id: string;
+    key: string;
+    value: string;
 }
+
+const MemoPage = () => {
+    // --- State: Logic ---
+    const [taskId, setTaskId] = useState<string | null>(null);
+    const [storageKeyPrefix, setStorageKeyPrefix] = useState('manifesto-global');
+
+    // --- State: Data ---
+    const [variables, setVariables] = useState<EnvVariable[]>([]);
+    const [logContent, setLogContent] = useState('');
+
+    // --- State: UI ---
+    const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
+
+    // --- Initialization ---
+    useEffect(() => {
+        // 1. Identify Context (Global vs Task)
+        const hash = window.location.hash;
+        const queryPart = hash.split('?')[1];
+        const params = new URLSearchParams(queryPart);
+        const id = params.get('id');
+        const type = params.get('type');
+
+        let prefix = 'manifesto-global';
+        if (id && type === 'task') {
+            setTaskId(id);
+            prefix = `task-memo-${id}`;
+        }
+        setStorageKeyPrefix(prefix);
+
+        // 2. Load Data for this Context
+        // Variables
+        const savedVars = localStorage.getItem(`${prefix}-vars`);
+        if (savedVars) {
+            try {
+                setVariables(JSON.parse(savedVars));
+            } catch (e) {
+                setVariables(defaultVariables);
+            }
+        } else {
+            setVariables(defaultVariables);
+        }
+
+        // Log
+        const savedLog = localStorage.getItem(`${prefix}-log`);
+        if (savedLog) setLogContent(savedLog);
+
+    }, []);
+
+    const defaultVariables: EnvVariable[] = [
+        { id: '1', key: 'CURRENT_MISSION', value: 'Defining the Objective...' },
+        { id: '2', key: 'STATUS', value: 'PLANNING' },
+    ];
+
+    // --- Persistence Wrappers ---
+    const saveVariables = (newVars: EnvVariable[]) => {
+        setVariables(newVars);
+        localStorage.setItem(`${storageKeyPrefix}-vars`, JSON.stringify(newVars));
+    };
+
+    const saveLog = (val: string) => {
+        setLogContent(val);
+        localStorage.setItem(`${storageKeyPrefix}-log`, val);
+    };
+
+    // --- Handlers ---
+    const addVariable = () => {
+        const newVar = { id: Date.now().toString(), key: 'NEW_KEY', value: '' };
+        saveVariables([...variables, newVar]);
+    };
+
+    const removeVariable = (id: string) => {
+        saveVariables(variables.filter(v => v.id !== id));
+    };
+
+    const updateVariable = (id: string, field: 'key' | 'value', val: string) => {
+        const newVars = variables.map(v =>
+            v.id === id ? { ...v, [field]: val } : v
+        );
+        saveVariables(newVars);
+    };
+
+    return (
+        <div className="flex flex-col h-screen w-screen bg-[#111] text-zinc-300 font-sans overflow-hidden">
+
+            {/* --- HEADER: ENV OVERVIEW --- */}
+            <header className="flex-none bg-[#161616] border-b border-zinc-800 flex flex-col">
+                {/* Title Bar (Draggable) */}
+                <div
+                    className="h-8 flex items-center justify-between px-3 bg-[#1a1a1a] select-none"
+                    data-drag="true"
+                >
+                    <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 tracking-wider">
+                        <Settings2 size={12} />
+                        {taskId ? `ENV_CONFIG :: ${taskId}` : 'ENV_CONFIG :: GLOBAL'}
+                    </div>
+                    <button
+                        onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
+                        className="text-zinc-600 hover:text-zinc-400 focus:outline-none"
+                        data-drag="false"
+                    >
+                        <span className="text-[10px]">{isHeaderExpanded ? '▼' : '▶'}</span>
+                    </button>
+                </div>
+
+                {/* Variables Grid (No Drag) */}
+                {isHeaderExpanded && (
+                    <div className="p-3 space-y-2 overflow-y-auto max-h-[40vh] custom-scrollbar">
+                        {variables.map((v) => (
+                            <div key={v.id} className="flex items-center gap-2 group">
+                                {/* KEY */}
+                                <div className="relative shrink-0 w-1/3 min-w-[100px]">
+                                    <span className="absolute left-2 top-1.5 text-zinc-600 text-[10px] font-mono select-none">$</span>
+                                    <input
+                                        value={v.key}
+                                        onChange={(e) => updateVariable(v.id, 'key', e.target.value)}
+                                        className="w-full bg-[#0a0a0a] border border-zinc-800 rounded px-2 pl-5 py-1 text-xs font-mono text-purple-400 focus:border-zinc-600 focus:outline-none transition-colors uppercase placeholder-zinc-700"
+                                        placeholder="KEY"
+                                        data-drag="false"
+                                        spellCheck={false}
+                                    />
+                                </div>
+
+                                {/* EQUALS */}
+                                <span className="text-zinc-700 font-mono text-xs">=</span>
+
+                                {/* VALUE */}
+                                <div className="flex-1 relative">
+                                    <input
+                                        value={v.value}
+                                        onChange={(e) => updateVariable(v.id, 'value', e.target.value)}
+                                        className="w-full bg-[#0a0a0a] border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:border-zinc-600 focus:outline-none transition-colors placeholder-zinc-700"
+                                        placeholder="Value..."
+                                        data-drag="false"
+                                    />
+                                </div>
+
+                                {/* DELETE */}
+                                <button
+                                    onClick={() => removeVariable(v.id)}
+                                    className="p-1 text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Delete Variable"
+                                    data-drag="false"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+
+                        {/* Add Button */}
+                        <button
+                            onClick={addVariable}
+                            className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors mt-2"
+                            data-drag="false"
+                        >
+                            <Plus size={10} />
+                            <span>Add Variable</span>
+                        </button>
+                    </div>
+                )}
+            </header>
+
+            {/* --- BODY: LOG --- */}
+            <main className="flex-1 flex flex-col min-h-0 bg-[#111] relative">
+                <textarea
+                    value={logContent}
+                    onChange={(e) => saveLog(e.target.value)}
+                    className="flex-1 w-full h-full bg-transparent resize-none border-none outline-none p-4 text-sm leading-relaxed text-zinc-400 placeholder-zinc-800 custom-scrollbar font-mono"
+                    placeholder="// Runtime logs..."
+                    spellCheck={false}
+                    data-drag="false"
+                />
+
+                {/* Footer Info */}
+                <div className="h-6 flex items-center px-4 bg-[#111] border-t border-zinc-900 text-[10px] text-zinc-700 select-none">
+                    <span>MEM_SIZE: {logContent.length}B</span>
+                    <span className="mx-2">|</span>
+                    <span>MODE: {taskId ? 'TASK_CONTEXT' : 'GLOBAL_CONTEXT'}</span>
+                </div>
+            </main>
+
+            <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
+      `}</style>
+        </div>
+    );
+};
+
+export default MemoPage;

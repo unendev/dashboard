@@ -83,15 +83,21 @@ const GALAXY_DENSITY = {
   SPIRAL_RADIUS_FACTOR: 8
 };
 
+// Define specialized type for D3 simulation
+type SimulationNode = Node & d3.SimulationNodeDatum;
+
 export const getForceDirectedLayout = (nodes: Node[], edges: Edge[]): Node[] => {
   if (!Array.isArray(nodes) || nodes.length === 0) return [];
 
+  // Create a mutable copy of nodes for d3 to mutate
+  const simulationNodes = nodes.map(n => ({ ...n })) as SimulationNode[];
+
   const simulation = d3
-    .forceSimulation(nodes)
+    .forceSimulation(simulationNodes)
     .force(
       'link',
       d3
-        .forceLink<Node, Edge>(edges)
+        .forceLink<SimulationNode, d3.SimulationLinkDatum<SimulationNode>>(edges)
         .id((d: any) => d.id)
         .distance(GALAXY_DENSITY.FORCE_DISTANCE) // Reduced from 150
         .strength(0.5)
@@ -103,7 +109,7 @@ export const getForceDirectedLayout = (nodes: Node[], edges: Edge[]): Node[] => 
 
   for (let i = 0; i < 300; ++i) simulation.tick();
 
-  return nodes.map((node) => ({
+  return simulationNodes.map((node) => ({
     ...node,
     position: { x: node.x || 0, y: node.y || 0 },
     data: { ...node.data, viewMode: 'galaxy' } // Add viewMode marker

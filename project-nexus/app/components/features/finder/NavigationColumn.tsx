@@ -1,4 +1,4 @@
-import { FinderDimension } from './types';
+import { FinderDimension, FinderColumn } from './types';
 import { TagNode, TimeNode } from './finder-data-utils';
 import { cn } from '@/lib/utils';
 import { ChevronRight, Folder } from 'lucide-react';

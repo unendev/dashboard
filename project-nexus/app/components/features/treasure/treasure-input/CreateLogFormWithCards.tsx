@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { ThreeLayerCategorySelector } from '../../shared/ThreeLayerCategorySelector'
-import { EnhancedInstanceTagInput } from '../../shared/EnhancedInstanceTagInput'
+import { ThreeLayerCategorySelector } from '../../../shared/ThreeLayerCategorySelector'
+import { EnhancedInstanceTagInput } from '../../../shared/EnhancedInstanceTagInput'
 import { Input } from '@/app/components/ui/input'
 import { Button } from '@/app/components/ui/button'
 
@@ -60,7 +60,7 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
   const handleSubmit = async () => {
     // 获取分类最后一层名称
     const lastCategoryName = getLastCategoryName()
-    
+
     // 【修改】如果任务名为空，优先使用第一个事务项标签作为任务名；否则使用分类名
     let finalTaskName = taskName.trim()
     if (!finalTaskName && selectedTags.length > 0) {
@@ -79,12 +79,12 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
       return
     }
 
-      if (onAddToTimer) {
-        // 将事务项数组转换为逗号分隔的字符串
-        const tagsString = selectedTags.length > 0 ? selectedTags.join(',') : undefined
-        // 解析时间输入
-        const initialTime = parseTimeInput(timeInput)
-      
+    if (onAddToTimer) {
+      // 将事务项数组转换为逗号分隔的字符串
+      const tagsString = selectedTags.length > 0 ? selectedTags.join(',') : undefined
+      // 解析时间输入
+      const initialTime = parseTimeInput(timeInput)
+
       // 📝 [CreateLogFormWithCards] 日志：表单提交数据
       console.log('📝 [CreateLogFormWithCards] 表单提交数据:', {
         finalTaskName,
@@ -96,14 +96,14 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
         tagsString,
         parseTimeInputResult: initialTime
       })
-        
+
       // 立即重置表单和关闭加载状态（乐观更新）
-        setTaskName('')
-        setSelectedCategory('')
-        setSelectedTags([])
-        setTimeInput('')
+      setTaskName('')
+      setSelectedCategory('')
+      setSelectedTags([])
+      setTimeInput('')
       setIsLoading(false)
-      
+
       // 异步创建任务（不阻塞 UI）
       onAddToTimer(finalTaskName, selectedCategory, selectedDate || '', initialTime, tagsString).catch((error) => {
         console.error('❌ [CreateLogFormWithCards] 添加任务失败:', error)
@@ -115,8 +115,8 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
   }
 
   // 计算任务名 placeholder
-  const taskNamePlaceholder = selectedCategory 
-    ? `输入任务名称（默认使用：${getLastCategoryName()}）...` 
+  const taskNamePlaceholder = selectedCategory
+    ? `输入任务名称（默认使用：${getLastCategoryName()}）...`
     : '输入要创建的任务名称...'
 
   return (
@@ -158,7 +158,7 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
           className="text-base"
         />
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          💡 支持格式：<code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">90</code> (分钟) 或 
+          💡 支持格式：<code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">90</code> (分钟) 或
           <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded ml-1">1h30m</code> (1小时30分钟)
         </p>
       </div>

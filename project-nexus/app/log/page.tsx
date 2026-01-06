@@ -21,7 +21,7 @@ export default function LogPage() {
   const timerOps = useTimerOperations(pageState.timerTasks, pageState.setTimerTasks, userId, pageState.selectedDate, pageState.fetchTimerTasks, pageState.fetchOperationRecords);
   const modals = useModalControls();
   // const [aiStatus, setAiStatus] = React.useState<{ status: AIStatus; message: string; details?: string }>({ status: 'idle', message: '' }); // Commented out
-  
+
   const handleSmartCreate = async (input: string) => {
     modals.closeCreateLogModal();
     // setAiStatus({ status: 'analyzing', message: `正在分析: "${input}"` }); // Commented out
@@ -42,13 +42,64 @@ export default function LogPage() {
     <div className="log-page-gradient-layout">
       <PrivacyLayer />
       {/* <AIStatusLog status={aiStatus.status} message={aiStatus.message} details={aiStatus.details} /> */} {/* Commented out */}
-      <LogPageHeader userName={session?.user?.name} onCreateLog={modals.openCreateLogModal} selectedDate={pageState.selectedDate} onDateChange={pageState.setSelectedDate} />
-      <ModalsManager isCreateLogModalOpen={modals.isCreateLogModalOpen} onCloseCreateLogModal={modals.closeCreateLogModal} onLogSaved={modals.handleLogSaved} onAddToTimer={async (name, cat, d, time, tags, pId) => { await timerOps.handleQuickCreate({ name, categoryPath: cat, date: d, initialTime: time || 0, instanceTagNames: tags ? tags.split(',') : [], autoStart: false, parentId: pId }); modals.closeCreateLogModal(); }} onSmartCreate={handleSmartCreate} selectedDate={pageState.selectedDate} isTreasureModalOpen={modals.isTreasureModalOpen} treasureModalType={modals.treasureModalType} onCloseTreasureModal={modals.closeTreasureModal} onCreateTreasure={modals.handleCreateTreasure} showSuccessNotification={modals.showSuccessNotification} isDailyProgressOpen={modals.isDailyProgressOpen} progressTargetDate={modals.progressTargetDate} onCloseDailyProgress={modals.closeDailyProgress} onProgressConfirmed={modals.handleProgressConfirmed} />
+      <LogPageHeader
+        userName={session?.user?.name}
+        onCreateLog={modals.openCreateLogModal}
+        selectedDate={pageState.selectedDate}
+        onDateChange={pageState.setSelectedDate}
+        onWeeklyReview={() => console.log('Weekly Review clicked')}
+        operationHistory={pageState.operationHistory}
+        isOperationHistoryExpanded={pageState.isOperationHistoryExpanded}
+        onToggleOperationHistory={() => pageState.setIsOperationHistoryExpanded(!pageState.isOperationHistoryExpanded)}
+        operationHistoryRef={pageState.operationHistoryRef}
+      />
+      <ModalsManager
+        isCreateLogModalOpen={modals.isCreateLogModalOpen}
+        onCloseCreateLogModal={modals.closeCreateLogModal}
+        onLogSaved={modals.handleLogSaved}
+        onAddToTimer={async (name, cat, d, time, tags, pId) => { await timerOps.handleQuickCreate({ name, categoryPath: cat, date: d, initialTime: time || 0, instanceTagNames: tags ? tags.split(',') : [], autoStart: false, parentId: pId }); modals.closeCreateLogModal(); }}
+        // onSmartCreate={handleSmartCreate} // Removed as it's not in ModalsManagerProps anymore or causing issues
+        selectedDate={pageState.selectedDate}
+        isTreasureModalOpen={modals.isTreasureModalOpen}
+        treasureModalType={modals.treasureModalType}
+        onCloseTreasureModal={modals.closeTreasureModal}
+        onCreateTreasure={modals.handleCreateTreasure}
+        showSuccessNotification={modals.showSuccessNotification}
+        isDailyProgressOpen={modals.isDailyProgressOpen}
+        progressTargetDate={modals.progressTargetDate}
+        onCloseDailyProgress={modals.closeDailyProgress}
+        onProgressConfirmed={modals.handleProgressConfirmed}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
-        <TimerSection tasks={pageState.timerTasks} userId={userId} selectedDate={pageState.selectedDate} onTasksChange={pageState.setTimerTasks} onDateChange={pageState.setSelectedDate} onQuickCreate={timerOps.handleQuickCreate} timerControl={timerOps.timerControl} className="order-1 lg:order-2" />
+        <TimerSection
+          tasks={pageState.timerTasks}
+          userId={userId}
+          selectedDate={pageState.selectedDate}
+          isMobile={pageState.isMobile}
+          onTasksChange={pageState.setTimerTasks}
+          onDateChange={pageState.setSelectedDate}
+          onQuickCreate={timerOps.handleQuickCreate}
+          timerControl={timerOps.timerControl}
+          onVersionConflict={timerOps.handleVersionConflict}
+          onTasksPaused={timerOps.handleTasksPaused}
+          onOperationRecord={timerOps.recordOperation}
+          onRequestAutoStart={timerOps.handleRequestAutoStart}
+          scrollContainerRef={timerOps.scrollContainerRef}
+          onSaveScrollPosition={timerOps.saveScrollPosition}
+          onSaveScrollPositionNow={timerOps.saveScrollPositionNow}
+          className="order-1 lg:order-2"
+        />
         <LeftSidebar className="order-2 lg:order-1" />
       </div>
-      <StatsSection userId={userId} tasks={pageState.rangeTimerTasks} dateRange={pageState.dateRange} onDateRangeChange={pageState.setDateRange} />
+      <StatsSection
+        userId={userId}
+        tasks={pageState.rangeTimerTasks}
+        dateRange={pageState.dateRange}
+        onDateRangeChange={pageState.setDateRange}
+        mode={pageState.isMobile ? (pageState.activeSection === 'ai' ? 'mobile-ai' : 'mobile-stats') : 'desktop'}
+        onOpenDailyProgress={modals.openDailyProgress}
+        onOpenTreasure={modals.openTreasureModal}
+      />
     </div>
   );
 }

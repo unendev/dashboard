@@ -1,0 +1,19 @@
+Searching for TimerTasks with date: "2026-01-06"...
+Error querying database: PrismaClientKnownRequestError: 
+Invalid `prisma.timerTask.findMany()` invocation in
+D:\Study\Vue-\dashboard\project-nexus\verify-data-v3.cjs:31:46
+
+  28 console.log(`Searching for TimerTasks with date: "${dateStr}"...`);
+  29 
+  30 try {
+鈫?31     const tasks = await prisma.timerTask.findMany(
+The table `public.timer_tasks` does not exist in the current database.
+    at ei.handleRequestError (D:\Study\Vue-\dashboard\project-nexus\node_modules\.pnpm\@prisma+client@6.19.1_prism_d4c309513f45d21f4e4aa7921d8002c7\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Study\Vue-\dashboard\project-nexus\node_modules\.pnpm\@prisma+client@6.19.1_prism_d4c309513f45d21f4e4aa7921d8002c7\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Study\Vue-\dashboard\project-nexus\node_modules\.pnpm\@prisma+client@6.19.1_prism_d4c309513f45d21f4e4aa7921d8002c7\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Study\Vue-\dashboard\project-nexus\node_modules\.pnpm\@prisma+client@6.19.1_prism_d4c309513f45d21f4e4aa7921d8002c7\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async main (D:\Study\Vue-\dashboard\project-nexus\verify-data-v3.cjs:31:23) {
+  code: 'P2021',
+  meta: { modelName: 'TimerTask', table: 'public.timer_tasks' },
+  clientVersion: '6.19.1'
+}

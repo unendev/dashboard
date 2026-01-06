@@ -12,6 +12,7 @@ interface QuickCreateData {
   initialTime: number;
   autoStart: boolean;
   date?: string;
+  parentId?: string | null;
 }
 
 /**
@@ -145,66 +146,59 @@ export function useTimerOperations(
       initialTimeType: typeof data.initialTime,
       initialTimeInMinutes: data.initialTime ? data.initialTime / 60 : 0,
       initialTimeIsUndefined: data.initialTime === undefined,
-      console.log('📝 [handleQuickCreate] 接收到的数据:', {
-        ...data,
-        instanceTagNames: data.instanceTagNames,
-        initialTime: data.initialTime,
-        initialTimeType: typeof data.initialTime,
-        initialTimeInMinutes: data.initialTime ? data.initialTime / 60 : 0,
-        initialTimeIsUndefined: data.initialTime === undefined,
-        initialTimeIsNull: data.initialTime === null
-      });
 
-      if(isCreatingTask) {
-        console.log('⏸️ [handleQuickCreate] 任务正在创建中，请稍候...');
-        return;
-      }
+    });
+
+    if (isCreatingTask) {
+      console.log('⏸️ [handleQuickCreate] 任务正在创建中，请稍候...');
+      return;
+    }
 
     setIsCreatingTask(true);
-    
+
     const newOrder = 0;
-      // 如果指定了 initialTime，则 elapsedTime 应该等于 initialTime（表示已完成预设时间）
-      const elapsedTime = data.initialTime > 0 ? data.initialTime : 0;
+    // 如果指定了 initialTime，则 elapsedTime 应该等于 initialTime（表示已完成预设时间）
+    const elapsedTime = data.initialTime > 0 ? data.initialTime : 0;
 
-      // 📝 [handleQuickCreate] 日志：计算 elapsedTime
-      console.log('📝 [handleQuickCreate] 计算 elapsedTime:', {
-        dataInitialTime: data.initialTime,
-        dataInitialTimeInMinutes: data.initialTime ? data.initialTime / 60 : 0,
-        calculatedElapsedTime: elapsedTime,
-        calculatedElapsedTimeInMinutes: elapsedTime / 60,
-        condition: data.initialTime > 0 ? 'true (使用 initialTime)' : 'false (使用 0)'
-      });
+    // 📝 [handleQuickCreate] 日志：计算 elapsedTime
+    console.log('📝 [handleQuickCreate] 计算 elapsedTime:', {
+      dataInitialTime: data.initialTime,
+      dataInitialTimeInMinutes: data.initialTime ? data.initialTime / 60 : 0,
+      calculatedElapsedTime: elapsedTime,
+      calculatedElapsedTimeInMinutes: elapsedTime / 60,
+      condition: data.initialTime > 0 ? 'true (使用 initialTime)' : 'false (使用 0)'
+    });
 
-      const tempId = `temp-${Date.now()}`;
-      const parsedInitialTime = data.initialTime; // Assuming data.initialTime is already in seconds
+    const tempId = `temp-${Date.now()}`;
+    const parsedInitialTime = data.initialTime; // Assuming data.initialTime is already in seconds
 
-      const tempTask: TimerTask = {
-        id: tempId,
-        name: data.name,
-        categoryPath: data.categoryPath || '未分类',
-        // 强制单标签逻辑：取第一个标签或 null
-        instanceTag: data.instanceTagNames.length > 0 ? data.instanceTagNames[0] : null,
-        instanceTags: data.instanceTagNames.map(name => ({ instanceTag: { name } })),
-        elapsedTime: 0,
-        initialTime: parsedInitialTime,
-        isRunning: false,
-        startTime: null,
-        isPaused: false,
-        pausedTime: 0,
-        order: newOrder,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    const tempTask: TimerTask = {
+      id: tempId,
+      name: data.name,
+      categoryPath: data.categoryPath || '未分类',
+      // 强制单标签逻辑：取第一个标签或 null
+      instanceTag: data.instanceTagNames.length > 0 ? data.instanceTagNames[0] : null,
+      instanceTags: data.instanceTagNames.map(name => ({ instanceTag: { name } })),
+      elapsedTime: 0,
+      initialTime: parsedInitialTime,
+      isRunning: false,
+      startTime: null,
+      isPaused: false,
+      pausedTime: 0,
+      order: newOrder,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-      // 📝 [handleQuickCreate] 日志：临时任务数据
-      console.log('📝 [handleQuickCreate] 创建的临时任务:', {
-        ...tempTask,
-        initialTimeInMinutes: tempTask.initialTime / 60,
-        elapsedTimeInMinutes: tempTask.elapsedTime / 60
-      });
+    // 📝 [handleQuickCreate] 日志：临时任务数据
+    console.log('📝 [handleQuickCreate] 创建的临时任务:', {
+      ...tempTask,
+      initialTimeInMinutes: tempTask.initialTime / 60,
+      elapsedTimeInMinutes: tempTask.elapsedTime / 60
+    });
 
-      // 乐观更新 UI（立即更新，不等待 API）
-      setTimerTasks([tempTask, ...timerTasks]);
+    // 乐观更新 UI（立即更新，不等待 API）
+    setTimerTasks([tempTask, ...timerTasks]);
     recordOperation('快速创建任务', data.name, `分类: ${data.categoryPath}`);
 
     // 立即重置创建状态，允许创建框关闭
@@ -238,7 +232,8 @@ export function useTimerOperations(
         pausedTime: 0,
         order: newOrder,
         date: data.date || selectedDate,
-        userId: userId
+        userId: userId,
+        parentId: data.parentId || null
       };
 
       // 📝 [handleQuickCreate] 日志：发送到 API 的数据
@@ -248,26 +243,18 @@ export function useTimerOperations(
         initialTimeInMinutes: newTask.initialTime / 60,
         elapsedTime: newTask.elapsedTime,
         elapsedTimeInMinutes: newTask.elapsedTime / 60,
-        console.log('📝 [handleQuickCreate] 发送到 API 的数据:', {
-          ...newTask,
-          instanceTagNames: newTask.instanceTagNames,
-          instanceTag: newTask.instanceTag,
-          initialTime: newTask.initialTime,
-          initialTimeInMinutes: newTask.initialTime / 60,
-          elapsedTime: newTask.elapsedTime,
-          elapsedTimeInMinutes: newTask.elapsedTime / 60,
-          requestBody: JSON.stringify(newTask, null, 2)
-        });
 
-        const response = await fetch('/api/timer-tasks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(newTask),
-        });
+      });
 
-        if(response.ok) {
+      const response = await fetch('/api/timer-tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTask),
+      });
+
+      if (response.ok) {
         const createdTask = await response.json();
 
         // 📝 [handleQuickCreate] 日志：API 响应数据

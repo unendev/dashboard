@@ -10,16 +10,16 @@ interface ModalsManagerProps {
   isCreateLogModalOpen: boolean;
   onCloseCreateLogModal: () => void;
   onLogSaved: () => void;
-  onAddToTimer: (taskName: string, category: string, date: string, initialTime?: number, instanceTagNames?: string) => Promise<void>;
+  onAddToTimer: (taskName: string, category: string, date: string, initialTime?: number, instanceTagNames?: string, parentId?: string | null) => Promise<void>;
   selectedDate?: string;
-  
+
   // QuickCreateModal (藏宝阁)
   isTreasureModalOpen: boolean;
   treasureModalType: 'TEXT' | 'IMAGE';
   onCloseTreasureModal: () => void;
   onCreateTreasure: (data: CreateTreasureData) => Promise<void>;
   showSuccessNotification: boolean;
-  
+
   // DailyProgressModal
   isDailyProgressOpen: boolean;
   progressTargetDate: string;

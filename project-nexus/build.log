@@ -1,0 +1,140 @@
+
+> project-nexus@0.1.0 build D:\Study\Vue-\dashboard\project-nexus
+> next build
+
+ 鈿?Warning: Found multiple lockfiles. Selecting D:\Study\Vue-\dashboard\pnpm-lock.yaml.
+   Consider removing the lockfiles at:
+   * D:\Study\Vue-\dashboard\project-nexus\pnpm-lock.yaml
+
+   鈻?Next.js 15.4.8
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ 鉁?Compiled successfully in 19.0s
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+ 鈿?Using edge runtime on a page currently disables static generation for that page
+   Generating static pages (0/84) ...
+   Generating static pages (21/84) 
+   Generating static pages (42/84) 
+   Generating static pages (63/84) 
+[YouTube API] Attempting to fetch videos. API Key loaded: Yes
+Found 5 real programming videos
+ 鉁?Generating static pages (84/84)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS  Revalidate  Expire
+鈹?鈼?/                                    55.6 kB         330 kB
+鈹?鈼?/_not-found                             1 kB         102 kB
+鈹?鈼?/admin/rooms                         3.48 kB         112 kB
+鈹?茠 /api/admin/merge-tasks                 322 B         101 kB
+鈹?茠 /api/admin/rooms/delete                322 B         101 kB
+鈹?茠 /api/ai-summary                        322 B         101 kB
+鈹?茠 /api/ai-summary/cron                   322 B         101 kB
+鈹?茠 /api/aichat                            322 B         101 kB
+鈹?茠 /api/auth/[...nextauth]                322 B         101 kB
+鈹?茠 /api/auth/ensure-demo-user             322 B         101 kB
+鈹?茠 /api/auth/register                     322 B         101 kB
+鈹?茠 /api/auth/token                        322 B         101 kB
+鈹?茠 /api/bili-users                        322 B         101 kB
+鈹?鈼?/api/bilibili-feeds                    322 B         101 kB         10m      1y
+鈹?茠 /api/chat                              322 B         101 kB
+鈹?茠 /api/chat_DISABLED                     322 B         101 kB
+鈹?茠 /api/chat/goc                          322 B         101 kB
+鈹?茠 /api/chat/widget                       322 B         101 kB
+鈹?茠 /api/config                            322 B         101 kB
+鈹?茠 /api/example-auth                      322 B         101 kB
+鈹?茠 /api/heybox                            322 B         101 kB
+鈹?茠 /api/heybox/dates                      322 B         101 kB
+鈹?茠 /api/image-proxy                       322 B         101 kB
+鈹?茠 /api/instance-tags                     322 B         101 kB
+鈹?茠 /api/instance-tags/[id]                322 B         101 kB
+鈹?茠 /api/layout                            322 B         101 kB
+鈹?茠 /api/linuxdo                           322 B         101 kB
+鈹?茠 /api/linuxdo/dates                     322 B         101 kB
+鈹?茠 /api/liveblocks-auth                   322 B         101 kB
+鈹?茠 /api/log-categories                    322 B         101 kB
+鈹?茠 /api/log/smart-create                  322 B         101 kB
+鈹?茠 /api/logs                              322 B         101 kB
+鈹?茠 /api/maintenance/cleanup-tags          322 B         101 kB
+鈹?茠 /api/milestones                        322 B         101 kB
+鈹?茠 /api/milestones/generate-draft         322 B         101 kB
+鈹?茠 /api/notes                             322 B         101 kB
+鈹?茠 /api/notes/[id]                        322 B         101 kB
+鈹?茠 /api/notes/reorder                     322 B         101 kB
+鈹?茠 /api/operation-records                 322 B         101 kB
+鈹?茠 /api/post-tags                         322 B         101 kB
+鈹?茠 /api/progress/analyze                  322 B         101 kB
+鈹?茠 /api/progress/confirm                  322 B         101 kB
+鈹?茠 /api/progress/refine                   322 B         101 kB
+鈹?茠 /api/reddit                            322 B         101 kB
+鈹?茠 /api/reddit/comments                   322 B         101 kB
+鈹?茠 /api/reddit/dates                      322 B         101 kB
+鈹?茠 /api/sea-turtle-soup                   322 B         101 kB
+鈹?茠 /api/skills                            322 B         101 kB
+鈹?茠 /api/spotify/callback                  322 B         101 kB
+鈹?茠 /api/spotify/login                     322 B         101 kB
+鈹?茠 /api/stories                           322 B         101 kB
+鈹?茠 /api/timer-tasks                       322 B         101 kB
+鈹?茠 /api/timer-tasks/[id]/instance         322 B         101 kB
+鈹?茠 /api/timer-tasks/clear-instance-tag    322 B         101 kB
+鈹?茠 /api/timer-tasks/instance-tags         322 B         101 kB
+鈹?茠 /api/timer-tasks/parse                 322 B         101 kB
+鈹?茠 /api/timer-tasks/running               322 B         101 kB
+鈹?茠 /api/timer-tasks/stats/by-instance     322 B         101 kB
+鈹?茠 /api/treasures                         322 B         101 kB
+鈹?茠 /api/treasures/[id]                    322 B         101 kB
+鈹?茠 /api/treasures/[id]/ai-tag             322 B         101 kB
+鈹?茠 /api/treasures/ai-suggest-tags         322 B         101 kB
+鈹?茠 /api/treasures/search-rag              322 B         101 kB
+鈹?茠 /api/treasures/tags                    322 B         101 kB
+鈹?茠 /api/upload/oss/sign-url               322 B         101 kB
+鈹?茠 /api/upload/oss/signature              322 B         101 kB
+鈹?茠 /api/webread/chat                      322 B         101 kB
+鈹?茠 /api/webread/cover                     322 B         101 kB
+鈹?茠 /api/webread/notes                     322 B         101 kB
+鈹?茠 /api/webread/webdav-config             322 B         101 kB
+鈹?茠 /api/webread/webdav-proxy              322 B         101 kB
+鈹?茠 /api/widget/ai/sessions                322 B         101 kB
+鈹?茠 /api/widget/memo                       322 B         101 kB
+鈹?茠 /api/widget/todo                       322 B         101 kB
+鈹?鈼?/api/youtube                           322 B         101 kB         10m      1y
+鈹?鈼?/api/youtube/liked                     322 B         101 kB         10m      1y
+鈹?茠 /api/youtube/liked-public              322 B         101 kB
+鈹?鈼?/api/youtube/playlists                 322 B         101 kB         10m      1y
+鈹?茠 /api/youtube/real-liked                322 B         101 kB
+鈹?鈼?/auth/register                       2.45 kB         112 kB
+鈹?鈼?/auth/signin                         2.46 kB         112 kB
+鈹?茠 /dashboard                            4.7 kB         146 kB
+鈹?鈼?/dev-auth                            1.86 kB         103 kB
+鈹?鈼?/install                               322 B         101 kB
+鈹?鈼?/log                                  405 kB         738 kB
+鈹?鈼?/log/create                          2.45 kB         111 kB
+鈹?鈼?/oauth-test                            816 B         111 kB
+鈹?鈼?/progress                            3.07 kB         113 kB
+鈹?茠 /review                              3.34 kB         104 kB
+鈹?茠 /room/[roomId]                        158 kB         432 kB
+鈹?茠 /russian                               322 B         101 kB
+鈹?茠 /russian/[conversationId]            8.68 kB         153 kB
+鈹?鈼?/sea-turtle-soup                       322 B         101 kB
+鈹?茠 /sea-turtle-soup/dashboard           4.33 kB         142 kB
+鈹?茠 /sea-turtle-soup/play/[storyId]      5.65 kB         115 kB
+鈹?鈼?/test-tags                           3.93 kB         116 kB
+鈹?鈼?/treasure-pavilion                   14.7 kB         349 kB
+鈹?鈼?/treasure-pavilion/mindmap           6.05 kB         296 kB
+鈹?鈼?/twitter-cache                       1.64 kB         102 kB
+鈹?鈼?/webread                             8.95 kB         158 kB
+鈹?茠 /webread/read/[id]                    111 kB         259 kB
++ First Load JS shared by all             101 kB
+  鈹?chunks/1910-c7be0cfa5c7743d8.js      44.6 kB
+  鈹?chunks/71a68589-166ff9172853e661.js  54.1 kB
+  鈹?other shared chunks (total)          2.02 kB
+
+
+茠 Middleware                             33.1 kB
+
+鈼? (Static)   prerendered as static content
+茠  (Dynamic)  server-rendered on demand
+

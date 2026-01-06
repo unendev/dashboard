@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         userId,
         ...rest,
         tags: normalizedTags,
-        theme,
+        theme: Array.isArray(theme) ? theme : theme ? [theme] : [],
         images: { create: images }
       }
     });
