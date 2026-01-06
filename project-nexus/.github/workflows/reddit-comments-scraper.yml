@@ -1,0 +1,86 @@
+name: Reddit 评论采集器
+
+on:
+  # 每天UTC 18:00运行 (对应北京时间02:00) - 先运行评论采集
+  schedule:
+    - cron: '0 18 * * *'
+  
+  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      max_posts:
+        description: '最多处理的帖子数量'
+        required: false
+        default: '20'
+        type: string
+
+jobs:
+  scrape-reddit-comments:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: 安装依赖
+      run: |
+        cd linuxdo-scraper
+        pip install -r requirements.txt
+        
+    - name: 运行 Reddit 评论采集器
+      env:
+        # Reddit API 凭证 (需要在 GitHub Secrets 中配置)
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        REDDIT_REFRESH_TOKEN: ${{ secrets.REDDIT_REFRESH_TOKEN }}
+        
+        # 数据库连接
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        
+        # DeepSeek API (如果需要的话)
+        DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      run: |
+        cd linuxdo-scraper/reddit_scraper
+        python reddit_comments_scraper.py
+        
+    - name: 上传日志文件 (如果失败)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: reddit-comments-logs
+        path: linuxdo-scraper/reddit_scraper/logs/
+        retention-days: 7
+        
+    - name: 通知结果 (可选)
+      if: always()
+      run: |
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ Reddit 评论采集成功完成"
+        else
+          echo "❌ Reddit 评论采集失败，请检查日志"
+        fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

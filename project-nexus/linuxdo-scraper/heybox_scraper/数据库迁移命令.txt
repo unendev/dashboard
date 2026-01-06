@@ -1,0 +1,79 @@
+# 小黑盒爬虫 - 数据库迁移命令
+
+## 重要说明
+schema.prisma 中已经包含了 heybox_posts 和 heybox_comments 模型定义
+只需要执行迁移命令将schema应用到数据库
+
+## 迁移命令
+
+### 方法1: 开发环境迁移（推荐）
+```bash
+npx prisma migrate dev --name add_heybox_tables
+```
+
+### 方法2: 生产环境迁移
+```bash
+npx prisma migrate deploy
+```
+
+### 方法3: 强制推送schema（慎用）
+```bash
+npx prisma db push
+```
+
+## 验证迁移
+
+### 检查数据库表
+```bash
+npx prisma studio
+```
+
+### 生成Prisma客户端
+```bash
+npx prisma generate
+```
+
+## 如果迁移失败
+
+### 数据库连接问题
+```bash
+# 检查DATABASE_URL
+echo %DATABASE_URL%  # Windows
+echo $DATABASE_URL   # Linux/Mac
+
+# 测试连接
+npx prisma db pull
+```
+
+### 重置数据库（警告：会删除所有数据）
+```bash
+npx prisma migrate reset
+```
+
+## 迁移后的表结构
+
+✅ heybox_posts (主表)
+   - id (String, Primary Key)
+   - title, url, author, avatar_url
+   - cover_image, content_summary
+   - likes_count, comments_count, views_count
+   - game_tag
+   - core_issue, key_info (JSON), post_type
+   - value_assessment, detailed_analysis
+   - timestamp
+
+✅ heybox_comments (评论表)
+   - id (String, Primary Key)
+   - post_id (外键 → heybox_posts.id)
+   - author, content
+   - likes_count, created_at
+   - parent_id, depth
+   - scraped_at
+
+## 注意事项
+
+1. ✅ Schema已在 prisma/schema.prisma 第731-770行
+2. 🔄 如遇网络问题，可等待后再试
+3. 🗄️ GitHub Actions会自动使用DATABASE_URL
+4. 📦 迁移文件会自动生成在 prisma/migrations/
+

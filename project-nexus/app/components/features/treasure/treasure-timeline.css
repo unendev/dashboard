@@ -1,0 +1,48 @@
+/* 时间线自定义滚动条样式 - 更精致 */
+.timeline-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.timeline-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.timeline-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.timeline-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 时间线渐变动画 */
+@keyframes timeline-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.timeline-gradient-animate {
+  animation: timeline-pulse 3s ease-in-out infinite;
+}
+
+/* 时间线项hover效果 */
+@keyframes node-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(59, 130, 246, 0.3);
+  }
+}
+

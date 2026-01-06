@@ -1,0 +1,39 @@
+name: Reddit 爬虫定时任务
+
+on:
+  schedule:
+    # 每天 UTC 18:30 运行（北京时间 02:30）- 评论采集后30分钟运行
+    - cron: '30 18 * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  scrape-reddit:
+    runs-on: ubuntu-latest
+    # 不需要写权限，数据直接存入 Neon 数据库
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          cd linuxdo-scraper
+          pip install -r requirements.txt
+
+      - name: 运行 Reddit 爬虫
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GITHUB_ACTIONS: true
+        run: |
+          cd linuxdo-scraper/reddit_scraper
+          python reddit_scraper_multi.py
+      
+      # 注意：数据已存入 Neon 数据库，前端直接从数据库读取
+      # 不需要提交 JSON/MD 文件到 GitHub

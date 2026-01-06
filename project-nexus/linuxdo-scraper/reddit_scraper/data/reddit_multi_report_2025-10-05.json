@@ -1,0 +1,465 @@
+{
+  "meta": {
+    "report_date": "2025-10-05",
+    "title": "Reddit技术+游戏开发每日报告 (2025-10-05)",
+    "subreddits": [
+      "technology",
+      "gamedev",
+      "godot",
+      "Unity3D",
+      "unrealengine"
+    ],
+    "post_count": 25,
+    "generation_time": "2025-10-05T11:24:35.017703",
+    "status": "success"
+  },
+  "summary": {
+    "overview": "今日技术板块聚焦AI资源危机、医疗突破与言论自由等重大社会议题，游戏开发社区则围绕引擎更新、新手指导和项目展示展开活跃讨论。",
+    "highlights": {
+      "tech_news": [
+        "AI数据中心需求激增可能导致内存存储供应短缺与十年定价危机",
+        "突破性血液检测技术可提前10年头颈癌早期诊断",
+        "Unity引擎曝安全漏洞影响多平台应用构建"
+      ],
+      "dev_insights": [
+        "Godot 4.5.1候选版发布并举办年度开发者大会",
+        "新手开发指南整合引擎选择与学习路径核心问题",
+        "开发者分享重构版3D纹理生成工具并开源代码"
+      ],
+      "hot_topics": [
+        "航天飞机搬迁引发的文物保护与技术可行性争议",
+        "2D像素风格游戏遭玩家负面评价引发的艺术风格讨论",
+        "紧急求助类帖子反映开发末期技术难题的普遍性"
+      ]
+    },
+    "conclusion": "从AI引发的全球供应链震荡到开发者凌晨赶工的崩溃瞬间，科技圈永远在创造未来与解决麻烦之间反复横跳。"
+  },
+  "posts": [
+    {
+      "id": "reddit_technology_1ny3who",
+      "subreddit": "technology",
+      "title": "White House told only way to move Discovery is to chop it up. Smithsonian warns that dismantling orbiter for relocation is history in the wrecking",
+      "title_cn": "白宫被告知移动'发现号'航天飞机的唯一方法是将其切割分解，史密森尼学会警告称拆卸轨道器搬迁将使其沦为历史残骸",
+      "url": "https://www.reddit.com/r/technology/comments/1ny3who/white_house_told_only_way_to_move_discovery_is_to/",
+      "analysis": {
+        "title_cn": "白宫被告知移动'发现号'航天飞机的唯一方法是将其切割分解，史密森尼学会警告称拆卸轨道器搬迁将使其沦为历史残骸",
+        "core_issue": "关于如何搬迁'发现号'航天飞机引发的文物保护与搬迁技术难题的争议",
+        "key_info": [
+          "白宫收到建议称搬迁发现号航天飞机必须将其切割分解",
+          "史密森尼学会强烈反对拆卸方案，认为这会破坏历史文物价值"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_technology_1nyblcw",
+      "subreddit": "technology",
+      "title": "Breakthrough Blood Test Detects Head and Neck Cancer up to 10 Years Before Symptoms",
+      "title_cn": "突破性血液检测可在头颈癌症状出现前10年发现疾病",
+      "url": "https://www.reddit.com/r/technology/comments/1nyblcw/breakthrough_blood_test_detects_head_and_neck/",
+      "analysis": {
+        "title_cn": "突破性血液检测可在头颈癌症状出现前10年发现疾病",
+        "core_issue": "一项新型血液检测技术能够提前10年检测出头颈癌，实现早期诊断。",
+        "key_info": [
+          "该检测方法通过血液样本进行，属于非侵入性检测",
+          "检测窗口期长达症状出现前10年，显著早于传统诊断方法"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_technology_1ny829x",
+      "subreddit": "technology",
+      "title": "Tunisian man sentenced to death for Facebook posts criticizing president",
+      "title_cn": "突尼斯男子因在Facebook发帖批评总统被判处死刑",
+      "url": "https://www.reddit.com/r/technology/comments/1ny829x/tunisian_man_sentenced_to_death_for_facebook/",
+      "analysis": {
+        "title_cn": "突尼斯男子因在Facebook发帖批评总统被判处死刑",
+        "core_issue": "一名突尼斯男子因在社交媒体上发表批评总统的言论而被判处死刑，引发对言论自由与科技平台责任的关注。",
+        "key_info": [
+          "事件发生在突尼斯，涉及Facebook平台上的言论",
+          "判决结果为死刑，原因是批评总统的言论"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_technology_1nydy5c",
+      "subreddit": "technology",
+      "title": "AI data centers are swallowing the world's memory and storage supply, setting the stage for a pricing apocalypse that could last a decade",
+      "title_cn": "人工智能数据中心正在吞噬全球内存和存储供应，或将引发持续十年的定价危机",
+      "url": "https://www.reddit.com/r/technology/comments/1nydy5c/ai_data_centers_are_swallowing_the_worlds_memory/",
+      "analysis": {
+        "title_cn": "人工智能数据中心正在吞噬全球内存和存储供应，或将引发持续十年的定价危机",
+        "core_issue": "人工智能数据中心对内存和存储资源的巨大需求正在导致全球供应紧张，可能引发长期的价格上涨危机。",
+        "key_info": [
+          "AI数据中心对内存和存储硬件的需求急剧增长",
+          "供应短缺可能导致持续多年的价格大幅上涨"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_technology_1nyb51u",
+      "subreddit": "technology",
+      "title": "Anduril and Palantir battlefield communication system 'very high risk,' US Army memo says",
+      "title_cn": "美国陆军备忘录称Anduril与Palantir战场通信系统'风险极高'",
+      "url": "https://www.reddit.com/r/technology/comments/1nyb51u/anduril_and_palantir_battlefield_communication/",
+      "analysis": {
+        "title_cn": "美国陆军备忘录称Anduril与Palantir战场通信系统'风险极高'",
+        "core_issue": "美国陆军内部文件指出两家科技公司的战场通信系统存在重大安全隐患。",
+        "key_info": [
+          "涉及企业为Anduril和Palantir两家国防科技公司",
+          "被评估系统为战场通信系统",
+          "美国陆军内部备忘录将其风险等级定为'非常高'"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_gamedev_1hchbk9",
+      "subreddit": "gamedev",
+      "title": "BEGINNER MEGATHREAD - How to get started? Which engine to pick? How do I make a game like X? Best course/tutorial? Which PC/Laptop do I buy?",
+      "title_cn": "新手综合讨论帖 - 如何入门？选择哪个引擎？如何制作类似X的游戏？推荐课程/教程？购买哪种电脑/笔记本？",
+      "url": "https://www.reddit.com/r/gamedev/comments/1hchbk9/beginner_megathread_how_to_get_started_which/",
+      "analysis": {
+        "title_cn": "新手综合讨论帖 - 如何入门？选择哪个引擎？如何制作类似X的游戏？推荐课程/教程？购买哪种电脑/笔记本？",
+        "core_issue": "为游戏开发新手提供全面的入门指导和资源整合",
+        "key_info": [
+          "汇总了社区推荐的游戏引擎选择指南和学习路径",
+          "提供了从零基础到入行的经验分享和资源链接"
+        ],
+        "post_type": "资源分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_gamedev_1np6kyn",
+      "subreddit": "gamedev",
+      "title": "My game's server is blocked in Spain whenever there's a football match on",
+      "title_cn": "我的游戏服务器在西班牙每逢足球比赛时就会被屏蔽",
+      "url": "https://www.reddit.com/r/gamedev/comments/1np6kyn/my_games_server_is_blocked_in_spain_whenever/",
+      "analysis": {
+        "title_cn": "我的游戏服务器在西班牙每逢足球比赛时就会被屏蔽",
+        "core_issue": "游戏开发者发现其游戏服务器在西班牙有足球比赛时出现无法访问的异常情况，但服务器本身运行正常。",
+        "key_info": [
+          "开发者制作了一款名为《Project Heartbeat》的节奏游戏，并在家中搭建了服务器",
+          "通过监控软件发现服务器在特定时间（足球比赛期间）出现无法访问的问题，但服务器日志显示运行正常"
+        ],
+        "post_type": "问题求助",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_gamedev_1nyldl5",
+      "subreddit": "gamedev",
+      "title": "IGN featured my trailer, most comments are about the “outdated” 2D graphics.",
+      "title_cn": "IGN推荐了我的游戏预告片，但多数评论都在吐槽“过时”的2D画面",
+      "url": "https://www.reddit.com/r/gamedev/comments/1nyldl5/ign_featured_my_trailer_most_comments_are_about/",
+      "analysis": {
+        "title_cn": "IGN推荐了我的游戏预告片，但多数评论都在吐槽“过时”的2D画面",
+        "core_issue": "开发者因游戏采用2D像素艺术风格遭到玩家负面评价，探讨不同玩家对画面风格的审美差异问题",
+        "key_info": [
+          "预告片被IGN推荐后，评论区焦点集中在被指为'过时'的2D画面上",
+          "开发者表达了对像素艺术风格的喜爱，并认为不同玩家对画面风格各有偏好"
+        ],
+        "post_type": "观点讨论",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_gamedev_1ny55kg",
+      "subreddit": "gamedev",
+      "title": "Is it bad for my first game to be a clone (kind of)?",
+      "title_cn": "我的第一款游戏是模仿之作（某种程度上），这样不好吗？",
+      "url": "https://www.reddit.com/r/gamedev/comments/1ny55kg/is_it_bad_for_my_first_game_to_be_a_clone_kind_of/",
+      "analysis": {
+        "title_cn": "我的第一款游戏是模仿之作（某种程度上），这样不好吗？",
+        "core_issue": "新手开发者询问将首款游戏设计为热门游戏的模仿版本是否合适。",
+        "key_info": [
+          "发帖者处于游戏开发预生产阶段，主要目的是学习从创作到发布的完整流程",
+          "游戏灵感来源于《迈阿密热线》，计划采用类似的核心玩法但会更换设定、武器并扩展能力系统"
+        ],
+        "post_type": "问题求助",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_gamedev_1nyj7fx",
+      "subreddit": "gamedev",
+      "title": "My Thoughts on Udemy Godot courses",
+      "title_cn": "我对Udemy上Godot课程的看法",
+      "url": "https://www.reddit.com/r/gamedev/comments/1nyj7fx/my_thoughts_on_udemy_godot_courses/",
+      "analysis": {
+        "title_cn": "我对Udemy上Godot课程的看法",
+        "core_issue": "作者分享了对Udemy平台上两位Godot游戏编程课程创作者教学质量的对比评价",
+        "key_info": [
+          "作者以业余爱好方式学习Godot编程，每月定期上Udemy课程",
+          "重点评价了两位教师：Richard Allbert被赞为高标准，另一位被贬为低标准"
+        ],
+        "post_type": "观点讨论",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_godot_1nv7jjr",
+      "subreddit": "godot",
+      "title": "Looking back at GodotCon US 2025",
+      "title_cn": "回顾2025年美国GodotCon大会",
+      "url": "https://www.reddit.com/r/godot/comments/1nv7jjr/looking_back_at_godotcon_us_2025/",
+      "analysis": {
+        "title_cn": "回顾2025年美国GodotCon大会",
+        "core_issue": "对2025年在波士顿举行的GodotCon大会进行总结，并告知所有演讲视频已在YouTube上发布。",
+        "key_info": [
+          "GodotCon波士顿大会已结束，可以进行回顾总结",
+          "大会的所有演讲内容现已在YouTube平台公开"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_godot_1nwcnic",
+      "subreddit": "godot",
+      "title": "Release candidate: Godot 4.5.1 RC 1",
+      "title_cn": "候选发布版：Godot 4.5.1 RC 1",
+      "url": "https://www.reddit.com/r/godot/comments/1nwcnic/release_candidate_godot_451_rc_1/",
+      "analysis": {
+        "title_cn": "候选发布版：Godot 4.5.1 RC 1",
+        "core_issue": "Godot游戏引擎发布4.5.1版本的第一个候选版本，主要修复回归问题。",
+        "key_info": [
+          "Godot 4.5.1版本进入候选发布阶段",
+          "主要修复了之前版本引入的回归问题"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_godot_1ny2adk",
+      "subreddit": "godot",
+      "title": "After 1 year of development, my node-based game is finally out!",
+      "title_cn": "经过一年开发，我的节点式游戏终于发布了！",
+      "url": "https://www.reddit.com/r/godot/comments/1ny2adk/after_1_year_of_development_my_nodebased_game_is/",
+      "analysis": {
+        "title_cn": "经过一年开发，我的节点式游戏终于发布了！",
+        "core_issue": "开发者发布了一款基于节点管理的自动化增量游戏，并宣布在多个平台免费上线。",
+        "key_info": [
+          "游戏是一款通过节点管理和自动化系统的增量游戏，包含文件下载、处理和上传等机制，并随科技解锁增加复杂度",
+          "游戏已在Steam、Google Play和App Store免费发布，但iOS版本因审核延迟存在教程bug需重启修复"
+        ],
+        "post_type": "项目展示",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_godot_1nyfdlz",
+      "subreddit": "godot",
+      "title": "My Godot-made Indie MMORPG “Soul’s Remnant” is having a playtest on Oct 13th!",
+      "title_cn": "我使用Godot开发的独立MMORPG《Soul's Remnant》将于10月13日开启试玩测试！",
+      "url": "https://www.reddit.com/r/godot/comments/1nyfdlz/my_godotmade_indie_mmorpg_souls_remnant_is_having/",
+      "analysis": {
+        "title_cn": "我使用Godot开发的独立MMORPG《Soul's Remnant》将于10月13日开启试玩测试！",
+        "core_issue": "开发者宣布其使用Godot引擎制作的2D独立MMORPG游戏将于10月13日开启为期一周的公开试玩。",
+        "key_info": [
+          "游戏《Soul's Remnant》是一款由两人团队使用Godot 4.5开发的2D平台MMORPG",
+          "公开试玩将于10月13日开始，持续一周，为Steam Next Fest活动的一部分"
+        ],
+        "post_type": "项目展示",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_godot_1nyjbqr",
+      "subreddit": "godot",
+      "title": "Player character procedural animation",
+      "title_cn": "玩家角色程序化动画",
+      "url": "https://www.reddit.com/r/godot/comments/1nyjbqr/player_character_procedural_animation/",
+      "analysis": {
+        "title_cn": "玩家角色程序化动画",
+        "core_issue": "讨论在Godot引擎中实现玩家角色程序化动画的技术方法",
+        "key_info": [
+          "帖子发布于Godot引擎开发者社区",
+          "内容涉及程序化动画在游戏角色控制中的应用"
+        ],
+        "post_type": "技术讨论",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_Unity3D_1nwsu97",
+      "subreddit": "Unity3D",
+      "title": "A security vulnerability has been identified that affects games and applications built on Unity versions 2017.1 and later for Android, Windows, Linux, and macOS operating systems.",
+      "title_cn": "发现影响Unity 2017.1及更高版本构建的Android、Windows、Linux和macOS应用的安全漏洞",
+      "url": "https://www.reddit.com/r/Unity3D/comments/1nwsu97/a_security_vulnerability_has_been_identified_that/",
+      "analysis": {
+        "title_cn": "发现影响Unity 2017.1及更高版本构建的Android、Windows、Linux和macOS应用的安全漏洞",
+        "core_issue": "Unity引擎存在安全漏洞，影响多平台应用，官方已发布修复方案。",
+        "key_info": [
+          "漏洞影响范围：Unity 2017.1及以上版本构建的Android/Windows/Linux/macOS应用",
+          "修复措施已全面推送，目前未发现漏洞被利用或造成用户影响的案例"
+        ],
+        "post_type": "新闻分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_Unity3D_1nj67q3",
+      "subreddit": "Unity3D",
+      "title": "Newcomers, please check to see if you've been Shadowbanned before posting!",
+      "title_cn": "新用户发帖前请检查是否被影子封禁！",
+      "url": "https://www.reddit.com/r/Unity3D/comments/1nj67q3/newcomers_please_check_to_see_if_youve_been/",
+      "analysis": {
+        "title_cn": "新用户发帖前请检查是否被影子封禁！",
+        "core_issue": "该帖子旨在帮助新用户识别并解决因账户被Reddit系统影子封禁而无法发帖的问题。",
+        "key_info": [
+          "影子封禁是Reddit管理员或自动反垃圾系统实施的全局账户限制，用户无法正常发帖但不会收到通知",
+          "新用户可通过指定链接向AutoModerator发送消息来快速检测账户状态并获取解决方案"
+        ],
+        "post_type": "教程指南",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_Unity3D_1nykvke",
+      "subreddit": "Unity3D",
+      "title": "Does this look intriguing?",
+      "title_cn": "这个看起来有趣吗？",
+      "url": "https://www.reddit.com/r/Unity3D/comments/1nykvke/does_this_look_intriguing/",
+      "analysis": {
+        "title_cn": "这个看起来有趣吗？",
+        "core_issue": "用户展示了一个Unity3D项目并询问其吸引力。",
+        "key_info": [
+          "帖子发布于Unity3D开发者社区",
+          "内容为项目展示并寻求反馈"
+        ],
+        "post_type": "项目展示",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_Unity3D_1nxtqf1",
+      "subreddit": "Unity3D",
+      "title": "Working on a snow level (URP, Unity3D)",
+      "title_cn": "正在制作一个雪地关卡（URP，Unity3D）",
+      "url": "https://www.reddit.com/r/Unity3D/comments/1nxtqf1/working_on_a_snow_level_urp_unity3d/",
+      "analysis": {
+        "title_cn": "正在制作一个雪地关卡（URP，Unity3D）",
+        "core_issue": "用户正在使用Unity的URP渲染管线开发一个雪地主题的游戏关卡。",
+        "key_info": [
+          "项目涉及雪地环境的场景制作",
+          "使用了Unity的通用渲染管线（URP）技术"
+        ],
+        "post_type": "项目展示",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_Unity3D_1nykuzo",
+      "subreddit": "Unity3D",
+      "title": "Reworked my old tool for generating 3D textures + published the source code. Thought you might find this useful",
+      "title_cn": "重构了我的旧版3D纹理生成工具 + 发布了源代码，觉得你们可能会觉得有用",
+      "url": "https://www.reddit.com/r/Unity3D/comments/1nykuzo/reworked_my_old_tool_for_generating_3d_textures/",
+      "analysis": {
+        "title_cn": "重构了我的旧版3D纹理生成工具 + 发布了源代码，觉得你们可能会觉得有用",
+        "core_issue": "开发者分享了一个重构后的3D伪体积纹理生成工具，并开源了代码。",
+        "key_info": [
+          "工具专为创作伪体积纹理设计，旧版基于Unity，新版可直接在浏览器中运行",
+          "作者提供了在线试用链接并邀请社区通过Github提交问题或功能请求"
+        ],
+        "post_type": "资源分享",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_unrealengine_1ny7etk",
+      "subreddit": "unrealengine",
+      "title": "Made a brief introduction to Epic's CI/CD Horde system since the documentation for it is kinda sparse",
+      "title_cn": "因官方文档稀缺，简要介绍Epic的CI/CD Horde系统",
+      "url": "https://www.reddit.com/r/unrealengine/comments/1ny7etk/made_a_brief_introduction_to_epics_cicd_horde/",
+      "analysis": {
+        "title_cn": "因官方文档稀缺，简要介绍Epic的CI/CD Horde系统",
+        "core_issue": "分享在AWS环境中手动配置Horde系统以实现Unreal Engine C++编译分布式处理的入门教程",
+        "key_info": [
+          "教程分为两部分，演示如何通过Horde将UE C++编译任务分发到其他机器",
+          "作者指出当前步骤需手动操作且Horde系统功能远超出教程覆盖范围"
+        ],
+        "post_type": "教程指南",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_unrealengine_1nyj6pb",
+      "subreddit": "unrealengine",
+      "title": "Urgently looking for a dev to help us fix stuff on last day of Gamejam.",
+      "title_cn": "游戏开发最后一天紧急寻求开发者协助修复问题",
+      "url": "https://www.reddit.com/r/unrealengine/comments/1nyj6pb/urgently_looking_for_a_dev_to_help_us_fix_stuff/",
+      "analysis": {
+        "title_cn": "游戏开发最后一天紧急寻求开发者协助修复问题",
+        "core_issue": "发帖人在游戏开发最后一天紧急寻求开发者帮助解决第一人称恐怖解谜游戏中的物体交互问题",
+        "key_info": [
+          "项目类型为第一人称黑色/神秘/恐怖游戏，其他开发进度正常",
+          "急需解决按钮触发物体交互（如按键进食）的具体技术实现问题"
+        ],
+        "post_type": "问题求助",
+        "value_assessment": "高"
+      }
+    },
+    {
+      "id": "reddit_unrealengine_1nyigrl",
+      "subreddit": "unrealengine",
+      "title": "Just put out a new big Update for my Unreal Engine 5.2 Game Only Control",
+      "title_cn": "为我的虚幻引擎5.2游戏《Only Control》发布了大型更新",
+      "url": "https://www.reddit.com/r/unrealengine/comments/1nyigrl/just_put_out_a_new_big_update_for_my_unreal/",
+      "analysis": {
+        "title_cn": "为我的虚幻引擎5.2游戏《Only Control》发布了大型更新",
+        "core_issue": "开发者宣布其基于虚幻引擎5.2的游戏项目发布了重要更新。",
+        "key_info": [
+          "游戏项目基于虚幻引擎5.2开发",
+          "刚刚发布了一个大型内容更新"
+        ],
+        "post_type": "项目展示",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_unrealengine_1nyisyh",
+      "subreddit": "unrealengine",
+      "title": "Optimization issue for certain group",
+      "title_cn": "特定群体的优化问题",
+      "url": "https://www.reddit.com/r/unrealengine/comments/1nyisyh/optimization_issue_for_certain_group/",
+      "analysis": {
+        "title_cn": "特定群体的优化问题",
+        "core_issue": "开发者无法复现部分玩家反馈的游戏优化问题和崩溃，寻求解决方案",
+        "key_info": [
+          "部分玩家反映优化问题和崩溃，但开发者和发行商测试均正常",
+          "发帖人寻求在无法复现问题的情况下如何进一步优化游戏的方法"
+        ],
+        "post_type": "问题求助",
+        "value_assessment": "中"
+      }
+    },
+    {
+      "id": "reddit_unrealengine_1nyk953",
+      "subreddit": "unrealengine",
+      "title": "How could I re-create a crunch effect in Unreal?",
+      "title_cn": "如何在虚幻引擎中实现物体被压碎的效果？",
+      "url": "https://www.reddit.com/r/unrealengine/comments/1nyk953/how_could_i_recreate_a_crunch_effect_in_unreal/",
+      "analysis": {
+        "title_cn": "如何在虚幻引擎中实现物体被压碎的效果？",
+        "core_issue": "用户询问如何在虚幻引擎中制作飞机被怪物爪子压碎变形的特效。",
+        "key_info": [
+          "用于短片制作，需要实现飞机被压碎的特效",
+          "特效场景是飞机被大型怪物用爪子主动挤压和压皱"
+        ],
+        "post_type": "问题求助",
+        "value_assessment": "高"
+      }
+    }
+  ]
+}

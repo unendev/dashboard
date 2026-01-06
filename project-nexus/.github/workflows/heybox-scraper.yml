@@ -1,0 +1,44 @@
+name: 小黑盒爬虫定时任务
+
+on:
+  schedule:
+    # 每天 UTC 16:00 运行（北京时间 00:00，凌晨）
+    - cron: '0 16 * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  scrape-heybox:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          cd linuxdo-scraper
+          pip install -r requirements.txt
+
+      - name: 安装Playwright浏览器
+        run: |
+          python -m playwright install chromium
+          
+      - name: 运行小黑盒爬虫
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          HEYBOX_TOKEN_ID: ${{ secrets.HEYBOX_TOKEN_ID }}
+          GITHUB_ACTIONS: true
+        run: |
+          cd linuxdo-scraper/heybox_scraper
+          python heybox_playwright_scraper.py
+      
+      # 注意：数据已存入数据库，前端直接从数据库读取
+      # 不需要提交 JSON 文件到 GitHub
+

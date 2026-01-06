@@ -1,0 +1,820 @@
+<html><head><meta name="color-scheme" content="light dark"></head><body><pre style="word-wrap: break-word; white-space: pre-wrap;">&lt;?xml version="1.0" encoding="UTF-8" ?&gt;
+&lt;rss version="2.0" xmlns:discourse="http://www.discourse.org/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"&gt;
+  &lt;channel&gt;
+    &lt;title&gt;LINUX DO - 最新话题&lt;/title&gt;
+    &lt;link&gt;https://linux.do/latest&lt;/link&gt;
+    &lt;description&gt;最新话题&lt;/description&gt;
+    &lt;language&gt;zh-CN&lt;/language&gt;
+      &lt;lastBuildDate&gt;Sat, 25 Oct 2025 05:45:29 +0000&lt;/lastBuildDate&gt;
+      &lt;atom:link href="https://linux.do/latest.rss" rel="self" type="application/rss+xml" /&gt;
+        &lt;item&gt;
+          &lt;title&gt;【油猴脚本】一键跳转查看楼主的所有帖子&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[ijk]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;开发调优&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;由于l站想查看某人的所有帖子需要点四五步&lt;br&gt;
+&lt;strong&gt;&lt;a href="https://linux.do/t/topic/1032835"&gt;有没有办法快速查看作者的全部帖子 - 搞七捻三 - LINUX DO&lt;/a&gt;&lt;/strong&gt;&lt;br&gt;
+所以出现了这个让ai帮写的脚本&lt;br&gt;
+在 &lt;a href="http://linux.do"&gt;linux.do&lt;/a&gt; 论坛的每个帖子中，在用户头像下方添加一个“主题”按钮，方便快速查看该用户的所有主题帖。经过源码分析，精准定位。&lt;br&gt;
+请大家多多点赞 &lt;img src="https://linux.do/images/emoji/twemoji/smiley.png?v=15" title=":smiley:" class="emoji" alt=":smiley:" loading="lazy" width="20" height="20"&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class="lang-auto"&gt;// ==UserScript==
+// @name         Linux.do 用户主题按钮 (最终修正版)
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  在 linux.do 论坛的每个帖子中，在用户头像下方添加一个“主题”按钮，方便快速查看该用户的所有主题帖。经过源码分析，精准定位。
+// @author       AI &amp;amp; You
+// @match        https://linux.do/t/*
+// @grant        none
+// @run-at       document-idle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // 定义核心函数，用于查找帖子并添加按钮
+    const addButtons = () =&amp;gt; {
+        // 1. 选择页面中所有独立的帖子容器。
+        // `div.topic-post` 是每个帖子的最外层容器。
+        const posts = document.querySelectorAll('div.topic-post');
+
+        posts.forEach(post =&amp;gt; {
+            // 2. 在每个帖子(post)内部，分别查找头像容器和用户信息元素。
+            //    - 头像容器 `.topic-avatar` 是我们添加按钮的目标位置。
+            //    - 用户链接 `a[data-user-card]` 含有我们需要的用户名。
+            const avatarContainer = post.querySelector('.topic-avatar');
+            const userCardLink = post.querySelector('a[data-user-card]');
+
+            // 3. 确保两个元素都找到了，并且这个头像容器里还没有我们添加过的按钮。
+            if (avatarContainer &amp;amp;&amp;amp; userCardLink &amp;amp;&amp;amp; !avatarContainer.querySelector('.user-topics-button')) {
+
+                // 4. 从 `data-user-card` 属性中稳定地获取用户名。
+                const username = userCardLink.dataset.userCard;
+
+                if (username) {
+                    // 构建指向用户主题页面的 URL
+                    const topicsUrl = `https://linux.do/u/${username}/activity/topics`;
+
+                    // 创建按钮元素 (一个 `&amp;lt;a&amp;gt;` 标签)
+                    const button = document.createElement('a');
+                    button.href = topicsUrl;
+                    button.textContent = 'TA的主题';
+                    button.target = '_blank'; // 设置在新标签页打开
+                    button.rel = 'noopener noreferrer'; // 增加安全性
+                    button.className = 'user-topics-button'; // 添加一个唯一的类名，用于步骤3的检查
+
+                    // 为按钮添加样式，使其更美观
+                    Object.assign(button.style, {
+                        display: 'block',
+                        textAlign: 'center',
+                        marginTop: '8px',
+                        padding: '4px 6px',
+                        backgroundColor: '#4088da', // 匹配网站风格的蓝色
+                        color: 'white',
+                        borderRadius: '5px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        textDecoration: 'none',
+                        transition: 'background-color 0.2s',
+                    });
+
+                    // 添加鼠标悬停效果
+                    button.onmouseover = () =&amp;gt; button.style.backgroundColor = '#2a6cbb';
+                    button.onmouseout = () =&amp;gt; button.style.backgroundColor = '#4088da';
+
+                    // 5. 将创建好的按钮添加到头像容器的末尾。
+                    avatarContainer.appendChild(button);
+                }
+            }
+        });
+    };
+
+    // 页面首次加载时，等待一段时间让内容渲染完再执行
+    setTimeout(addButtons, 1000);
+
+    // 论坛是动态加载的 (无限滚动/切换帖子)，所以需要监视页面的变化。
+    // 当有新帖子被添加到页面中时，重新运行我们的函数。
+    const observer = new MutationObserver((mutations) =&amp;gt; {
+        // 为了性能，可以检查一下是否真的有节点添加进来
+        let nodesAdded = mutations.some(m =&amp;gt; m.addedNodes &amp;amp;&amp;amp; m.addedNodes.length &amp;gt; 0);
+        if (nodesAdded) {
+            addButtons();
+        }
+    });
+
+    // 配置观察器：观察整个文档的变化
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
+
+})();
+
+
+&lt;/code&gt;&lt;/pre&gt;
+            &lt;p&gt;&lt;small&gt;4 个帖子 - 4 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089449"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089449&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:45:29 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089449&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089449.rss"&gt;【油猴脚本】一键跳转查看楼主的所有帖子&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;无需麦克风：PC 压力测试工具 OCCT 15 可快速锁定显卡 / 电源&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[𝓵𝓮𝔃𝓲𝓼𝓱𝓮𝓷]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;前沿快讯&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/b/5/6/b56af0e6e2e9358991ff72053643096af7ba88cb.jpeg" data-download-href="https://linux.do/uploads/default/b56af0e6e2e9358991ff72053643096af7ba88cb" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/b/5/6/b56af0e6e2e9358991ff72053643096af7ba88cb_2_690x389.jpeg" alt="image" data-base62-sha1="pSTxCm8clqyYwwqOkHotV2GLw2D" width="690" height="389" srcset="https://linux.do/uploads/default/optimized/4X/b/5/6/b56af0e6e2e9358991ff72053643096af7ba88cb_2_690x389.jpeg, https://linux.do/uploads/default/optimized/4X/b/5/6/b56af0e6e2e9358991ff72053643096af7ba88cb_2_1035x583.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/b/5/6/b56af0e6e2e9358991ff72053643096af7ba88cb_2_1380x778.jpeg 2x" data-dominant-color="A17473"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/9/2/6/926789222277f07ac74f9974bbaf6a8a3ece3462.jpeg" data-download-href="https://linux.do/uploads/default/926789222277f07ac74f9974bbaf6a8a3ece3462" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/9/2/6/926789222277f07ac74f9974bbaf6a8a3ece3462_2_690x488.jpeg" alt="image" data-base62-sha1="kT9x9XTQQCrqgvVizS9vfvP1tTk" width="690" height="488" srcset="https://linux.do/uploads/default/optimized/4X/9/2/6/926789222277f07ac74f9974bbaf6a8a3ece3462_2_690x488.jpeg, https://linux.do/uploads/default/optimized/4X/9/2/6/926789222277f07ac74f9974bbaf6a8a3ece3462_2_1035x732.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/9/2/6/926789222277f07ac74f9974bbaf6a8a3ece3462_2_1380x976.jpeg 2x" data-dominant-color="757171"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/6/7/8/67831bafb3e1084ff2fd8ceb195873e723974312.jpeg" data-download-href="https://linux.do/uploads/default/67831bafb3e1084ff2fd8ceb195873e723974312" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/6/7/8/67831bafb3e1084ff2fd8ceb195873e723974312_2_690x334.jpeg" alt="image" data-base62-sha1="eLI4NpP8f4A6jbNeZIyZc2YS8Qa" width="690" height="334" srcset="https://linux.do/uploads/default/optimized/4X/6/7/8/67831bafb3e1084ff2fd8ceb195873e723974312_2_690x334.jpeg, https://linux.do/uploads/default/optimized/4X/6/7/8/67831bafb3e1084ff2fd8ceb195873e723974312_2_1035x501.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/6/7/8/67831bafb3e1084ff2fd8ceb195873e723974312_2_1380x668.jpeg 2x" data-dominant-color="EBEBEB"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;a href="https://www.ithome.com/0/892/283.htm" rel="noopener nofollow ugc"&gt;无需麦克风：PC 压力测试工具 OCCT 15 可快速锁定显卡 / 电源啸叫源 - IT之家&lt;/a&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;2 个帖子 - 2 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089442"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089442&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:43:25 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089442&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089442.rss"&gt;无需麦克风：PC 压力测试工具 OCCT 15 可快速锁定显卡 / 电源&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;抽10个 最后一批2500的warp账号&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[ncyxx]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;福利羊毛&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;抽奖主题： 抽10个28号我这最后一批2500额度的warp账号。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/trophy.png?v=15" title=":trophy:" class="emoji" alt=":trophy:" loading="lazy" width="20" height="20"&gt; 奖品详情：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;[奖品 1]：10个 warp 账号&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/three_o_clock.png?v=15" title=":three_o_clock:" class="emoji" alt=":three_o_clock:" loading="lazy" width="20" height="20"&gt; 活动时间：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;开始时间：2025-10-25 14:00&lt;br&gt;
+截止时间：2025-10-25 15:00&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/memo.png?v=15" title=":memo:" class="emoji" alt=":memo:" loading="lazy" width="20" height="20"&gt; 参与方式：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;在本帖下回复任意内容。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/magnifying_glass_tilted_left.png?v=15" title=":magnifying_glass_tilted_left:" class="emoji" alt=":magnifying_glass_tilted_left:" loading="lazy" width="20" height="20"&gt; 抽奖规则：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;每位用户仅允许参与一次。&lt;br&gt;
+使用 &lt;a href="https://linux.do/t/topic/211016"&gt;LINUX DO 社区抽奖&lt;/a&gt; 工具随机抽取中奖者。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/warning.png?v=15" title=":warning:" class="emoji" alt=":warning:" loading="lazy" width="20" height="20"&gt; 注意事项：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;本活动将在活动截止时间后关闭回帖，以确保公正性。&lt;br&gt;
+中奖者将在活动结束后 24 小时内在本帖公布，并通过私信通知领奖方式。&lt;br&gt;
+所有规则及抽奖结果由活动发起人和论坛&lt;a href="https://linux.do/about"&gt;管理团队&lt;/a&gt;最终解释。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;期待您的积极参与，祝您好运！如有任何疑问，欢迎随时联系抽奖发起人。&lt;/strong&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;14 个帖子 - 14 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089427"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089427&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:38:38 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089427&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089427.rss"&gt;抽10个 最后一批2500的warp账号&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;【匿名投票】佬友们一般什么时候上L站&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[武则天]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089426/1"&gt;点击以查看投票。&lt;/a&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;2 个帖子 - 2 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089426"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089426&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:37:57 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089426&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089426.rss"&gt;【匿名投票】佬友们一般什么时候上L站&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;[求助]寻一本忘记名字的小说&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[Catho168]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;六七年前，也就是18年前后，读过一本实体中文科幻长篇，现在忘记了&lt;/p&gt;
+&lt;p&gt;故事发生在一个近未来社会，中心的设定是&lt;strong&gt;一种互换两个身体的意识的技术&lt;/strong&gt;。&lt;/p&gt;
+&lt;p&gt;我记住的情节点非常少，有几条我甚至怀疑是和另外哪本书搞混了，干脆都列在下面：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;开篇描绘的一个场景，是在一片冰川（不确定）&lt;/li&gt;
+&lt;li&gt;“我”的母亲被换了意识，让“我”觉得陌生，由此想知道真相，开始了故事（比较确定）&lt;/li&gt;
+&lt;li&gt;“我”是男性，中间有一段“我”与女性互换了意识，好像还进了澡堂。说白了就是性转（不太确定）&lt;/li&gt;
+&lt;li&gt;富豪反派利用这个技术想干坏事（确定）&lt;/li&gt;
+&lt;li&gt;这个技术是通过一个仪器实现的，人躺进去，过会儿意识就换了（确定）&lt;/li&gt;
+&lt;li&gt;“我”的母亲是反派利用这个技术的牺牲品（比较确定）&lt;/li&gt;
+&lt;li&gt;接近尾声的时候反派的意识被换进了一个普通妇女的身体里，没人信她是那个富豪，最后跳楼了。“我”在报纸上看到了“一女子跳楼前称自己是XXX”的消息（非常确定）&lt;/li&gt;
+&lt;li&gt;反派名字是外国名，史密斯之类的那种&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;以及，我记得这本书封面和内容似乎无关，就是个漫画郊区街道，色彩比较明丽。虽然是实体书，内容也偏经典科幻，但作者名好像是网络昵称，所以也许和网文有点联系。&lt;br&gt;
+就这些，我问ai找不出来，就寄希望于佬友们了qwq&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;3 个帖子 - 3 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089410"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089410&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:31:28 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089410&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089410.rss"&gt;[求助]寻一本忘记名字的小说&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;有大佬用过Kilo Code这个插件吗？我在idea里用这个插件背景会出现一堆代码&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[something]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;开发调优&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;感觉有点像网络问题，但是我网速不是很慢，而且也开加速器试过，背景还是会有这个编码出现&lt;br&gt;
+&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/5/4/6/546bb80c2e7a521956c68a7849f5ff3d4564f386.png" data-download-href="https://linux.do/uploads/default/546bb80c2e7a521956c68a7849f5ff3d4564f386" title="11fa785a-b9a8-4caa-b3df-7ee345a006cd"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/5/4/6/546bb80c2e7a521956c68a7849f5ff3d4564f386_2_261x500.png" alt="11fa785a-b9a8-4caa-b3df-7ee345a006cd" data-base62-sha1="c2OTrAp4Tzoqm6s4Q76sWbxfLxk" width="261" height="500" srcset="https://linux.do/uploads/default/optimized/4X/5/4/6/546bb80c2e7a521956c68a7849f5ff3d4564f386_2_261x500.png, https://linux.do/uploads/default/optimized/4X/5/4/6/546bb80c2e7a521956c68a7849f5ff3d4564f386_2_391x750.png 1.5x, https://linux.do/uploads/default/optimized/4X/5/4/6/546bb80c2e7a521956c68a7849f5ff3d4564f386_2_522x1000.png 2x" data-dominant-color="272728"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;3 个帖子 - 3 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089406"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089406&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:29:28 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089406&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089406.rss"&gt;有大佬用过Kilo Code这个插件吗？我在idea里用这个插件背景会出现一堆代码&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;想求个每天过淘金币任务的脚本！！&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[zzc]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;大家看到淘宝双十一活动了吧？ 里面要是有淘金币的话，比如我4000的显卡可以省大概450元左右，但是要淘金币抵抗，无奈我就一天签到攒100.肯定攒不来，看b站有说搜一搜下单刷淘金币的，&lt;strong&gt;但是我发现我下单只能得到1金币，别人都是300.不知道是不是黑号了，反正这个方法只能作废了&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;所以想问下万能的佬友们有没有淘金币脚本助我一臂之力！！！&lt;br&gt;
+感谢感谢 &lt;img src="https://linux.do/images/emoji/twemoji/nerd_face.png?v=15" title=":nerd_face:" class="emoji" alt=":nerd_face:" loading="lazy" width="20" height="20"&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;6 个帖子 - 5 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089404"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089404&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:29:15 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089404&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089404.rss"&gt;想求个每天过淘金币任务的脚本！！&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;grok2api部署clawcloud&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[samqin]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;国产替代&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;先感谢&lt;a href="https://linux.do/u/chenyme"&gt;Chenyme大佬项目贡献&lt;/a&gt;(&lt;a href="https://linux.do/t/topic/1042865" class="inline-onebox"&gt;Grok2API - 新增视频模型 grok-imagine 可 NSFW&lt;/a&gt;)&lt;/p&gt;
+&lt;p&gt;我也花了好多时间去clawcloud，终于在sealos（其实clawcloud产品用的是sealos）帮助下解决。&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;create app&lt;/li&gt;
+&lt;li&gt;配置截图&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/a/6/1/a61ef69f1f7734c4eec9095b1a296ad1fd535cfc.png" data-download-href="https://linux.do/uploads/default/a61ef69f1f7734c4eec9095b1a296ad1fd535cfc" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/a/6/1/a61ef69f1f7734c4eec9095b1a296ad1fd535cfc_2_690x274.png" alt="image" data-base62-sha1="nHzB7MCxHsSisdMHnzouvCmdqQ4" width="690" height="274" srcset="https://linux.do/uploads/default/optimized/4X/a/6/1/a61ef69f1f7734c4eec9095b1a296ad1fd535cfc_2_690x274.png, https://linux.do/uploads/default/optimized/4X/a/6/1/a61ef69f1f7734c4eec9095b1a296ad1fd535cfc_2_1035x411.png 1.5x, https://linux.do/uploads/default/optimized/4X/a/6/1/a61ef69f1f7734c4eec9095b1a296ad1fd535cfc_2_1380x548.png 2x" data-dominant-color="FCFCFC"&gt;&lt;/a&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/e/2/7/e2704a696eae7233428e20bc963a7d18a2f41de7.png" data-download-href="https://linux.do/uploads/default/e2704a696eae7233428e20bc963a7d18a2f41de7" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/e/2/7/e2704a696eae7233428e20bc963a7d18a2f41de7_2_516x500.png" alt="image" data-base62-sha1="wjaunsNayhW5K1BJnyfOHxhDqFp" width="516" height="500" srcset="https://linux.do/uploads/default/optimized/4X/e/2/7/e2704a696eae7233428e20bc963a7d18a2f41de7_2_516x500.png, https://linux.do/uploads/default/optimized/4X/e/2/7/e2704a696eae7233428e20bc963a7d18a2f41de7_2_774x750.png 1.5x, https://linux.do/uploads/default/optimized/4X/e/2/7/e2704a696eae7233428e20bc963a7d18a2f41de7_2_1032x1000.png 2x" data-dominant-color="FAFAFA"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+&lt;ol start="4"&gt;
+&lt;li&gt;进入terminal &lt;span class="hashtag-raw"&gt;#也可以不做&lt;/span&gt;，进入UI配置，但是如果你要持久化，最好做&lt;br&gt;
+&lt;code&gt;mkdir -p /app/grok_data &amp;amp;&amp;amp; touch setting.toml &amp;amp;&amp;amp; touch token.json&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;配置参数 vi setting.tom /vi token.json&lt;/li&gt;
+&lt;li&gt;重启&lt;/li&gt;
+&lt;li&gt;看下启动active，日志显示正常&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/d/e/d/deda4a22af50ed7abebe3e8e15e79810862d44a6.png" data-download-href="https://linux.do/uploads/default/deda4a22af50ed7abebe3e8e15e79810862d44a6" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/d/e/d/deda4a22af50ed7abebe3e8e15e79810862d44a6_2_690x261.png" alt="image" data-base62-sha1="vNrGgA521frRZLDKiPyo8sy400C" width="690" height="261" srcset="https://linux.do/uploads/default/optimized/4X/d/e/d/deda4a22af50ed7abebe3e8e15e79810862d44a6_2_690x261.png, https://linux.do/uploads/default/optimized/4X/d/e/d/deda4a22af50ed7abebe3e8e15e79810862d44a6_2_1035x391.png 1.5x, https://linux.do/uploads/default/optimized/4X/d/e/d/deda4a22af50ed7abebe3e8e15e79810862d44a6_2_1380x522.png 2x" data-dominant-color="FBFAFB"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+8. 登陆UI，配置base url，填入你clawcloud的public地址，api_key最好填写个sk123之类的，空的好像不行。&lt;br&gt;
+9. 如果403，自己找一个海外的代理proxy代理试一下（&lt;a href="https://free-proxy-list.net/zh-cn/us-proxy.html%E6%88%96%E8%80%85%E6%90%9C%E4%B8%80%E4%B8%8B%EF%BC%8C%E6%88%91%E4%B9%9F%E4%B8%8D%E6%98%AF%E5%BE%88%E6%87%82%E8%BF%99%E4%B8%AA%EF%BC%8C%E9%AB%98%E6%89%8B%E5%8F%AF%E4%BB%A5%E8%B7%9F%E5%B8%96%E4%BB%8B%E7%BB%8D%E4%B8%8B%EF%BC%8C%E5%92%8B%E6%90%9E%EF%BC%89" rel="noopener nofollow ugc"&gt;https://free-proxy-list.net/zh-cn/us-proxy.html或者搜一下，我也不是很懂这个，高手可以跟帖介绍下，咋搞）&lt;/a&gt;&lt;br&gt;
+11. 测试通过～～&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;5 个帖子 - 5 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089392"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089392&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:24:40 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089392&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089392.rss"&gt;grok2api部署clawcloud&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;放假很无聊怎么办？&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[咳咳ke]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;工作的时候还能工作一会，摸鱼一会&lt;br&gt;
+周末放假就很无聊&lt;br&gt;
+不知道干啥&lt;br&gt;
+游戏玩不动了&lt;br&gt;
+小说、电视剧最近有啥好看的吗？&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;13 个帖子 - 13 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089391"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089391&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:24:28 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089391&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089391.rss"&gt;放假很无聊怎么办？&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;佬们有什么其他的关系型数据库索引&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[ACK握手失败]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;最近在手搓关系型数据库，想问一下除了B+、哈希、全文索引还有什么适合关系型数据库的索引&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;1 个帖子 - 1 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089379"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089379&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:17:32 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089379&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089379.rss"&gt;佬们有什么其他的关系型数据库索引&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;昨天晚上做了一个梦，所在城市被外星飞船攻击了。&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[GGbig]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;最近可以刷的3I/ATLAS有点多了，满脑子都是外星人。&lt;br&gt;
+描述下梦境，当做一个记录吧&lt;br&gt;
+梦里梦见我与一位同学走在熟悉的街道，突然上空从天上沉下一艘飞船，长条形的，感觉不出来离地多高，感觉近在咫尺，但是知道只是因为大才感觉近。&lt;br&gt;
+外星飞船攻击了，发出类似激光束的手段，从远处一条直线划过，大地深深的别切开一条沟壑，沟里还有火焰的残留，整个城市被分作两半，我在左边，我知道那是外星飞船，我焦急的打开手机想要联系家人，希望激光束没有切到我家，无奈手机已经显示无服务。&lt;br&gt;
+所有人乱作一团，有往沟壑看的，也有迫不及待逃离的，更多的是和我一样拿着手机一脸紧张的。&lt;br&gt;
+然后就醒了。&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;4 个帖子 - 4 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089366"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089366&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:10:39 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089366&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089366.rss"&gt;昨天晚上做了一个梦，所在城市被外星飞船攻击了。&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;忽然发现两个项目的数据库算法技术差别&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[空空]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;文档共建&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/e/2/7/e27bb7b82c6c37126fc36054232f57cebfdc1ec9.png" data-download-href="https://linux.do/uploads/default/e27bb7b82c6c37126fc36054232f57cebfdc1ec9" title="image"&gt;&lt;img src="https://linux.do/uploads/default/original/4X/e/2/7/e27bb7b82c6c37126fc36054232f57cebfdc1ec9.png" alt="image" data-base62-sha1="wjyYh1ZecB6V5RDH05SsUwAHgQ9" width="426" height="231"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/c/7/0/c700df2c018266ff8e6baf95db7dc7566f539447.png" data-download-href="https://linux.do/uploads/default/c700df2c018266ff8e6baf95db7dc7566f539447" title="image"&gt;&lt;img src="https://linux.do/uploads/default/original/4X/c/7/0/c700df2c018266ff8e6baf95db7dc7566f539447.png" alt="image" data-base62-sha1="sosSPvAXqhI7AmBWbwPoY1JoGnt" width="438" height="237"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;5 个帖子 - 4 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089355"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089355&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:06:49 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089355&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089355.rss"&gt;忽然发现两个项目的数据库算法技术差别&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;把桌面端的光标浏览搬到移动浏览器&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[998244353]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;开发调优&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;我手机自用mises浏览器（一个开源kiwi fork，目前chromium 130），发现选中复制文字比较难用。&lt;br&gt;
+遂让ai写了个猴子脚本上传到&lt;a href="https://greasyfork.org/zh-CN/scripts/553624-caret-browsing" rel="noopener nofollow ugc"&gt;greasyfork&lt;/a&gt;，感觉勉强可以用。&lt;br&gt;
+不过我发现开了光标（设置contentEditorable,然后吞掉编辑按键）会导致有些文字链接点不了（似乎文本框也编辑不了），所以暂时没有开全局光标，设置的默认不更改需要选中复制时开启。&lt;br&gt;
+不知道佬友们会不会有这种需求。另外上面的情况是否是鱼和熊掌不可兼得（确实很难区分定位光标和点击链接）。&lt;br&gt;
+保留F7是因为我真有实体蓝牙键盘（价值15CNY），而且后续可能打算整一个类似heakers keyboard的专注于功能控制的键盘（虽然我没玩过android开发）。&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;1 个帖子 - 1 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089354"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089354&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 05:06:47 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089354&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089354.rss"&gt;把桌面端的光标浏览搬到移动浏览器&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;难绷之输入中文闪退&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[Chrome浏览器]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;当你尝试在Mac上创建新的Apple Account时，如果你直接输入中文，那么就会立刻闪退，错误代码967，不过复制粘贴没有问题。&lt;br&gt;
+&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/d/9/2/d923c48551fff720d569a6ae46294f03e21bbe2d.jpeg" data-download-href="https://linux.do/uploads/default/d923c48551fff720d569a6ae46294f03e21bbe2d" title="截屏2025-10-25 12.57.35"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/d/9/2/d923c48551fff720d569a6ae46294f03e21bbe2d_2_546x500.jpeg" alt="截屏2025-10-25 12.57.35" data-base62-sha1="uYUf3SnrQK8FarB8xTeSyEU5WyN" width="546" height="500" srcset="https://linux.do/uploads/default/optimized/4X/d/9/2/d923c48551fff720d569a6ae46294f03e21bbe2d_2_546x500.jpeg, https://linux.do/uploads/default/optimized/4X/d/9/2/d923c48551fff720d569a6ae46294f03e21bbe2d_2_819x750.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/d/9/2/d923c48551fff720d569a6ae46294f03e21bbe2d_2_1092x1000.jpeg 2x" data-dominant-color="EAEAEB"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/5/9/a/59a4c0617ba0d62bf600ef581c4969b914009f84.jpeg" data-download-href="https://linux.do/uploads/default/59a4c0617ba0d62bf600ef581c4969b914009f84" title="截屏2025-10-25 12.57.47"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/5/9/a/59a4c0617ba0d62bf600ef581c4969b914009f84_2_565x500.jpeg" alt="截屏2025-10-25 12.57.47" data-base62-sha1="cN1tlnAfNidKzUfzcQ5AOifktak" width="565" height="500" srcset="https://linux.do/uploads/default/optimized/4X/5/9/a/59a4c0617ba0d62bf600ef581c4969b914009f84_2_565x500.jpeg, https://linux.do/uploads/default/optimized/4X/5/9/a/59a4c0617ba0d62bf600ef581c4969b914009f84_2_847x750.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/5/9/a/59a4c0617ba0d62bf600ef581c4969b914009f84_2_1130x1000.jpeg 2x" data-dominant-color="D1D2D3"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;1 个帖子 - 1 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089332"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089332&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:59:57 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089332&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089332.rss"&gt;难绷之输入中文闪退&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;minimax-m2 已上架公益站&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[linjinpeng]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/932914"&gt;公益api站 - 福利羊毛 - LINUX DO&lt;/a&gt;&lt;br&gt;
+一个蠢蠢的模型&lt;br&gt;
+&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/7/8/e/78e0a4419568ba945527c3fcd320ef690cfd5cd4.jpeg" data-download-href="https://linux.do/uploads/default/78e0a4419568ba945527c3fcd320ef690cfd5cd4" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/7/8/e/78e0a4419568ba945527c3fcd320ef690cfd5cd4_2_690x333.jpeg" alt="image" data-base62-sha1="hfkAvNu2219nbZZjxRAMaiAbK3W" width="690" height="333" srcset="https://linux.do/uploads/default/optimized/4X/7/8/e/78e0a4419568ba945527c3fcd320ef690cfd5cd4_2_690x333.jpeg, https://linux.do/uploads/default/optimized/4X/7/8/e/78e0a4419568ba945527c3fcd320ef690cfd5cd4_2_1035x499.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/7/8/e/78e0a4419568ba945527c3fcd320ef690cfd5cd4_2_1380x666.jpeg 2x" data-dominant-color="F7F7F7"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;5 个帖子 - 5 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089326"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089326&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:58:04 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089326&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089326.rss"&gt;minimax-m2 已上架公益站&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;oracle 升级也abc&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[caoyufei]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;无法完成您的请求。常见错误有：(a) 使用的是预付卡。Oracle 仅接受信用卡和借记卡；(b) 有意或无意遮挡了人员地点或身份信息；(c) 输入的账户详细信息不完整或不准确。如果您出现了上述情况，请重试。否则，请联系 &lt;a href="https://store-oracle.custhelp.com/app/chat/chat_launch?source=oracle" rel="noopener nofollow ugc"&gt;Oracle 客户服务&lt;/a&gt;。&lt;/p&gt;
+&lt;p&gt;美国家宽&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;4 个帖子 - 4 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089303"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089303&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:47:03 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089303&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089303.rss"&gt;oracle 升级也abc&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;头像就换成这个啦www&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[Fengfeng10]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;Continuing the discussion from &lt;a href="https://linux.do/t/topic/1086562"&gt;想找个新头像呀ww&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;就先换成这张啦，以后有好看的再换呀！w&lt;br&gt;
+看看我的新头像，好看吗？ww&lt;/p&gt;
+&lt;p&gt;&lt;span style="font-size:80%"&gt;说不定以后会换回去呀…万一又要向二次元头像收税怎么办呀! ww&lt;/span&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;38 个帖子 - 15 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089298"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089298&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:42:59 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089298&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089298.rss"&gt;头像就换成这个啦www&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;amp code free模式现在不需要共享代码了&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[nana#refu]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;前沿快讯&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;Amp free 现在不需要共享代码用于训练了。使用的模型会与smart模式有差异。&lt;br&gt;
+&lt;a href="https://ampcode.com/news/amp-free-no-training" rel="noopener nofollow ugc"&gt;amp-free-no-training&lt;/a&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;1 个帖子 - 1 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089286"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089286&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:37:44 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089286&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089286.rss"&gt;amp code free模式现在不需要共享代码了&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;DIY计划，晒一下之前做的安全密钥(yubikey 5c/5a)&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[Muse]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;开发调优&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;h2&gt;&lt;a name="p-9732380-h-1" class="anchor" href="https://linux.do#p-9732380-h-1"&gt;&lt;/a&gt;只晒最终“定稿”方案&lt;/h2&gt;
+&lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/6/c/6/6c6d6d89a7fcd32a052b802b68ba91af68e6d7f7.jpeg" data-download-href="https://linux.do/uploads/default/6c6d6d89a7fcd32a052b802b68ba91af68e6d7f7" title="IMG_20251025_115648"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/6/c/6/6c6d6d89a7fcd32a052b802b68ba91af68e6d7f7_2_345x235.jpeg" alt="IMG_20251025_115648" data-base62-sha1="ftc0VwiklVIsWqplJ4o5qY7uqvd" width="345" height="235" srcset="https://linux.do/uploads/default/optimized/4X/6/c/6/6c6d6d89a7fcd32a052b802b68ba91af68e6d7f7_2_345x235.jpeg, https://linux.do/uploads/default/optimized/4X/6/c/6/6c6d6d89a7fcd32a052b802b68ba91af68e6d7f7_2_517x352.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/6/c/6/6c6d6d89a7fcd32a052b802b68ba91af68e6d7f7_2_690x470.jpeg 2x" data-dominant-color="ACA9A2"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;分别是 &lt;code&gt;rp2350-zero&lt;/code&gt; 、 &lt;code&gt;esp32s3&lt;/code&gt; 、&lt;code&gt;esp32s3&lt;/code&gt;、&lt;code&gt;rp2350-one&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;左边是目前2个完成度99%，右边2个是确认定稿。&lt;/p&gt;
+&lt;h3&gt;&lt;a name="p-9732380-h-2" class="anchor" href="https://linux.do#p-9732380-h-2"&gt;&lt;/a&gt;开源计划：&lt;/h3&gt;
+&lt;p&gt;右边2个之前开源了，&lt;code&gt;rp2350-one&lt;/code&gt;属于二开。&lt;code&gt;esp32s3&lt;/code&gt; 性价比很高，成本在14-16之间。&lt;/p&gt;
+&lt;h3&gt;&lt;a name="p-9732380-h-3" class="anchor" href="https://linux.do#p-9732380-h-3"&gt;&lt;/a&gt;后续计划&lt;/h3&gt;
+&lt;p&gt;左边2个&lt;code&gt;rp2350-zero&lt;/code&gt; 、 &lt;code&gt;esp32s3&lt;/code&gt; 也准备后续开源&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;7 个帖子 - 6 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089285"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089285&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:37:35 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089285&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089285.rss"&gt;DIY计划，晒一下之前做的安全密钥(yubikey 5c/5a)&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;小红书AMA&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[Leo]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;1024，下班后就直接去小红书新工区LuOne凯德晶萃广场办公楼。在一线城市就是这点好，有时候前一天或者当天看到一些活动，都可以直接去，如果想的话，可以每周末都排得满满的&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!jhRd!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F9ec5409c-e535-4812-b9cb-f0a92827f7b8_3024x4032.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/d/1/a/d1a5b12756348dc30a9d264b24700c0f8998abbe.jpeg" alt="" data-base62-sha1="tUCMEOk13fN2nAwo3gXCfrcZc5w" width="375" height="499" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;刚好他们公司也在举办1024活动，一眼看到是参与活动盖章的那一套，大厅还有一对宇树的狗和机器人，今天恰好也是他们的宠物日，看到一只超大的萨摩，居然害怕宇树的狗，引来大家的围观和哄笑。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!eyLp!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb8803d40-455a-4eff-bb62-2fef1b39d59e_4032x3024.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/3/b/9/3b9b3369b68c63cdbb83403a7647a4a369a722f3.jpeg" alt="" data-base62-sha1="8viGAQxXWZjlCm1khIhn4DyXseT" width="666" height="500" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!PT77!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F6de469cb-9786-4cfe-96fa-d528ff4e495a_1630x1550.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/d/2/c/d2ca07144cb760ea4ad9419e4518a42c94e5993e.jpeg" alt="" data-base62-sha1="u4J6SRicdde3ipWNEPWusUENCUu" width="525" height="500" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!fk34!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb07dab32-1c9f-4fdd-b51a-1cf88bd8e0c6_1716x1620.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/9/f/3/9f32265dd4aee8ef75fddbbde59543b9f07d5b6c.jpeg" alt="" data-base62-sha1="mIjmwUza9ogj0292lGTlKncl9gM" width="529" height="500" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;现在公司的流程都有点相似，员工预先登记访客信息，到了签到得到进入的凭证。基本上都只会在访问区域，通常不会去办公区。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!GY4R!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F3e04d90c-5cdf-4d91-b710-4a373d8c8f08_3024x4032.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/a/a/8/aa80d3dbbf67992b294ff63219d7f1cced3deb4a.jpeg" alt="" data-base62-sha1="oklbgKjPGxWsYA6X8Z6NtwItoKK" width="375" height="499" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;进入到活动现场，已经坐满人了，看了一下，大部分是小红书自家的同学，二十来个是外面来访的朋友。这次AMA主要有凯奇（张雷，小红书技术副总裁），风龙（解奉龙，小红书语音技术负责人），Thomas Wolf（Hugging Face联合创始人）三个人。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!hvu3!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F9db19d36-faa0-42c0-b73f-380134f6eaed_3024x4032.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/b/1/6/b168b96075208adb37c905a0fd2dcb52a2c34335.jpeg" alt="" data-base62-sha1="pjqSJ18VLMIK9k5LVg8U2QAiGbP" width="375" height="499" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;补充一下背景信息：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;这次活动是小红书和REDacademy一起办的，REDacademy是小红书内部为员工设立的跨界成长课程，旨在通过邀请各领域的顶尖学者和实践者，为员工提供多元化的学习机会，激发创新思维。是2025年宣布的员工成长计划之一（另外一个是领导力培养项目REDFellow Program）。&lt;/li&gt;
+&lt;li&gt;另外AMA（Ask Me Anything，有问必答）是这几个月在小红书走红的一个算是破圈了的话题，主要以科技圈的大佬和专家下场，带动了很多相关人士发AMA笔记，也一改人们对于小红书主要集中集美们和生活类的话题为主的平台基调，也能看到小红书在话题活了之后有意助推和扶持这一趋势，或许有可能成为小红书内容的另一条增长曲线&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;PS：AMA&lt;a href="https://ditto.xiaohongshu.net/ditto/vincent/a49284f45b184e2b8f79da0670943256/dynpath250272a8?fullscreen=true&amp;amp;resource_instance_id=255875&amp;amp;naviHidden=yes&amp;amp;page_source=search_result_notes.onebox&amp;amp;search_id=2fhp8piuu32p9qmnd3h3b&amp;amp;isOverseaData=0&amp;amp;isOverseaRegister=0&amp;amp;lang=zh_cn&amp;amp;xhs-statusbar-height=54&amp;amp;instance_id=a49284f45b184e2b8f79da0670943256&amp;amp;page_instance=2683" rel="noopener nofollow ugc"&gt;这个页面&lt;/a&gt;下面的笔记里的评论，认真去看是有很多高质量的内容的，AMA这个话题还是非常不错的&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!Znw_!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F112f9d22-4d1a-4702-bbb5-eee3fcd812a4_3024x4032.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/e/d/6/ed63a8591c8f512085dd62fd65b23946804fde6a.jpeg" alt="" data-base62-sha1="xS2FUjyOEX0x3Ld34wYEqO4CkAi" width="375" height="499" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;坐下后发现还配备了翻译机，回头看了一下隔音小屋子里有两位同声翻译员，一下子把level拉起来了。因为Thomas堵在路上（现实感受一下SH的周五晚高峰？），主持人小姐姐和两位小红书的两位老师热场中，倒是也让我们来访的人了解了一些小红书在内容、AI相关领域的一些咨询。Thomas到位后也正式开始了。这次的形式主要是QA，一趴是提前收集到的问题由主持人小姐姐发问，另一趴是现场观众提问。主持人小姐姐长得很好看，不过似乎访谈技巧还有一定的提升空间&lt;img src="https://linux.do/images/emoji/twemoji/blush.png?v=15" title=":blush:" class="emoji" alt=":blush:" loading="lazy" width="20" height="20"&gt;。另外感觉筹备组提前收集准备的问题似乎不完全make sense，不过问题倒也是不大，重要的还是听三位老师的字里行间的一些想法和见解。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!k_Jp!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F73abdddf-98e6-416e-a4a2-e0e10801f910_4032x3024.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/6/b/9/6b9d09629b20404e34f1a2697aa9b68435cadf2f.jpeg" alt="" data-base62-sha1="flZxpgOkVvHa4tXiVfCvzJbYw11" width="666" height="500" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;废话了那么多，以时间线推进的，现在聊一下我记下来的几点比较有趣的东西：&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://linux.do/images/emoji/twemoji/one.png?v=15" title=":one:" class="emoji" alt=":one:" loading="lazy" width="20" height="20"&gt; 开源&amp;amp;闭源模型的话题，毕竟hf也是做模型开源社区的，不难理解有这个问题。开源和闭源的差距在拉近。另外现在模型的开源和原来以GitHub为主的代码开源不太一样，现在的开源主要是针对模型的权重（weights），大家也没办法基于这个权重去一起贡献和改变权重，只能说基于权重再去做类似微调、强化学习等，大家更关注的是技术报告，里面披露的训练的方法、思路和细节&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://linux.do/images/emoji/twemoji/two.png?v=15" title=":two:" class="emoji" alt=":two:" loading="lazy" width="20" height="20"&gt; 小红书两位老师也有表示小红书也做了一些模型的开源，包括FireRed、dots-ocr等，一个角度：模型的效果仅靠benchmark来评估效果不太够，无法代表实际的应用效果，因此开源的好处之一是可以收到来自社区的实际应用反馈，有助于从更广泛的角度去看模型的效果，为后续的训练和调优指明方向。另外值得一提的是dots-ocr的效果确实非常好，很多adoption&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://linux.do/images/emoji/twemoji/three.png?v=15" title=":three:" class="emoji" alt=":three:" loading="lazy" width="20" height="20"&gt; 关于语音模型，训练数据远远少于文本数据，虽然今年一些头部公司的语音模型的训练数据规模已经达到了几千万、上亿小时的级别，但是与文本数据相比仍然有很大的差距。所以语音模型还有很大的进步空间，其中很重要的一个点在于数据不足，还能继续走scaling-law的路。现在小红书也在内测语音评论的功能，小红书也会基于语音模型去识别说话的内容、预期、情感等内容。在这次活动之前我不知道小红书有这个功能在内测，结合今天的分享内容，我腹黑一下，小红书借助这个功能可以有更多的语音数据做训练，功能本身也提供了一个大型的Evaluation现场，善加利用可以有一定程度的数据飞轮效果。记忆犹新，Thomas说了一句你们非常幸运有这么多的数据（指小红书这个平台这么多的数据），总感觉他说这句话适合的语气和神情很有内味（笑&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://linux.do/images/emoji/twemoji/four.png?v=15" title=":four:" class="emoji" alt=":four:" loading="lazy" width="20" height="20"&gt; 我刚好提问了风龙老师一个问题，现在一些场景比如同声传译的，需要将语音转文本（stt），文本转文本翻译（ttt），文本转语音（tts），怎么看待sts这种端到端的模型呢？风龙老师做了一个挺详细的解析和他的见解，我觉得讲的很好。关键的点就是不稳定性很高，也就是现在的流程稳定性很高，相对更可靠，哪个环节有问题都能比较明确的知道，但是如果端到端的话，出问题了有可能不知道怎么解决，这种对于企业生产级别的服务，是完全不可接受的，基本上方案也很难能通过。我理解可能还是端到端模型的不可解释性太高，以及目前这个模型的发展还没有到位。我记得amazon好像就有这块的探索。风龙老师也讲了这个是未来的一个方向，也建议还在学校的同学可以考虑做这个方向的研究。make sense&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://linux.do/images/emoji/twemoji/five.png?v=15" title=":five:" class="emoji" alt=":five:" loading="lazy" width="20" height="20"&gt; 关于大模型没有人情味的问题。凯奇老师说现在哪怕用户的已经很生气了，大模型不会选择去安抚一下用户情绪，而是继续解决问题，这就是现状。Thomas的一个观点也不错，这是因为现在的benchmark是基于Error Rates（错误率）来建立的，也就是基准测试都是评估模型做一个事情的成功或失败这种二元评估，结果必然就是模型的目的是解决问题。我的想法也是类似这样的，我觉得这个其实也能被改变的，我们可以用一些更有活人感的数据集来做instruct，这样出来的模型会更有活人感，不够根源还是在于现状追求活人感的商业价值没那么高，等到商业价值上去了，模型厂自然会做的。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://linux.do/images/emoji/twemoji/six.png?v=15" title=":six:" class="emoji" alt=":six:" loading="lazy" width="20" height="20"&gt; 关于基座模型增速放缓问题。现在其实大家还是在不同的方向上做探索，后阶段训练，RL，更高质量的数据，多模态，还是不同于的Transformer的架构，新范式等等，这些都有可能在未来出现新的突破，需要让子弹再飞一会。话说回来，这几个月也能明显感觉到模型厂已经开始上升到深耕应用层了，工程化或者说Applied AI可以在模型之外给模型公司带来第二增长曲线，并且很多实际的商业价值会在这里得到体现，这也是今年Agent市场火热的一个重要原因&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!k9AZ!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0c5fbdda-98ec-45fb-99f1-f1440432e19b_3024x4032.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/0/d/5/0d5d9c20aa028b18f301637cb5b92df89c555c2a.jpeg" alt="" data-base62-sha1="1UeLrZ3Up670LNCXmZfZauAxiPg" width="375" height="499" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;大概记得这么些内容了，最后领了一个1024大礼包，还有一个后面会安排寄送的礼包，还和Thomas合了个影，还加了风龙老师的vx，风龙老师说：要是你搞语音模型，马上就挖你了（DOGE（题外话，有在学校读书研究这个方向的同学可以考虑去找风龙老师，有实习或工作机会。领大礼包的时候还和组织活动的一位同学聊了一下，上次我从厦门坐飞机特地去北京参加Google Mingling的时候也是她，很脸熟了，聊了一下。人生的轨迹就是这么神奇，之前特地去参加活动，现在来上海发展了，又再次在另一个城市的另一个活动遇见。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://substackcdn.com/image/fetch/$s_!j_MT!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F13de7e37-5190-4e61-8765-8f2411d68a97_3024x4032.webp" rel="noopener nofollow ugc"&gt;&lt;br&gt;
+&lt;img src="https://linux.do/uploads/default/original/4X/8/6/f/86f0c38dabf4dcc8e676b4277c7746411a98de12.jpeg" alt="" data-base62-sha1="jfJOxUT4MXrBWq1iiBmPibA0bRM" width="375" height="499" role="presentation"&gt;&lt;br&gt;
+&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;今天就背着送的包和公仔出街了。继续保持热情和高能量，继续保持空杯心态，继续探索未知，继续遇见一切。&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;3 个帖子 - 3 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089273"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089273&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:30:46 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089273&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089273.rss"&gt;小红书AMA&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;红米K90怎么样，值得换购吗&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[kukegogo]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;本人手机是红米note12tube，现在用了2年多了，一天起码要充2次电起，有时候手机卡卡的，不是很耐用了，看到红米k90新发布，想着说是现在买首发的k90好，还是说再等久一些，手机降价了再买呢。明年红米k90降价会降的多吗？&lt;br&gt;
+红米k90promax太贵了，现在红米k90有12+512降到2800多，推荐吗&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;9 个帖子 - 6 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089266"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089266&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:27:47 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089266&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089266.rss"&gt;红米K90怎么样，值得换购吗&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;抽一个农夫山泉的200G一个月节点&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[haneer]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;福利羊毛&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;抽奖主题： 抽一个农夫山泉一个月200G节点&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/trophy.png?v=15" title=":trophy:" class="emoji" alt=":trophy:" loading="lazy" width="20" height="20"&gt; 奖品详情：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;农夫山泉一个月200G节点&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/three_o_clock.png?v=15" title=":three_o_clock:" class="emoji" alt=":three_o_clock:" loading="lazy" width="20" height="20"&gt; 活动时间：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;开始时间：现在&lt;br&gt;
+截止时间：&lt;span class="discourse-local-date" data-date="2025-10-26" data-email-preview="Sun, Oct 26, 2025 10:00 AM CST" data-time="10:00:00" data-timezone="Asia/Shanghai"&gt;Sun, Oct 26, 2025 10:00 AM CST&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/memo.png?v=15" title=":memo:" class="emoji" alt=":memo:" loading="lazy" width="20" height="20"&gt; 参与方式：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;在本帖下点赞并回复任意内容&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/magnifying_glass_tilted_left.png?v=15" title=":magnifying_glass_tilted_left:" class="emoji" alt=":magnifying_glass_tilted_left:" loading="lazy" width="20" height="20"&gt; 抽奖规则：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;每位用户仅允许参与一次。&lt;br&gt;
+使用&lt;a href="https://lottery.linux.do/"&gt;官方抽奖工具&lt;/a&gt;随机抽取中奖者。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;img src="https://linux.do/images/emoji/twemoji/warning.png?v=15" title=":warning:" class="emoji" alt=":warning:" loading="lazy" width="20" height="20"&gt; 注意事项：&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;本活动将在活动截止时间后关闭回帖，以确保公正性。&lt;br&gt;
+中奖者将在活动结束后12小时内在本帖公布，并通过私信通知领奖方式。&lt;br&gt;
+所有规则及抽奖结果由活动发起人和论坛&lt;a href="https://linux.do/about"&gt;管理团队&lt;/a&gt;最终解释。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;期待您的积极参与，祝您好运！如有任何疑问，欢迎随时联系抽奖发起人。&lt;/strong&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;65 个帖子 - 64 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089257"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089257&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:25:14 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089257&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089257.rss"&gt;抽一个农夫山泉的200G一个月节点&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;这个扣费正确吗? 我迷糊了 兄弟们&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[皇族五五开老马啊]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/b/b/2/bb2b5a9b5fdcf7afecb8fc5cfd965d35b529118d.png" data-download-href="https://linux.do/uploads/default/bb2b5a9b5fdcf7afecb8fc5cfd965d35b529118d" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/b/b/2/bb2b5a9b5fdcf7afecb8fc5cfd965d35b529118d_2_690x43.png" alt="image" data-base62-sha1="qHMaGvi8w4zGuOAtr2d4OiZBHkx" width="690" height="43" srcset="https://linux.do/uploads/default/optimized/4X/b/b/2/bb2b5a9b5fdcf7afecb8fc5cfd965d35b529118d_2_690x43.png, https://linux.do/uploads/default/optimized/4X/b/b/2/bb2b5a9b5fdcf7afecb8fc5cfd965d35b529118d_2_1035x64.png 1.5x, https://linux.do/uploads/default/optimized/4X/b/b/2/bb2b5a9b5fdcf7afecb8fc5cfd965d35b529118d_2_1380x86.png 2x" data-dominant-color="FBFBFA"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+0.5毛一刀 倍率是1.6一刀&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;2 个帖子 - 2 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089255"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089255&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:24:51 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089255&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089255.rss"&gt;这个扣费正确吗? 我迷糊了 兄弟们&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;请问一下咸鱼那些卖堂食优惠的是哪里来的&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[明太祖]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;福利羊毛&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;比如线下堂食，点菜结账能给优惠不少，套餐也可以。我上各大平台没看到，店铺会员本身也没这种优惠。是也有一个类似联盟的推广的平台嘛&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;3 个帖子 - 2 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089254"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089254&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:24:48 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089254&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089254.rss"&gt;请问一下咸鱼那些卖堂食优惠的是哪里来的&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;MiniMax-M2多平台免费使用，体验最新：MiniMax-M2-Preview&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[ada]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;福利羊毛&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;MiniMax-M2-Preview，昨晚使用了，效果还可以，今天发现多个平台已经可以免费使用：MiniMax-M2，&lt;br&gt;
+&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/6/c/8/6c89bfb36171a944027164f8f89681c72e071502.jpeg" data-download-href="https://linux.do/uploads/default/6c89bfb36171a944027164f8f89681c72e071502" title="3"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/6/c/8/6c89bfb36171a944027164f8f89681c72e071502_2_690x415.jpeg" alt="3" data-base62-sha1="fuaGVgEPVJw9QkvwnTzU0nv3bZo" width="690" height="415" srcset="https://linux.do/uploads/default/optimized/4X/6/c/8/6c89bfb36171a944027164f8f89681c72e071502_2_690x415.jpeg, https://linux.do/uploads/default/optimized/4X/6/c/8/6c89bfb36171a944027164f8f89681c72e071502_2_1035x622.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/6/c/8/6c89bfb36171a944027164f8f89681c72e071502_2_1380x830.jpeg 2x" data-dominant-color="212122"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/2/4/d/24d4f160219b7af1a77742304b4a009e6206ef8e.png" data-download-href="https://linux.do/uploads/default/24d4f160219b7af1a77742304b4a009e6206ef8e" title="4"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/2/4/d/24d4f160219b7af1a77742304b4a009e6206ef8e_2_309x500.png" alt="4" data-base62-sha1="5fPpQHVb15VQB7JXzG6CkmWQPqS" width="309" height="500" srcset="https://linux.do/uploads/default/optimized/4X/2/4/d/24d4f160219b7af1a77742304b4a009e6206ef8e_2_309x500.png, https://linux.do/uploads/default/optimized/4X/2/4/d/24d4f160219b7af1a77742304b4a009e6206ef8e_2_463x750.png 1.5x, https://linux.do/uploads/default/optimized/4X/2/4/d/24d4f160219b7af1a77742304b4a009e6206ef8e_2_618x1000.png 2x" data-dominant-color="F6F8F7"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;43 个帖子 - 15 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089239"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089239&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:19:11 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089239&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089239.rss"&gt;MiniMax-M2多平台免费使用，体验最新：MiniMax-M2-Preview&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;cursor你们500次够用吗&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[xiaocaicai]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;开发调优&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/f/e/9/fe965aeab54234223b2e03ca43161f43c70ad031.png" data-download-href="https://linux.do/uploads/default/fe965aeab54234223b2e03ca43161f43c70ad031" title="QQ20251025-121629"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/f/e/9/fe965aeab54234223b2e03ca43161f43c70ad031_2_690x246.png" alt="QQ20251025-121629" data-base62-sha1="AkbpxmhzaJ59ZGdVfZOCx2RPkxH" width="690" height="246" srcset="https://linux.do/uploads/default/optimized/4X/f/e/9/fe965aeab54234223b2e03ca43161f43c70ad031_2_690x246.png, https://linux.do/uploads/default/original/4X/f/e/9/fe965aeab54234223b2e03ca43161f43c70ad031.png 1.5x, https://linux.do/uploads/default/original/4X/f/e/9/fe965aeab54234223b2e03ca43161f43c70ad031.png 2x" data-dominant-color="1F2024"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/2/6/6/2663702adb3153ad8e3fc981cfbf285d29458375.png" data-download-href="https://linux.do/uploads/default/2663702adb3153ad8e3fc981cfbf285d29458375" title="QQ20251025-121719"&gt;&lt;img src="https://linux.do/uploads/default/original/4X/2/6/6/2663702adb3153ad8e3fc981cfbf285d29458375.png" alt="QQ20251025-121719" data-base62-sha1="5tBbJ3c2UqQD3b2zmzFWDyLR3HT" width="534" height="213"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;自己账号感觉不够用了，看了眼咸鱼有那种 4块钱 能用4天 60刀额度的账号，靠谱吗？&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;14 个帖子 - 14 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089238"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089238&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:19:01 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089238&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089238.rss"&gt;cursor你们500次够用吗&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;南方的环世界玩家 | meme&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[stevessr⁧ ]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;&lt;/p&gt;&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/0/6/1/061c31a3676cb2f80fc473fc74ec174f6f545b7d.jpeg" data-download-href="https://linux.do/uploads/default/061c31a3676cb2f80fc473fc74ec174f6f545b7d" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/0/6/1/061c31a3676cb2f80fc473fc74ec174f6f545b7d_2_275x500.jpeg" alt="image" data-base62-sha1="S3gJMmtiEAvBo69BlptAPMUtf7" width="275" height="500" srcset="https://linux.do/uploads/default/optimized/4X/0/6/1/061c31a3676cb2f80fc473fc74ec174f6f545b7d_2_275x500.jpeg, https://linux.do/uploads/default/optimized/4X/0/6/1/061c31a3676cb2f80fc473fc74ec174f6f545b7d_2_412x750.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/0/6/1/061c31a3676cb2f80fc473fc74ec174f6f545b7d_2_550x1000.jpeg 2x" data-dominant-color="D9DAD4"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/e/c/8/ec8f880395aac2a590c377a6822b71b7ba9df0cc.jpeg" data-download-href="https://linux.do/uploads/default/ec8f880395aac2a590c377a6822b71b7ba9df0cc" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/e/c/8/ec8f880395aac2a590c377a6822b71b7ba9df0cc_2_566x500.jpeg" alt="image" data-base62-sha1="xKIceUDbHzC45ZV9Ea7cdmgUUd6" width="566" height="500" srcset="https://linux.do/uploads/default/optimized/4X/e/c/8/ec8f880395aac2a590c377a6822b71b7ba9df0cc_2_566x500.jpeg, https://linux.do/uploads/default/optimized/4X/e/c/8/ec8f880395aac2a590c377a6822b71b7ba9df0cc_2_849x750.jpeg 1.5x, https://linux.do/uploads/default/original/4X/e/c/8/ec8f880395aac2a590c377a6822b71b7ba9df0cc.jpeg 2x" data-dominant-color="9D927D"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/5/8/9/5890aa6b243b8ab1bab9391382ef7a884e2818cf.jpeg" data-download-href="https://linux.do/uploads/default/5890aa6b243b8ab1bab9391382ef7a884e2818cf" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/5/8/9/5890aa6b243b8ab1bab9391382ef7a884e2818cf_2_465x500.jpeg" alt="image" data-base62-sha1="cDtXENy7LJZkkcYNpxdtrNS0kNx" width="465" height="500" srcset="https://linux.do/uploads/default/optimized/4X/5/8/9/5890aa6b243b8ab1bab9391382ef7a884e2818cf_2_465x500.jpeg, https://linux.do/uploads/default/optimized/4X/5/8/9/5890aa6b243b8ab1bab9391382ef7a884e2818cf_2_697x750.jpeg 1.5x, https://linux.do/uploads/default/optimized/4X/5/8/9/5890aa6b243b8ab1bab9391382ef7a884e2818cf_2_930x1000.jpeg 2x" data-dominant-color="8A5D76"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/f/8/8/f88d164006960a73b0e0e485e3393eee5513a655.jpeg" data-download-href="https://linux.do/uploads/default/f88d164006960a73b0e0e485e3393eee5513a655" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/f/8/8/f88d164006960a73b0e0e485e3393eee5513a655_2_651x500.jpeg" alt="image" data-base62-sha1="zsMGMkicePXgImBozGiJ0r76Cm9" width="651" height="500" srcset="https://linux.do/uploads/default/optimized/4X/f/8/8/f88d164006960a73b0e0e485e3393eee5513a655_2_651x500.jpeg, https://linux.do/uploads/default/optimized/4X/f/8/8/f88d164006960a73b0e0e485e3393eee5513a655_2_976x750.jpeg 1.5x, https://linux.do/uploads/default/original/4X/f/8/8/f88d164006960a73b0e0e485e3393eee5513a655.jpeg 2x" data-dominant-color="876766"&gt;&lt;/a&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="lightbox-wrapper"&gt;&lt;a class="lightbox" href="https://linux.do/uploads/default/original/4X/4/2/2/42249e266be313fa340107278d357e60e7ec48e5.jpeg" data-download-href="https://linux.do/uploads/default/42249e266be313fa340107278d357e60e7ec48e5" title="image"&gt;&lt;img src="https://linux.do/uploads/default/optimized/4X/4/2/2/42249e266be313fa340107278d357e60e7ec48e5_2_690x445.jpeg" alt="image" data-base62-sha1="9r7XUkKc7ZhZCsXK6xyc2JbWNdX" width="690" height="445" srcset="https://linux.do/uploads/default/optimized/4X/4/2/2/42249e266be313fa340107278d357e60e7ec48e5_2_690x445.jpeg, https://linux.do/uploads/default/original/4X/4/2/2/42249e266be313fa340107278d357e60e7ec48e5.jpeg 1.5x, https://linux.do/uploads/default/original/4X/4/2/2/42249e266be313fa340107278d357e60e7ec48e5.jpeg 2x" data-dominant-color="82818D"&gt;&lt;/a&gt;&lt;/div&gt;&lt;p&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;4 个帖子 - 2 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089236"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089236&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:17:24 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089236&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089236.rss"&gt;南方的环世界玩家 | meme&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;Figma make ai 教育优惠版也能使用 mcp 吗？&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[C]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;资源荟萃&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;Figma make ai 教育优惠版也能使用 mcp 吗？&lt;/p&gt;
+&lt;p&gt;有没有合租或者出售教育优惠版本的&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;1 个帖子 - 1 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089229"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089229&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 04:13:08 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089229&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089229.rss"&gt;Figma make ai 教育优惠版也能使用 mcp 吗？&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;【招聘】郑州小红书SEO 做内容优化, 矩阵号策略, 有谷歌seo经验优先&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[Ma]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;非我莫属&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;高级SEO优化专员&lt;/p&gt;
+&lt;p&gt;岗位职责:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;负责小红书平台内容的SEO优化，包括标题、标签、内容结构等，提升自然搜索流量和曝光率。&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;对小红书平台, Google算法有敏锐的洞察力和及时调整推广策略的创新能力;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;与内容团队密切合作，制定小红书内容创作计划，确保内容符合用户需求和品牌定位。&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;分析行业趋势及竞品数据, 定期输出优化方案&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;定期输出ROI报告, 向管理层汇报SEO对业务增长的贡献&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;管理外链建设及合作伙伴关系, 提升域名权威 (DA/PA)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;任职要求:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;专科及以上学历，市场营销、计算机、广告等相关专业优先。&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;2年以上SEO, 网络推广相关工作经验，有成功案例者优先。&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;具备良好的数据分析能力, 能够通过数据驱动决策&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;具备出色的沟通能力和团队合作精神, 能够独立推动项目进展&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;目前已实现小红书外部数据和私域数据的打通, 可根据工作内容增加引流提成&lt;br&gt;
+工作上主要跟技术和新媒体团队配合, 基本为95 00后同事&lt;br&gt;
+熟练应用AI, 深度理解GEO原理的优先&lt;br&gt;
+薪资9-13, 丰富网络推广营销经验的可调整上限&lt;/p&gt;
+&lt;p&gt;有意+wx mby674846320&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;1 个帖子 - 1 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089173"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089173&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 03:49:53 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089173&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089173.rss"&gt;【招聘】郑州小红书SEO 做内容优化, 矩阵号策略, 有谷歌seo经验优先&lt;/source&gt;
+        &lt;/item&gt;
+        &lt;item&gt;
+          &lt;title&gt;苹果维修太黑了啊&lt;/title&gt;
+          &lt;dc:creator&gt;&lt;![CDATA[griffonz]]&gt;&lt;/dc:creator&gt;
+          &lt;category&gt;搞七捻三&lt;/category&gt;
+          &lt;description&gt;&lt;![CDATA[
+            &lt;p&gt;IPAD PRO背光坏了，明明小毛病，非得换新，特么的还贼贵，赶上买新的了，感情我找它维修，相当于把我的旧机器白给它，再花钱重新买个新的&lt;/p&gt;
+            &lt;p&gt;&lt;small&gt;11 个帖子 - 9 位参与者&lt;/small&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;a href="https://linux.do/t/topic/1089170"&gt;阅读完整话题&lt;/a&gt;&lt;/p&gt;
+          ]]&gt;&lt;/description&gt;
+          &lt;link&gt;https://linux.do/t/topic/1089170&lt;/link&gt;
+          &lt;pubDate&gt;Sat, 25 Oct 2025 03:49:49 +0000&lt;/pubDate&gt;
+          &lt;discourse:topicPinned&gt;No&lt;/discourse:topicPinned&gt;
+          &lt;discourse:topicClosed&gt;No&lt;/discourse:topicClosed&gt;
+          &lt;discourse:topicArchived&gt;No&lt;/discourse:topicArchived&gt;
+          &lt;guid isPermaLink="false"&gt;linux.do-topic-1089170&lt;/guid&gt;
+          &lt;source url="https://linux.do/t/topic/1089170.rss"&gt;苹果维修太黑了啊&lt;/source&gt;
+        &lt;/item&gt;
+  &lt;/channel&gt;
+&lt;/rss&gt;
+</pre></body></html>

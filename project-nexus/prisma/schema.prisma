@@ -1,0 +1,910 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "windows"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id                          String              @id @default(cuid())
+  email                       String              @unique
+  name                        String?
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+  spotifyId                   String?             @unique
+  spotifyAccessToken          String?             @map("spotify_access_token")
+  spotifyAccessTokenExpiresAt DateTime?           @map("spotify_access_token_expires_at")
+  spotifyRefreshToken         String?             @map("spotify_refresh_token")
+  emailVerified               DateTime?           @map("email_verified")
+  image                       String?
+  password                    String?
+  accounts                    Account[]
+  aiSummaries                 AISummary[]
+  instanceTags                InstanceTag[]
+  logs                        Log[]
+  operationRecords            OperationRecord[]
+  quests                      Quest[]
+  sessions                    Session[]
+  skills                      Skill[]
+  timerTasks                  TimerTask[]
+  taskDefinitions             TaskDefinition[]
+  notes                       Note[]
+  treasures                   Treasure[]
+  articles                    Article[]
+  mindmaps                    MindMap[]
+  twitterUsers                TwitterUser[]
+  layout                      UserLayout?
+  youtubeVideoCache           YouTubeVideoCache[]
+  dailyProgress               DailyProgress[]
+  skillProfiles               SkillProfile[]
+  projectProfiles             ProjectProfile[]
+  milestones                  Milestone[]
+  books                       Book[]
+  readingProgress             ReadingProgress[]
+  bookNotes                   BookNote[]
+  russianLearningNotes        RussianLearningNote[]
+  flashcards                  Flashcard[]
+  conversations               Conversation[]
+  widgetTodos                 WidgetTodo[]
+
+  @@map("users")
+}
+
+model WidgetTodo {
+  id        String   @id @default(cuid())
+  text      String
+  completed Boolean  @default(false)
+  group     String   @default("default")
+  order     Int      @default(0)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("widget_todos")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // "user" or "assistant"
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+  @@map("chat_messages")
+}
+
+model RussianLearningNote {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String   @db.Text
+  sourceText String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("russian_learning_notes")
+}
+
+model Flashcard {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  front        String   @db.Text
+  back         String   @db.Text
+  stage        Int      @default(0)
+  nextReviewAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // FSRS Fields
+  stability    Float    @default(0)
+  difficulty   Float    @default(0)
+  elapsedDays  Float    @default(0)
+  scheduledDays Float   @default(0)
+  reps         Int      @default(0)
+  lastReview   DateTime?
+
+  @@map("flashcards")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  level       Int      @default(1)
+  experience  Int      @default(0)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  quests      Quest[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("skills")
+}
+
+model Quest {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  status      QuestStatus @default(PLANNING)
+  priority    Priority    @default(MEDIUM)
+  skillId     String?
+  userId      String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  logs        Log[]
+  skill       Skill?      @relation(fields: [skillId], references: [id])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("quests")
+}
+
+model Log {
+  id         String                @id @default(cuid())
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  content    String?
+  questId    String?
+  userId     String
+  timestamp  DateTime              @default(now())
+  categories LogCategoryInstance[]
+  quest      Quest?                @relation(fields: [questId], references: [id])
+  user       User                  @relation(fields: [userId], references: [id])
+
+  @@map("logs")
+}
+
+model LogCategoryInstance {
+  id            String                   @id @default(cuid())
+  name          String
+  logId         String
+  log           Log                      @relation(fields: [logId], references: [id], onDelete: Cascade)
+  subCategories LogSubCategoryInstance[]
+
+  @@map("log_category_instances")
+}
+
+model LogSubCategoryInstance {
+  id         String                @id @default(cuid())
+  name       String
+  categoryId String
+  activities LogActivityInstance[]
+  category   LogCategoryInstance   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("log_subcategory_instances")
+}
+
+model LogActivityInstance {
+  id            String                 @id @default(cuid())
+  name          String
+  duration      String
+  subCategoryId String
+  subCategory   LogSubCategoryInstance @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+
+  @@map("log_activity_instances")
+}
+
+model LogCategory {
+  id        String        @id @default(cuid())
+  name      String
+  parentId  String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  parent    LogCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  LogCategory[] @relation("CategoryHierarchy")
+
+  @@unique([name, parentId]) // <--- ADD THIS LINE
+  @@map("log_categories")
+}
+
+model InstanceTag {
+  id         String                 @id @default(cuid())
+  name       String
+  userId     String
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timerTasks TimerTaskInstanceTag[]
+
+  @@unique([userId, name])
+  @@map("instance_tags")
+}
+
+model TimerTaskInstanceTag {
+  id            String      @id @default(cuid())
+  timerTaskId   String
+  instanceTagId String
+  createdAt     DateTime    @default(now())
+  instanceTag   InstanceTag @relation(fields: [instanceTagId], references: [id], onDelete: Cascade)
+  timerTask     TimerTask   @relation(fields: [timerTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([timerTaskId, instanceTagId])
+  @@map("timer_task_instance_tags")
+}
+
+model UserLayout {
+  id           String @id @default(cuid())
+  userId       String @unique
+  layoutConfig Json
+  user         User   @relation(fields: [userId], references: [id])
+
+  @@map("user_layouts")
+}
+
+model TimerTask {
+  id               String          @id @default(cuid())
+  // Fields to be deprecated
+  name             String? // Changed to optional
+  categoryPath     String? // Changed to optional
+  // New relation
+  taskDefinitionId String?
+  taskDefinition   TaskDefinition? @relation(fields: [taskDefinitionId], references: [id], onDelete: SetNull)
+  elapsedTime      Int             @default(0)
+  initialTime      Int             @default(0)
+  isRunning        Boolean         @default(false)
+  startTime        Int?
+  isPaused         Boolean         @default(false)
+  pausedTime       Int             @default(0)
+  completedAt      Int?
+  date             String
+  userId           String
+  parentId         String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  order            Int             @default(0)
+  instanceTag      String?
+  version          Int             @default(1)
+  instanceTags     TimerTaskInstanceTag[]
+  parent           TimerTask?      @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children         TimerTask[]     @relation("TaskHierarchy")
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("timer_tasks")
+}
+
+model TaskDefinition {
+  id           String      @id @default(cuid())
+  name         String
+  categoryPath String
+  userId       String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timerTasks   TimerTask[]
+
+  @@unique([userId, name, categoryPath])
+  @@map("task_definitions")
+}
+
+
+
+model OperationRecord {
+  id        String   @id @default(cuid())
+  action    String
+  taskName  String
+  details   String?
+  userId    String
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("operation_records")
+}
+
+model AISummary {
+  id         String   @id @default(cuid())
+  userId     String
+  date       String?
+  startDate  String?
+  endDate    String?
+  summary    String
+  totalTime  Int
+  taskCount  Int
+  insights   Json
+  categories Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@unique([userId, startDate, endDate])
+  @@map("ai_summaries")
+}
+
+model posts {
+  id                 String    @id
+  title              String
+  url                String
+  core_issue         String?
+  key_info           Json?
+  post_type          String?
+  value_assessment   String?
+  detailed_analysis  String?   @db.Text
+  replies_count      Int?      @default(0)
+  participants_count Int?      @default(0)
+  timestamp          DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model reddit_posts {
+  id                String    @id @map("id")
+  title             String
+  title_cn          String?
+  url               String
+  core_issue        String?
+  key_info          Json?
+  post_type         String?
+  value_assessment  String?
+  detailed_analysis String?   @db.Text
+  subreddit         String?
+  score             Int?
+  num_comments      Int?
+  timestamp         DateTime? @default(now()) @db.Timestamptz(6)
+  comments          RedditComment[]
+
+  @@map("reddit_posts")
+}
+
+model RedditComment {
+  id             String    @id @map("comment_id")
+  postId         String    @map("post_id")
+  redditPostId   String    @map("reddit_post_id")
+  author         String?
+  body           String    @db.Text
+  score          Int       @default(0)
+  createdUtc     DateTime  @map("created_utc") @db.Timestamptz(6)
+  parentId       String?   @map("parent_id")
+  depth          Int       @default(0)
+  isSubmitter    Boolean   @default(false) @map("is_submitter")
+  permalink      String?
+  scrapedAt      DateTime  @default(now()) @map("scraped_at") @db.Timestamptz(6)
+  
+  post           reddit_posts @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([id])
+  @@index([postId])
+  @@index([redditPostId])
+  @@index([createdUtc])
+  @@map("reddit_comments")
+}
+
+model TwitterUser {
+  id              String         @id @default(cuid())
+  twitterId       String         @unique
+  username        String         @unique
+  name            String
+  profileImageUrl String?
+  publicMetrics   Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  userId          String?
+  tweets          TwitterTweet[]
+  user            User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("twitter_users")
+}
+
+model TwitterTweet {
+  id            String         @id @default(cuid())
+  twitterId     String         @unique
+  text          String
+  createdAt     DateTime
+  publicMetrics Json
+  authorId      String
+  cachedAt      DateTime       @default(now())
+  expiresAt     DateTime
+  attachments   Json?
+  media         TwitterMedia[]
+  author        TwitterUser    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("twitter_tweets")
+}
+
+model TwitterMedia {
+  id              String       @id @default(cuid())
+  mediaKey        String       @unique @map("media_key")
+  tweetId         String
+  type            String
+  url             String?
+  previewImageUrl String?      @map("preview_image_url")
+  width           Int?
+  height          Int?
+  altText         String?      @map("alt_text")
+  tweet           TwitterTweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  @@map("twitter_media")
+}
+
+model YouTubeVideoCache {
+  id           String    @id @default(cuid())
+  videoId      String    @unique
+  title        String
+  description  String?
+  thumbnail    String
+  channelTitle String
+  publishedAt  DateTime
+  duration     String
+  viewCount    String
+  url          String
+  likedAt      DateTime?
+  userId       String
+  cachedAt     DateTime  @default(now())
+  expiresAt    DateTime
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("youtube_video_cache")
+}
+
+model spotify_cache {
+  user_id    String   @id
+  payload    Json
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model Treasure {
+  id            String              @id @default(cuid())
+  title         String
+  content       String?
+  type          TreasureType
+  tags          String[]            @default([])
+  aiTags        String[]            @default([])
+  userId        String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  musicTitle    String?
+  musicArtist   String?
+  musicAlbum    String?
+  musicUrl      String?
+  musicCoverUrl String?
+  theme         String[]            @default([])
+  likesCount    Int                 @default(0)
+  images        Image[]
+  likes         TreasureLike[]
+  answers       TreasureAnswer[]
+  articleRefs   TreasureReference[]
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("treasures")
+}
+
+model TreasureLike {
+  id         String   @id @default(cuid())
+  treasureId String
+  userId     String
+  createdAt  DateTime @default(now())
+  treasure   Treasure @relation(fields: [treasureId], references: [id], onDelete: Cascade)
+  
+  @@map("treasure_likes")
+}
+
+model TreasureAnswer {
+  id         String   @id @default(cuid())
+  treasureId String
+  userId     String
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  treasure   Treasure @relation(fields: [treasureId], references: [id], onDelete: Cascade)
+  
+  @@map("treasure_answers")
+}
+
+model Image {
+  id         String   @id @default(cuid())
+  url        String
+  alt        String?
+  width      Int?
+  height     Int?
+  size       Int?
+  treasureId String
+  createdAt  DateTime @default(now())
+  treasure   Treasure @relation(fields: [treasureId], references: [id], onDelete: Cascade)
+
+  @@map("treasure_images")
+}
+
+enum QuestStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TreasureType {
+  TEXT
+  IMAGE
+  MUSIC
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Visibility {
+  PRIVATE
+  PUBLIC
+  UNLISTED
+}
+
+model Article {
+  id               String            @id @default(cuid())
+  title            String
+  subtitle         String?
+  content          String            @db.Text
+  abstract         String?
+  coverImage       String?
+  status           ArticleStatus     @default(DRAFT)
+  visibility       Visibility        @default(PRIVATE)
+  sections         Json?
+  toc              Json?
+  tags             String[]          @default([])
+  slug             String            @unique
+  keywords         String[]          @default([])
+  wordCount        Int               @default(0)
+  readingTime      Int               @default(0)
+  authorId         String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  publishedAt      DateTime?
+  order            Int               @default(0)
+  author           User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  treasureRefs     TreasureReference[]
+
+  @@index([authorId, status])
+  @@index([slug])
+  @@map("articles")
+}
+
+model TreasureReference {
+  id         String   @id @default(cuid())
+  articleId  String
+  treasureId String
+  context    String?
+  createdAt  DateTime @default(now())
+  article    Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  treasure   Treasure @relation(fields: [treasureId], references: [id], onDelete: Cascade)
+
+  @@map("treasure_references")
+}
+
+model MindMap {
+  id        String   @id @default(cuid())
+  title     String
+  nodes     Json     @default("[]")
+  edges     Json     @default("[]")
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mindmaps")
+}
+
+// 每日进度记录
+model DailyProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date      String   // "2025-10-12" 进度所属日期（前一天）
+  
+  // AI 初步分析
+  aiAnalysis          Json     // AI的初步分析结果
+  aiExtractedSkills   Json     // 提取的技能 [{ skill, level, delta, isNew }]
+  aiExtractedProjects Json     // 识别的项目 [{ name, hours }]
+  aiInsights          String[] // AI洞察
+  
+  // 对话历史
+  conversationHistory Json     // 用户反馈和AI调整的对话记录
+  iterations          Int      @default(1) // 迭代次数
+  
+  // 用户最终确认
+  finalAnalysis       Json?    // 最终确认的分析结果
+  userNotes           String?  @db.Text
+  isConfirmed         Boolean  @default(false)
+  
+  // 统计数据
+  totalHours          Float
+  newSkillsCount      Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, date])
+  @@map("daily_progress")
+}
+
+// 技能档案（累积追踪）
+model SkillProfile {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  skillName    String   // "React"
+  category     String?  // "前端开发"
+  
+  // 熟练度数据
+  proficiency  Float    @default(0) // 0-100
+  totalHours   Float    @default(0)
+  occurrences  Int      @default(0) // 使用次数
+  
+  // 时间追踪
+  firstUsed    DateTime
+  lastUsed     DateTime
+  
+  // 成长趋势（存储每周数据点）
+  weeklyTrend  Json     @default("[]") // [{ week, hours, proficiency }]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, skillName])
+  @@map("skill_profiles")
+}
+
+// 项目档案
+model ProjectProfile {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  projectName  String   // "#个人门户"
+  
+  // 统计数据
+  totalHours   Float    @default(0)
+  taskCount    Int      @default(0)
+  
+  // 时间追踪
+  startDate    DateTime
+  lastActive   DateTime
+  
+  // 项目数据
+  milestones   Json     @default("[]") // 里程碑列表
+  skillsUsed   String[] @default([])   // 用到的技能
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, projectName])
+  @@map("project_profiles")
+}
+
+// 笔记（纯Markdown）
+model Note {
+  id        String   @id @default(cuid())
+  title     String   @default("New Note")
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Int      @default(0)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("notes")
+}
+
+// 里程碑（每周回顾）
+model Milestone {
+  id                      String   @id @default(cuid())
+  userId                  String
+  startDate               DateTime
+  endDate                 DateTime
+  aiTitle                 String
+  aiFocus                 String
+  aiInsights              String[]
+  aiKeyAchievements       Json
+  confirmedAchievements   Json
+  userNotes               String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, startDate, endDate])
+  @@index([userId])
+  @@map("milestones")
+}
+
+// WebRead 功能相关模型
+model Book {
+  id          String   @id @default(cuid())
+  title       String
+  author      String?
+  coverUrl    String?
+  fileUrl     String   // Vercel Blob 文件URL
+  fileSize    Int
+  uploadDate  DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  readingProgress ReadingProgress[]
+  bookNotes       BookNote[]
+  
+  @@map("books")
+}
+
+model ReadingProgress {
+  id        String   @id @default(cuid())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  currentChapter String
+  progress      Float    // 0-1 进度百分比
+  cfi           String?  // CFI for precise location
+  lastReadAt     DateTime @default(now())
+  
+  @@unique([bookId, userId])
+  @@map("reading_progress")
+}
+
+model BookNote {
+  id          String      @id @default(cuid())
+  bookId      String
+  book        Book        @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  chapter     String?
+  text        String      @db.Text   // 原文
+  note        String?     @db.Text   // 用户添加的笔记/AI 分析结果
+  highlight   String?                // 高亮颜色
+  position    String                 // CFI for precise location/range
+  type        BookNoteType @default(NOTE) // 笔记类型 (NOTE, AI_INSIGHT, HIGHLIGHT)
+  aiContent   Json?                  // 完整 AI 响应，如果 type 是 AI_INSIGHT
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@map("book_notes")
+}
+
+enum BookNoteType {
+  NOTE
+  AI_INSIGHT
+  HIGHLIGHT
+}
+
+// ============================================================================
+// 小黑盒爬虫相关模型
+// ============================================================================
+
+model heybox_posts {
+  id                String    @id
+  title             String
+  title_cn          String?
+  url               String
+  author            String?
+  avatar_url        String?
+  cover_image       String?
+  content_summary   String?   @db.Text
+  likes_count       Int?      @default(0)
+  comments_count    Int?      @default(0)
+  views_count       Int?      @default(0)
+  game_tag          String?
+  core_issue        String?
+  key_info          Json?
+  post_type         String?
+  value_assessment  String?
+  detailed_analysis String?   @db.Text
+  timestamp         DateTime? @default(now()) @db.Timestamptz(6)
+  comments          heybox_comments[]
+  
+  @@map("heybox_posts")
+}
+
+model heybox_comments {
+  id             String    @id
+  post_id        String
+  author         String?
+  content        String    @db.Text
+  likes_count    Int       @default(0)
+  created_at     DateTime  @db.Timestamptz(6)
+  parent_id      String?
+  depth          Int       @default(0)
+  scraped_at     DateTime  @default(now()) @db.Timestamptz(6)
+  
+  post           heybox_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  
+  @@unique([id])
+  @@index([post_id])
+  @@index([created_at])
+  @@map("heybox_comments")
+}
+
+// 用户标签模型 - 用于保存用户对帖子的自定义标签
+model PostTag {
+  id        String   @id @default(cuid())
+  userId    String
+  source    String   // 'linuxdo', 'reddit', 'heybox'
+  postId    String
+  tags      String[] @default([])
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, source, postId])
+  @@index([userId, source])
+  @@index([userId, tags])
+  @@map("post_tags")
+}
+
+model GlobalConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("global_config")
+}

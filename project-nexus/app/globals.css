@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* epubjs rendition iframe global styles */
+iframe {
+  border: none;
+}
+
+/* Highlight style for AI bubbles */
+.epub-bubble-highlight {
+  background-color: rgba(147, 51, 234, 0.1); /* Purple tint */
+  border-bottom: 1px dashed rgba(147, 51, 234, 0.6); /* Purple dashed underline */
+  cursor: pointer;
+  padding-bottom: 2px; /* 给下划线留点空间 */
+}
+
+/* prose styles for markdown rendering */
+.prose {
+  --tw-prose-body: #374151;
+  --tw-prose-headings: #111827;
+  --tw-prose-links: #4f46e5;
+  --tw-prose-bold: #111827;
+  --tw-prose-counters: #6b7280;
+  --tw-prose-bullets: #d1d5db;
+  --tw-prose-hr: #e5e7eb;
+  --tw-prose-quotes: #111827;
+  --tw-prose-quote-borders: #e5e7eb;
+  --tw-prose-captions: #6b7280;
+  --tw-prose-code: #111827;
+  --tw-prose-pre-code: #e5e7eb;
+  --tw-prose-pre-bg: #1f2937;
+  --tw-prose-th-borders: #e5e7eb;
+  --tw-prose-td-borders: #e5e7eb;
+  --tw-prose-invert-body: #d1d5db;
+  --tw-prose-invert-headings: #fff;
+  --tw-prose-invert-links: #a78bfa;
+  --tw-prose-invert-bold: #fff;
+  --tw-prose-invert-counters: #9ca3af;
+  --tw-prose-invert-bullets: #4b5563;
+  --tw-prose-invert-hr: #374151;
+  --tw-prose-invert-quotes: #f9fafb;
+  --tw-prose-invert-quote-borders: #374151;
+  --tw-prose-invert-captions: #9ca3af;
+  --tw-prose-invert-code: #fff;
+  --tw-prose-invert-pre-code: #d1d5db;
+  --tw-prose-invert-pre-bg: #030712;
+  --tw-prose-invert-th-borders: #4b5563;
+  --tw-prose-invert-td-borders: #4b5563;
+}
+
+.prose-purple {
+  --tw-prose-links: #9333ea;
+}
+
+/* Privacy blur mode - 隐私模糊模式 */
+.privacy-blur-text-mode {
+  /* 对所有文字内容应用模糊效果 */
+}
+
+.privacy-blur-text-mode *:not(.privacy-blur-exempt) {
+  color: transparent !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 保持某些元素不被模糊 */
+.privacy-blur-text-mode .privacy-blur-exempt,
+.privacy-blur-text-mode .privacy-blur-exempt * {
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+
+/* ============================================
+   页面布局背景样式 - 优雅渐变
+   ============================================ */
+
+/* /log 页面 - 深蓝灰渐变 */
+.log-page-gradient-layout {
+  min-height: 100vh;
+  background: 
+    /* 微妙的噪点纹理 */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+    /* 主渐变 - 深蓝到深灰 */
+    linear-gradient(135deg, 
+      #0f172a 0%,      /* slate-900 */
+      #1e293b 25%,     /* slate-800 */
+      #111827 50%,     /* gray-900 */
+      #1f2937 75%,     /* gray-800 */
+      #0f172a 100%     /* slate-900 */
+    );
+  background-attachment: fixed;
+}
+
+/* /treasure-pavilion 藏宝阁页面 - 琥珀金渐变 */
+.treasure-page-layout {
+  min-height: 100vh;
+  background: 
+    /* 微妙的噪点纹理 */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+    /* 主渐变 - 深棕到深金 */
+    linear-gradient(135deg, 
+      #1c1917 0%,      /* stone-900 */
+      #292524 20%,     /* stone-800 */
+      #44403c 40%,     /* stone-700 */
+      #78350f 60%,     /* amber-900 */
+      #451a03 80%,     /* amber-950 */
+      #1c1917 100%     /* stone-900 */
+    );
+  background-attachment: fixed;
+}
+
+/* 通用容器内边距 */
+.container-padding {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-padding {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-padding {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+/* 主页面 - 深灰蓝渐变 (信息聚合风格) */
+.home-page-layout {
+  min-height: 100vh;
+  background: 
+    /* 微妙的噪点纹理 */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+    /* 主渐变 - 深灰到深蓝 */
+    linear-gradient(160deg, 
+      #111827 0%,      /* gray-900 */
+      #1f2937 20%,     /* gray-800 */
+      #0f172a 40%,     /* slate-900 */
+      #1e293b 60%,     /* slate-800 */
+      #111827 80%,     /* gray-900 */
+      #0c0a09 100%     /* stone-950 */
+    );
+  background-attachment: fixed;
+}
+
+/* 扫描线动画 */
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-scan {
+  animation: scan 2s linear infinite;
+}
+
+/* 自定义滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.5); /* zinc-900/50 */
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(82, 82, 91, 0.5); /* zinc-600/50 */
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.5); /* zinc-400/50 */
+}

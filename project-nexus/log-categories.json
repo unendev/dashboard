@@ -1,0 +1,38 @@
+[
+  {
+    "id": "output",
+    "name": "🚀 核心产出",
+    "children": [
+      { "id": "output-eng", "name": "🛠️ 工程开发" },
+      { "id": "output-assets", "name": "📜 资产创作" },
+      { "id": "output-academic", "name": "🎓 核心学业" }
+    ]
+  },
+  {
+    "id": "compound",
+    "name": "📈 自我复利",
+    "children": [
+      { "id": "compound-input", "name": "📡 情报获取" },
+      { "id": "compound-health", "name": "⚡ 身体蓄能" },
+      { "id": "compound-think", "name": "💭 深度思考" }
+    ]
+  },
+  {
+    "id": "leisure",
+    "name": "🎮 休闲娱乐",
+    "children": [
+      { "id": "leisure-game", "name": "🕹️ 游戏" },
+      { "id": "leisure-reading", "name": "📖 随性阅读" },
+      { "id": "leisure-surfing", "name": "🌊 赛博冲浪" }
+    ]
+  },
+  {
+    "id": "cost",
+    "name": "🛠️ 运行成本",
+    "children": [
+      { "id": "cost-daily", "name": "🏠 生活杂务" },
+      { "id": "cost-school", "name": "🏫 学校事务" },
+      { "id": "cost-logistics", "name": "⚙️ 技术琐项" }
+    ]
+  }
+]
