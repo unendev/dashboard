@@ -7,7 +7,7 @@
     "preinstall": "npx only-allow pnpm",
     "postinstall": "prisma generate",
     "dev": "next dev -p 10000",
-    "build": "node node_modules/next/dist/bin/next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
