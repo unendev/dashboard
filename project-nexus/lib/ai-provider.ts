@@ -12,16 +12,30 @@ if (!isProduction) {
 }
 
 // 初始化 Providers
-const google = createGoogleGenerativeAI({
-  apiKey: env.GOOGLE_AI_STUDIO_API_KEY || process.env.GOOGLE_AI_STUDIO_API_KEY,
-  ...proxyConfig,
-  fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(30000) }),
-});
+// 懒加载 Providers 避免构建时环境变量验证失败
+let googleProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
+let deepseekProvider: ReturnType<typeof createDeepSeek> | undefined;
 
-const deepseek = createDeepSeek({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  ...proxyConfig,
-});
+function getGoogleProvider() {
+  if (!googleProvider) {
+    googleProvider = createGoogleGenerativeAI({
+      apiKey: env.GOOGLE_AI_STUDIO_API_KEY || process.env.GOOGLE_AI_STUDIO_API_KEY,
+      ...proxyConfig,
+      fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(30000) }),
+    });
+  }
+  return googleProvider;
+}
+
+function getDeepSeekProvider() {
+  if (!deepseekProvider) {
+    deepseekProvider = createDeepSeek({
+      apiKey: env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY,
+      ...proxyConfig,
+    });
+  }
+  return deepseekProvider;
+}
 
 export function getAIModel({ provider, modelId, enableThinking }: { provider: string, modelId?: string, enableThinking?: boolean }) {
   const effectiveModelId = modelId || (provider === 'gemini' ? 'gemini-2.5-flash' : 'deepseek-chat');
@@ -29,7 +43,7 @@ export function getAIModel({ provider, modelId, enableThinking }: { provider: st
   let providerOptions: any = {};
 
   if (provider === 'gemini') {
-    model = google(effectiveModelId);
+    model = getGoogleProvider()(effectiveModelId);
     if (enableThinking && (effectiveModelId.includes('gemini-3') || effectiveModelId.includes('gemini-2.5'))) {
       const thinkingConfig: any = { includeThoughts: true };
       if (effectiveModelId.includes('gemini-3')) {
@@ -42,9 +56,9 @@ export function getAIModel({ provider, modelId, enableThinking }: { provider: st
       };
     }
   } else if (provider === 'deepseek') {
-    model = deepseek(effectiveModelId);
+    model = getDeepSeekProvider()(effectiveModelId);
   } else {
-    model = deepseek('deepseek-chat');
+    model = getDeepSeekProvider()('deepseek-chat');
   }
 
   return { model, providerOptions };
