@@ -2,13 +2,12 @@ import { z } from 'zod'
 
 /**
  * 环境变量验证 Schema
- * 在应用启动时验证所有必需的环境变量
+ * 使用延迟验证，只在运行时首次访问时验证
  */
 const envSchema = z.object({
   // ==========================================
   // 数据库配置 (必需)
   // ==========================================
-  // 允许三种来源之一：DATABASE_URL / POSTGRES_PRISMA_URL / POSTGRES_URL_NON_POOLING
   DATABASE_URL: z.string().optional(),
   POSTGRES_PRISMA_URL: z.string().optional(),
   POSTGRES_URL_NON_POOLING: z.string().optional(),
@@ -73,7 +72,7 @@ const envSchema = z.object({
   // ==========================================
   DEEPSEEK_API_KEY: z.string().optional(),
   GOOGLE_AI_STUDIO_API_KEY: z.string().optional(),
-  
+
   // ==========================================
   // 代理配置 (可选，用于本地开发)
   // ==========================================
@@ -81,7 +80,7 @@ const envSchema = z.object({
   HTTP_PROXY: z.string().optional(),
 
   // ==========================================
-  // Liveblocks (必需 - 用于多人协作)
+  // Liveblocks (可选 - 用于多人协作)
   // ==========================================
   LIVEBLOCKS_SECRET_KEY: z.string().optional(),
 
@@ -94,19 +93,13 @@ const envSchema = z.object({
     .transform((val) => val === 'true'),
 })
 
-/**
- * 验证环境变量
- * 如果验证失败，会抛出详细的错误信息
- */
 function pickDatabaseUrl(env: Record<string, string | undefined>): string {
-  // 优先级：POSTGRES_PRISMA_URL > DATABASE_URL > POSTGRES_URL_NON_POOLING
   const candidates = [env.POSTGRES_PRISMA_URL, env.DATABASE_URL, env.POSTGRES_URL_NON_POOLING].filter(Boolean)
   if (!candidates.length) {
     throw new Error('未找到数据库连接：请配置 POSTGRES_PRISMA_URL 或 DATABASE_URL 或 POSTGRES_URL_NON_POOLING')
   }
   const url = candidates[0] as string
   try {
-    // 基本 URL 校验
     const parsed = new URL(url)
     if (!/^postgres/.test(parsed.protocol)) {
       throw new Error('数据库连接必须使用 postgresql 协议')
@@ -128,7 +121,6 @@ function validateEnv() {
     }
 
     const data = parsed.data as z.infer<typeof envSchema>
-    // 归一化 DATABASE_URL，供 Prisma 使用
     const normalizedDatabaseUrl = pickDatabaseUrl(process.env as Record<string, string | undefined>)
     return { ...data, DATABASE_URL: normalizedDatabaseUrl }
   } catch (error) {
@@ -138,13 +130,23 @@ function validateEnv() {
 }
 
 /**
- * 导出经过验证的环境变量
- * 使用方式: import { env } from '@/lib/env'
+ * 延迟验证的环境变量
+ * 使用 Proxy 实现：只在首次访问属性时才验证
+ * 这避免了在 Next.js 构建/静态分析阶段触发验证错误
  */
-export const env = validateEnv()
+let _validatedEnv: ReturnType<typeof validateEnv> | null = null
 
-/**
- * 类型安全的环境变量
- */
+function getValidatedEnv() {
+  if (_validatedEnv === null) {
+    _validatedEnv = validateEnv()
+  }
+  return _validatedEnv
+}
+
+export const env = new Proxy({} as ReturnType<typeof validateEnv>, {
+  get(_, prop: string) {
+    return getValidatedEnv()[prop as keyof ReturnType<typeof validateEnv>]
+  },
+})
+
 export type Env = z.infer<typeof envSchema>
-
