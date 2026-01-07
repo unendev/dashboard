@@ -2,5 +2,11 @@
 	"private": true,
 	"dependencies": {
 		"browser-image-compression": "^2.0.2"
+	},
+	"pnpm": {
+		"overrides": {
+			"@types/react": "^19.0.0",
+			"@types/react-dom": "^19.0.0"
+		}
 	}
 }
