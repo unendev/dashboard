@@ -1,8 +1,9 @@
 import { env } from "@/lib/env";
 
-const LIVEBLOCKS_SECRET_KEY = env.LIVEBLOCKS_SECRET_KEY || "sk_dev_placeholder";
+
 
 export async function DELETE(request: Request) {
+  const LIVEBLOCKS_SECRET_KEY = env.LIVEBLOCKS_SECRET_KEY || "sk_dev_placeholder";
   try {
     const { roomId } = await request.json();
 

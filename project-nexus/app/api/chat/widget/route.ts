@@ -16,22 +16,24 @@ if (proxyUrl) {
   proxyConfig.httpsAgent = proxyUrl;
 }
 
-const google = createGoogleGenerativeAI({
-  apiKey: env.GOOGLE_AI_STUDIO_API_KEY || process.env.GOOGLE_AI_STUDIO_API_KEY,
-  ...proxyConfig,
-});
 
-const deepseek = createDeepSeek({
-  apiKey: env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY,
-});
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+    const google = createGoogleGenerativeAI({
+      apiKey: env.GOOGLE_AI_STUDIO_API_KEY || process.env.GOOGLE_AI_STUDIO_API_KEY,
+      ...proxyConfig,
+    });
+
+    const deepseek = createDeepSeek({
+      apiKey: env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY,
+    });
+
     const body = await req.json();
     const { messages, provider = 'deepseek', modelId = 'deepseek-chat' } = body;
-    
+
     if (!messages || !Array.isArray(messages)) {
       return new Response('Messages array is required', { status: 400 });
     }
@@ -80,31 +82,31 @@ export async function POST(req: Request) {
     };
 
     const modelMessages = convertToModelMessages(messages);
-    
+
     // 模型选择与思考配置（参考 GOC）
     let selectedModel: any;
     let providerOptions: any = {};
-    
+
     // 判断是否是支持思考的模型
-    const isThinkingModel = modelId === 'deepseek-reasoner' || 
-      modelId.includes('gemini-2.5') || 
+    const isThinkingModel = modelId === 'deepseek-reasoner' ||
+      modelId.includes('gemini-2.5') ||
       modelId.includes('gemini-3');
-    
+
     console.log(`[Widget AI] Model: ${provider}/${modelId}, thinking: ${isThinkingModel}`);
-    
+
     if (provider === 'gemini') {
       selectedModel = google(modelId);
-      
+
       // Gemini 思考配置
       if (isThinkingModel) {
         const thinkingConfig: any = { includeThoughts: true };
-        
+
         if (modelId.includes('gemini-3')) {
           thinkingConfig.thinkingLevel = 'high';
         } else if (modelId === 'gemini-2.5-flash') {
           thinkingConfig.thinkingBudget = 8192;
         }
-        
+
         providerOptions = {
           google: { thinkingConfig } satisfies GoogleGenerativeAIProviderOptions,
         };

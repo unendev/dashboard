@@ -5,16 +5,23 @@ import { LiveList, LiveMap } from "@liveblocks/client";
 import { env } from "@/lib/env";
 import { getAIModel } from '@/lib/ai-provider';
 
-const liveblocks = new Liveblocks({
-  secret: env.LIVEBLOCKS_SECRET_KEY as string,
-});
+let _liveblocks: Liveblocks | null = null;
+
+function getLiveblocks() {
+  if (!_liveblocks) {
+    _liveblocks = new Liveblocks({
+      secret: env.LIVEBLOCKS_SECRET_KEY as string,
+    });
+  }
+  return _liveblocks;
+}
 
 export const maxDuration = 60;
 
 // 记录工具调用到 Liveblocks
 async function logToolCall(roomId: string, toolName: string, args: any, result: string) {
   try {
-    await liveblocks.mutateStorage(roomId, ({ root }: any) => {
+    await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
       let toolLogs = root.get('toolLogs');
       if (!toolLogs) {
         toolLogs = new LiveList([]);
@@ -36,11 +43,11 @@ async function logToolCall(roomId: string, toolName: string, args: any, result: 
 export async function POST(req: Request) {
   const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   console.log(`[GOC] Request: ${requestId}`);
-  
+
   try {
     const body = await req.json();
     const { messages, players, mode, roomId, provider, modelId, currentPlayerName, enableThinking } = body;
-    
+
     if (!messages || !Array.isArray(messages)) {
       return new Response('Messages array is required', { status: 400 });
     }
@@ -95,10 +102,10 @@ ${modeInstruction}
           try {
             let sharedNotes = '(No shared notes)';
             let playerNotesSummary = '';
-            
-            await liveblocks.mutateStorage(roomId, ({ root }: any) => {
+
+            await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
               sharedNotes = root.get('notes') || '(No shared notes)';
-              
+
               const pNotes = root.get('playerNotes');
               if (pNotes) {
                 // pNotes is a LiveMap
@@ -112,7 +119,7 @@ ${modeInstruction}
                 }
               }
             });
-            
+
             const result = `Current Shared Field Notes:\n"""
 ${sharedNotes}
 """
@@ -136,15 +143,15 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
           try {
             let storageKey = target;
             if (target !== 'shared' && players) {
-              const player = players.find((p: any) => 
+              const player = players.find((p: any) =>
                 p.name?.toLowerCase() === target.toLowerCase() || p.id === target
               );
               if (player) {
                 storageKey = player.id;
               }
             }
-            
-            await liveblocks.mutateStorage(roomId, ({ root }: any) => {
+
+            await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
               if (target === 'shared') {
                 root.set('notes', content);
               } else {
@@ -178,7 +185,7 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
             let ownerId = null;
             let ownerName = null;
             if (isPersonal && playerName && players) {
-              const player = players.find((p: any) => 
+              const player = players.find((p: any) =>
                 p.name?.toLowerCase() === playerName.toLowerCase()
               );
               if (player) {
@@ -186,16 +193,16 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
                 ownerName = player.name;
               }
             }
-            
-            await liveblocks.mutateStorage(roomId, ({ root }: any) => {
+
+            await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
               let todos = root.get('todos');
               if (!todos) {
                 todos = new LiveList([]);
                 root.set('todos', todos);
               }
               todos.push({
-                id: crypto.randomUUID(), 
-                text: task, 
+                id: crypto.randomUUID(),
+                text: task,
                 completed: false,
                 group: group || 'default',
                 parentId: null,
@@ -203,8 +210,8 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
                 ownerName,
               });
             });
-            const result = isPersonal 
-              ? `Personal todo added for ${ownerName || playerName}: ${task}` 
+            const result = isPersonal
+              ? `Personal todo added for ${ownerName || playerName}: ${task}`
               : `Todo added${group ? ` to group "${group}"` : ''}: ${task}`;
             await logToolCall(roomId, 'addTodo', { task, group, isPersonal, playerName }, result);
             return result;
@@ -224,40 +231,40 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
       modelId,
       enableThinking
     });
-    
+
     console.log(`[GOC] Model initialized: ${provider}/${modelId || 'default'}`);
 
     const toolChoice = mode === 'planner' ? 'required' as const : 'auto' as const;
 
-        const result = streamText({
+    const result = streamText({
 
-          model: selectedModel,
+      model: selectedModel,
 
-          system: systemPrompt,
+      system: systemPrompt,
 
-          messages: modelMessages,
+      messages: modelMessages,
 
-          tools,
+      tools,
 
-          toolChoice,
+      toolChoice,
 
-          stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(5),
 
-          providerOptions,
+      providerOptions,
 
-          async onFinish(result: any) { // Use 'any' to bypass strict type checking for this callback
+      async onFinish(result: any) { // Use 'any' to bypass strict type checking for this callback
 
-            console.log(`[GOC] Request ${requestId} finished. Reason: ${result.finishReason}`);
+        console.log(`[GOC] Request ${requestId} finished. Reason: ${result.finishReason}`);
 
-            if (result.finishReason === 'error' && result.error) {
+        if (result.finishReason === 'error' && result.error) {
 
-               console.error(`[GOC] Stream Error for ${requestId}:`, result.error);
+          console.error(`[GOC] Stream Error for ${requestId}:`, result.error);
 
-            }
+        }
 
-          }
+      }
 
-        });
+    });
 
     return result.toUIMessageStreamResponse({
       sendReasoning: enableThinking === true,
