@@ -1,0 +1,57 @@
+app/components/features/timer/NestedTimerZone.tsx(193,32): error TS2345: Argument of type 'TimerTask[]' is not assignable to parameter of type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]'.
+  Property 'date' is missing in type 'TimerTask' but required in type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask'.
+app/components/features/timer/NestedTimerZone.tsx(221,32): error TS2345: Argument of type 'TimerTask[]' is not assignable to parameter of type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]'.
+  Property 'date' is missing in type 'TimerTask' but required in type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask'.
+app/components/features/timer/NestedTimerZone.tsx(245,9): error TS2322: Type 'TimerTask[]' is not assignable to type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]'.
+  Property 'date' is missing in type 'TimerTask' but required in type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask'.
+app/components/features/timer/NestedTimerZone.tsx(246,9): error TS2322: Type '(tasks: TimerTask[]) => void' is not assignable to type '(tasks: import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]) => void'.
+  Types of parameters 'tasks' and 'tasks' are incompatible.
+    Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]' is not assignable to type 'TimerTask[]'.
+      Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask' is not assignable to type 'TimerTask'.
+        Types of property 'createdAt' are incompatible.
+          Type 'string | undefined' is not assignable to type 'string'.
+            Type 'undefined' is not assignable to type 'string'.
+app/components/features/timer/NestedTimerZone.tsx(255,9): error TS2322: Type '(task: TimerTask) => number' is not assignable to type '(task: import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask) => number'.
+  Types of parameters 'task' and 'task' are incompatible.
+    Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask' is not assignable to type 'TimerTask'.
+      Types of property 'createdAt' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+app/components/features/webread/__tests__/EpubReader.integration.test.ts(12,1): error TS2578: Unused '@ts-expect-error' directive.
+app/features/timer/context/TimerContext.tsx(80,5): error TS2322: Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]' is not assignable to type 'TimerTask[]'.
+  Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask' is not assignable to type 'TimerTask'.
+    Types of property 'createdAt' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+app/features/timer/context/TimerContext.tsx(81,5): error TS2322: Type '(tasks: TimerTask[] | ((prev: TimerTask[]) => TimerTask[])) => void' is not assignable to type '(tasks: TimerTask[]) => void'.
+  Types of parameters 'tasks' and 'tasks' are incompatible.
+    Type 'TimerTask[]' is not assignable to type 'TimerTask[] | ((prev: TimerTask[]) => TimerTask[])'.
+      Type 'TimerTask[]' is not assignable to type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]'.
+        Property 'date' is missing in type 'TimerTask' but required in type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask'.
+app/features/timer/services/taskService.ts(197,11): error TS2741: Property 'date' is missing in type '{ id: string; name: string; categoryPath: string; instanceTag: string | null; initialTime: number; elapsedTime: number; isRunning: false; startTime: null; isPaused: false; pausedTime: number; parentId: string | null; order: number | undefined; createdAt: string; updatedAt: string; }' but required in type 'TimerTask'.
+app/log/hooks/useTimerOperations.ts(123,5): error TS2322: Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]' is not assignable to type 'TimerTask[]'.
+  Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask' is not assignable to type 'TimerTask'.
+    Types of property 'createdAt' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+app/log/hooks/useTimerOperations.ts(124,5): error TS2322: Type 'Dispatch<SetStateAction<TimerTask[]>>' is not assignable to type '(tasks: TimerTask[]) => void'.
+  Types of parameters 'value' and 'tasks' are incompatible.
+    Type 'TimerTask[]' is not assignable to type 'SetStateAction<TimerTask[]>'.
+      Type 'TimerTask[]' is not assignable to type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]'.
+        Property 'date' is missing in type 'TimerTask' but required in type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask'.
+app/log/hooks/useTimerOperations.ts(175,11): error TS2741: Property 'date' is missing in type '{ id: string; name: string; categoryPath: string; instanceTag: string | null; instanceTags: { instanceTag: { name: string; }; }[]; elapsedTime: number; initialTime: number; isRunning: false; startTime: null; ... 4 more ...; updatedAt: string; }' but required in type 'TimerTask'.
+app/log/sections/TimerSection.tsx(112,13): error TS2322: Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]' is not assignable to type 'TimerTask[]'.
+  Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask' is not assignable to type 'TimerTask'.
+    Types of property 'createdAt' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+app/log/sections/TimerSection.tsx(119,17): error TS2322: Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]' is not assignable to type 'TimerTask[]'.
+  Type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask' is not assignable to type 'TimerTask'.
+    Types of property 'createdAt' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+app/log/sections/TimerSection.tsx(120,17): error TS2322: Type '(tasks: TimerTask[] | ((prev: TimerTask[]) => TimerTask[])) => void' is not assignable to type '(tasks: TimerTask[]) => void'.
+  Types of parameters 'tasks' and 'tasks' are incompatible.
+    Type 'TimerTask[]' is not assignable to type 'TimerTask[] | ((prev: TimerTask[]) => TimerTask[])'.
+      Type 'TimerTask[]' is not assignable to type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask[]'.
+        Property 'date' is missing in type 'TimerTask' but required in type 'import("D:/Study/Vue-/dashboard/shared/src/types/timer").TimerTask'.

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, globalShortcut, session, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, screen, globalShortcut, session, ipcMain, Menu, Tray, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -13,9 +13,12 @@ Menu.setApplicationMenu(null);
 const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 
-// API 地址：暂时统一走本地 10000 端口，因为线上环境 (dashboard.unendev.com) 可能未部署最新的 /parse 接口
-// 如果你需要连接线上，请确保线上后端已同步最新代码，然后改回 https://dashboard.unendev.com
-const API_BASE_URL = 'http://localhost:10000';
+// API 地址：根据是否打包自动切换
+// 打包后 (app.isPackaged = true) → 使用 Vercel 生产环境
+// 开发中 (app.isPackaged = false) → 使用本地 localhost
+const API_BASE_URL = app.isPackaged
+  ? 'https://dashboard-d3pbgul4p-uneneichs-projects.vercel.app'
+  : 'http://localhost:10000';
 
 process.on('uncaughtException', (error) => {
   console.error('[Main Process] Uncaught Exception:', error);
@@ -167,6 +170,8 @@ const taskMemoWindows = new Map(); // Map<taskId, BrowserWindow>
 let todoWindow;
 let aiWindow;
 let settingsWindow;
+let tray = null;
+let isQuitting = false;
 
 function createMainWindow() {
   const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
@@ -282,6 +287,55 @@ app.on('ready', () => {
   ses.clearCache().then(() => {
     setTimeout(createMainWindow, 300);
   });
+
+  // Create Tray
+  const iconPath = path.join(__dirname, 'icon.ico');
+  tray = new Tray(iconPath);
+  tray.setToolTip('Timer Widget');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示主窗口 (Show)',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createMainWindow();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出 (Exit)',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        if (mainWindow.isFocused()) {
+          mainWindow.minimize(); // Optional: Click to minimize if focused? Or just focus?
+          // User said "Just need to show in tray".
+          // Standard toggle behavior: If visible and focused -> Minimize? Or just nothing?
+          // Let's keep it simple: Show/Focus.
+          mainWindow.focus();
+        } else {
+          mainWindow.focus();
+        }
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    } else {
+      createMainWindow();
+    }
+  });
 });
 
 function openCreateWindow() {
@@ -300,7 +354,7 @@ function openMemoWindow() {
   memoWindow.on('closed', () => { memoWindow = null; });
 }
 
-function openTaskMemoWindow(taskId) {
+function openTaskMemoWindow(taskId, taskName) {
   if (taskMemoWindows.has(taskId)) {
     const win = taskMemoWindows.get(taskId);
     if (!win.isDestroyed()) {
@@ -312,7 +366,8 @@ function openTaskMemoWindow(taskId) {
 
   // Calculate position: Left of Todo Window
   let x, y;
-  const config = { width: 320, height: 450, title: '任务备注', route: `/memo?type=task&id=${taskId}`, alwaysOnTop: false, skipTaskbar: false };
+  const safeName = taskName ? encodeURIComponent(taskName) : '';
+  const config = { width: 320, height: 450, title: '任务备注', route: `/memo?type=task&id=${taskId}&title=${safeName}`, alwaysOnTop: false, skipTaskbar: false };
 
   if (todoWindow && !todoWindow.isDestroyed()) {
     const [todoX, todoY] = todoWindow.getPosition();
@@ -397,7 +452,7 @@ function openAiWindow() {
 ipcMain.on('open-create-window', () => openCreateWindow());
 ipcMain.on('open-create-window', () => openCreateWindow());
 ipcMain.on('open-memo-window', () => openMemoWindow());
-ipcMain.on('open-task-memo-window', (event, { taskId }) => openTaskMemoWindow(taskId));
+ipcMain.on('open-task-memo-window', (event, { taskId, taskName }) => openTaskMemoWindow(taskId, taskName));
 ipcMain.on('open-todo-window', () => openTodoWindow());
 ipcMain.on('open-ai-window', () => openAiWindow());
 ipcMain.on('open-settings-window', () => openSettingsWindow());

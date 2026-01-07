@@ -179,7 +179,7 @@ export const taskService = {
     // 如果是子任务，获取父任务信息
     let finalCategoryPath = categoryPath;
     let finalOrder = order;
-    
+
     if (parentId) {
       const parentTask = findTaskById(tasks, parentId);
       if (!parentTask) {
@@ -209,6 +209,7 @@ export const taskService = {
       order: finalOrder,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      date: date || new Date().toISOString().split('T')[0],
     };
 
     // 乐观更新 UI
@@ -252,11 +253,11 @@ export const taskService = {
       return newTask;
     } catch (error) {
       console.error('❌ [taskService.create] 失败:', error);
-      
+
       // 回滚：移除临时任务
       const rolledBackTasks = removeTaskFromList(updatedTasks, tempId);
       onTasksChange(rolledBackTasks);
-      
+
       throw error;
     }
   },
@@ -286,7 +287,7 @@ export const taskService = {
       const message = hasChildren
         ? `确定要删除任务"${task.name}"吗？\n\n这将永久删除该任务及其 ${task.children!.length} 个子任务。`
         : `确定要删除任务"${task.name}"吗？`;
-      
+
       if (!confirm(message)) {
         return false;
       }

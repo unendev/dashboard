@@ -7,6 +7,12 @@ import SettingsPage from './pages/Settings';
 import CreatePage from './pages/Create';
 import LoginPage from './pages/Login';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import { API_BASE_URL } from './lib/api';
+import { validateTokenOrigin } from './lib/auth-token';
+
+// 在应用启动时验证 Token 来源
+// 如果 API 地址变化（如从本地切到生产），自动清除旧 Token
+validateTokenOrigin(API_BASE_URL);
 
 function App() {
   return (

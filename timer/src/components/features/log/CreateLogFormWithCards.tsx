@@ -4,6 +4,7 @@ import { EnhancedInstanceTagInput } from '../../shared/EnhancedInstanceTagInput'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getApiUrl } from '@/lib/api'
+import { parseTimeInput } from '@dashboard/shared'
 
 interface CreateLogFormWithCardsProps {
   onLogSaved?: () => void
@@ -99,19 +100,7 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
     }
   }
 
-  const parseTimeInput = (input: string): number | undefined => {
-    if (!input.trim()) return undefined
-    const minutesOnly = input.match(/^\s*(\d+)\s*$/)
-    if (minutesOnly) return parseInt(minutesOnly[1]) * 60
-    const hourMatch = input.match(/(\d+)h/)
-    const minMatch = input.match(/(\d+)m/)
-    if (hourMatch || minMatch) {
-      const hours = hourMatch ? parseInt(hourMatch[1]) : 0
-      const minutes = minMatch ? parseInt(minMatch[1]) : 0
-      return (hours * 60 + minutes) * 60
-    }
-    return undefined
-  }
+
 
   const getLastCategoryName = (): string => {
     if (!selectedCategory) return ''

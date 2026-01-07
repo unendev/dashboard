@@ -4,39 +4,10 @@
  */
 
 import { migrateLegacyCategory, formatCategoryDisplay } from './category-utils';
+import { TimerTask, CategoryGroup } from '@dashboard/shared';
+export type { TimerTask, CategoryGroup };
 
-interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  instanceTag?: string | null;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  parentId?: string | null;
-  children?: TimerTask[];
-  totalTime?: number;
-  order?: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
-export interface CategoryGroup {
-  id: string;                   // 唯一标识符（用于 React key）
-  categoryPath: string;        // 分类路径（如 "工作/开发"）
-  categoryName: string;         // 当前层级名称（如 "工作"）
-  displayName: string;          // 显示名称（从路径提取）
-  level: number;                // 层级 (1, 2, 3)
-  tasks: TimerTask[];           // 该分类下的直接任务
-  subGroups?: CategoryGroup[];  // 子分组（嵌套结构）
-  totalTime: number;            // 分类总时间
-  runningCount: number;         // 运行中的任务数
-  isCollapsed: boolean;         // 是否折叠
-  color?: string;               // 区域主题色（仅一级分类）
-}
 
 /**
  * 按 categoryPath 分组任务（支持3层嵌套）
@@ -48,20 +19,20 @@ export interface CategoryGroup {
 export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
   // 只处理顶层任务（无父级）
   const topLevelTasks = tasks.filter(t => !t.parentId);
-  
+
   // 排除特殊分类（休闲娱乐、身体蓄能）
   const tasksToGroup = topLevelTasks.filter(t =>
     !t.categoryPath?.includes('🎮 休闲娱乐') &&
     !t.categoryPath?.includes('⚡ 身体蓄能')
   );
-  
+
   // 按一级分类分组
   const level1Map = new Map<string, TimerTask[]>();
-  
+
   tasksToGroup.forEach(task => {
     const parts = (task.categoryPath || '未分类').split('/');
     const level1 = parts[0] || '未分类';
-    
+
     const list = level1Map.get(level1) || [];
     list.push(task);
     level1Map.set(level1, list);
@@ -69,7 +40,7 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
 
   // 构建嵌套结构
   const groups: CategoryGroup[] = [];
-  
+
   // 颜色池（与 CategoryZoneHeader 对应）
   const colors = ['blue', 'green', 'purple', 'red', 'orange', 'indigo'];
   let colorIndex = 0;
@@ -77,11 +48,11 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
   level1Map.forEach((level1Tasks, level1Name) => {
     // 按二级分类分组
     const level2Map = new Map<string, TimerTask[]>();
-    
+
     level1Tasks.forEach(task => {
       const parts = task.categoryPath.split('/');
       const level2 = parts.length >= 2 ? parts[1] : ''; // 空字符串表示直接在一级下
-      
+
       const list = level2Map.get(level2) || [];
       list.push(task);
       level2Map.set(level2, list);
@@ -89,7 +60,7 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
 
     // 如果所有任务都是2层或更少，直接创建一级分组
     const hasMultipleLevels = level1Tasks.some(t => t.categoryPath.split('/').length >= 2);
-    
+
     if (!hasMultipleLevels) {
       // 单层结构：直接创建一级分组
       groups.push({
@@ -108,29 +79,29 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
     } else {
       // 多层结构：创建嵌套分组
       const subGroups: CategoryGroup[] = [];
-      
+
       level2Map.forEach((level2Tasks, level2Name) => {
         if (level2Name === '') {
           // 直接在一级分类下的任务（没有二级）
           // 这些任务放在一级的 tasks 里
           return;
         }
-        
+
         // 按三级分类分组
         const level3Map = new Map<string, TimerTask[]>();
-        
+
         level2Tasks.forEach(task => {
           const parts = task.categoryPath.split('/');
           const level3 = parts.length >= 3 ? parts[2] : ''; // 空表示直接在二级下
-          
+
           const list = level3Map.get(level3) || [];
           list.push(task);
           level3Map.set(level3, list);
         });
-        
+
         // 检查是否有第三层
         const hasLevel3 = level2Tasks.some(t => t.categoryPath.split('/').length >= 3);
-        
+
         if (!hasLevel3) {
           // 没有第三层，二级直接包含任务
           subGroups.push({
@@ -148,7 +119,7 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
           // 有第三层，创建嵌套
           const level3Groups: CategoryGroup[] = [];
           const level2DirectTasks: TimerTask[] = []; // 直接在二级下的任务
-          
+
           level3Map.forEach((level3Tasks, level3Name) => {
             if (level3Name === '') {
               // 这些是2层任务，应该直接显示在二级下
@@ -168,7 +139,7 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
               });
             }
           });
-          
+
           subGroups.push({
             id: `cat-${level1Name}-${level2Name}`,
             categoryPath: `${level1Name}/${level2Name}`,
@@ -183,10 +154,10 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
           });
         }
       });
-      
+
       // 提取直接在一级下的任务
       const level1DirectTasks = level2Map.get('') || [];
-      
+
       groups.push({
         id: `cat-${level1Name}`,
         categoryPath: level1Name,
@@ -203,7 +174,7 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
       colorIndex++;
     }
   });
-  
+
   // 排序：运行中的在前，然后按总时间排序
   return groups.sort((a, b) => {
     if (a.runningCount > 0 && b.runningCount === 0) return -1;
@@ -217,7 +188,7 @@ export function groupTasksByCategory(tasks: TimerTask[]): CategoryGroup[] {
  */
 function calculateGroupTotalTime(tasks: TimerTask[]): number {
   let total = 0;
-  
+
   function sumTaskTime(task: TimerTask): number {
     let time = task.totalTime || task.elapsedTime || 0;
     if (task.children && task.children.length > 0) {
@@ -225,11 +196,11 @@ function calculateGroupTotalTime(tasks: TimerTask[]): number {
     }
     return time;
   }
-  
+
   tasks.forEach(task => {
     total += sumTaskTime(task);
   });
-  
+
   return total;
 }
 
@@ -238,7 +209,7 @@ function calculateGroupTotalTime(tasks: TimerTask[]): number {
  */
 function countRunningTasks(tasks: TimerTask[]): number {
   let count = 0;
-  
+
   function countTask(task: TimerTask): void {
     if (task.isRunning && !task.isPaused) {
       count++;
@@ -247,9 +218,9 @@ function countRunningTasks(tasks: TimerTask[]): number {
       task.children.forEach(child => countTask(child));
     }
   }
-  
+
   tasks.forEach(task => countTask(task));
-  
+
   return count;
 }
 
@@ -306,9 +277,9 @@ export function generateCategoryColor(categoryPath: string): string {
     '社交': 'pink',
     '阅读': 'indigo',
   };
-  
+
   if (!categoryPath) return 'gray';
-  
+
   const topCategory = categoryPath.split('/')[0];
   return colorMap[topCategory] || 'gray';
 }
@@ -318,7 +289,7 @@ export function generateCategoryColor(categoryPath: string): string {
  */
 export function getRunningTasks(tasks: TimerTask[]): TimerTask[] {
   const running: TimerTask[] = [];
-  
+
   function findRunning(taskList: TimerTask[]): void {
     taskList.forEach(task => {
       if (task.isRunning && !task.isPaused) {
@@ -329,7 +300,7 @@ export function getRunningTasks(tasks: TimerTask[]): TimerTask[] {
       }
     });
   }
-  
+
   findRunning(tasks);
   return running;
 }
@@ -344,7 +315,7 @@ const COLLAPSED_CATEGORIES_KEY = 'timer-collapsed-categories';
 export function saveCollapsedCategories(categories: Set<string>): void {
   try {
     localStorage.setItem(
-      COLLAPSED_CATEGORIES_KEY, 
+      COLLAPSED_CATEGORIES_KEY,
       JSON.stringify(Array.from(categories))
     );
   } catch (error) {
@@ -424,37 +395,11 @@ export function getEffectiveDateString(inputDate: Date, cutoffHour: number = 2):
   return `${year}-${month}-${day}`;
 }
 
-/**
- * 格式化时间显示
- */
-export function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
-  } else {
-    return `${secs}s`;
-  }
-}
+import { formatTime, parseTimeInput } from '@dashboard/shared';
 
-/**
- * 解析时间输入（支持 "1h20m", "45m", "2h" 等格式）
- */
-export function parseTimeToSeconds(timeStr: string): number {
-  if (!timeStr || !timeStr.trim()) return 0;
-  
-  const hours = timeStr.match(/(\d+)h/);
-  const minutes = timeStr.match(/(\d+)m/);
-  
-  const hoursNum = hours ? parseInt(hours[1]) : 0;
-  const minutesNum = minutes ? parseInt(minutes[1]) : 0;
-  
-  return hoursNum * 3600 + minutesNum * 60;
-}
+// Re-export shared utils
+export { formatTime };
+export const parseTimeToSeconds = parseTimeInput; // Maintain backward compatibility alias
 
 /**
  * 递归统计分组中的所有任务总数（包括子分组）
@@ -469,13 +414,13 @@ export function parseTimeToSeconds(timeStr: string): number {
  */
 export function countAllTasksRecursively(group: CategoryGroup): number {
   let count = group.tasks.length;
-  
+
   if (group.subGroups && group.subGroups.length > 0) {
     group.subGroups.forEach(subGroup => {
       count += countAllTasksRecursively(subGroup);
     });
   }
-  
+
   return count;
 }
 

@@ -183,27 +183,19 @@
     "作品/游戏/箱庭逻辑",
     "作品/游戏/星幕协约",
     "作品/游戏/永恒轮回",
-    "作品/游戏/重返未来1999",
-    "作品/游戏/xcom",
-    "作品/游戏/ZATO",
-    "Knowledge",
-    "Life",
-    "Root",
-    "Thought"
+    "作品/游戏/重返未来1999"
   ],
   "theme": [
     "blue",
     "green",
     "inspiration",
     "knowledge",
-    "life",
     "orange",
     "pink",
     "purple",
     "red",
     "root",
     "tech",
-    "thought",
     "yellow"
   ]
 }

@@ -3,6 +3,7 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { InstanceTagCache } from '@/lib/instance-tag-cache';
+import { TimerTask } from '@dashboard/shared';
 
 interface InstanceTag {
   id: string;
@@ -12,23 +13,7 @@ interface InstanceTag {
   updatedAt: string;
 }
 
-interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  parentId?: string | null;
-  children?: TimerTask[];
-  createdAt?: string;
-  updatedAt?: string;
-  // 新增：事务项（可选）
-  instanceTag?: string | null;
-}
+
 
 interface InstanceTagStatsChartProps {
   tasks: TimerTask[];
@@ -192,8 +177,8 @@ const InstanceTagStatsChart: React.FC<InstanceTagStatsChartProps> = ({ tasks, to
         </div>
         <div className="text-sm text-gray-500">总计：{formatTime(totalSecondsAllUsed)}</div>
       </div>
-      <ReactECharts 
-        option={option} 
+      <ReactECharts
+        option={option}
         style={{ height: Math.max(260, names.length * 28 + 80) + 'px', width: '100%' }}
         opts={{ renderer: 'svg' }}
       />

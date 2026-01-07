@@ -54,7 +54,10 @@ export const InstanceTagCache = {
     if (cachePromise) return cachePromise;
     const cachedData = this.loadFromStorage();
     if (cachedData) return cachedData;
+    return this.fetchFromServer(userId);
+  },
 
+  async fetchFromServer(userId: string = 'user-1'): Promise<InstanceTag[]> {
     cachePromise = fetch(getApiUrl(`/api/instance-tags?userId=${userId}`), { credentials: 'include' })
       .then(res => res.json())
       .then((data: InstanceTag[]) => {
@@ -64,11 +67,10 @@ export const InstanceTagCache = {
         return data;
       })
       .catch(error => {
-        console.error('预加载事务项数据失败:', error);
-        isCacheReady = true;
-        return [];
+        console.error('获取事务项数据失败:', error);
+        // 如果失败，尝试返回缓存（即使过期）
+        return this.loadFromStorage() || [];
       });
-
     return cachePromise;
   },
 

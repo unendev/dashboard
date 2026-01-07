@@ -187,7 +187,8 @@ export function useTimerOperations(
       pausedTime: 0,
       order: newOrder,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      date: data.date || selectedDate,
     };
 
     // 📝 [handleQuickCreate] 日志：临时任务数据

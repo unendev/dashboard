@@ -11,7 +11,7 @@ export type {
   TimerCallbacks,
   TimerControl,
   QuickCreateData,
-} from '@shared/types/timer.types';
+} from '@dashboard/shared';
 
 // API 类型
 export type {

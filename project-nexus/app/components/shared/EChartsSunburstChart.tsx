@@ -4,22 +4,9 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import InstanceTagSelector from './InstanceTagSelector';
 import { DateRangeValue } from './DateRangePicker';
+import { TimerTask } from '@dashboard/shared';
 
-interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  parentId?: string | null;
-  children?: TimerTask[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+
 
 interface EChartsSunburstChartProps {
   tasks: TimerTask[];
@@ -34,7 +21,7 @@ interface EChartsSunburstChartProps {
 
 interface TaskDetail {
   id: string;
-  name:string;
+  name: string;
   elapsedTime: number;
   categoryPath: string;
 }
@@ -71,7 +58,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
     if (tasks.length > 0) {
       // 过滤顶级任务，避免重复统计
       const topLevelTasks = tasks.filter(task => !task.parentId);
-      
+
       // 获取所有任务并按耗时时长排序
       const allTasks: TaskDetail[] = [];
       topLevelTasks.forEach(task => {
@@ -82,7 +69,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
           categoryPath: task.categoryPath || '未分类'
         });
       });
-      
+
       // 按耗时时长从高到低排序
       const sortedTasks = allTasks.sort((a, b) => b.elapsedTime - a.elapsedTime);
       setTaskDetails(sortedTasks);
@@ -103,13 +90,13 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
 
     // 过滤顶级任务
     const topLevelTasks = tasks.filter(task => !task.parentId);
-    
+
     // 预聚合成两级分类结构: First -> Second -> Map<TaskName, AggregatedTask>
     const firstLevelMap = new Map<string, Map<string, Map<string, AggregatedTask>>>();
-    
+
     topLevelTasks.forEach(task => {
       if (!task.name) return; // 忽略没有名称的任务
-      
+
       const category = task.categoryPath || '未分类';
       const taskTotalTime = calculateTotalTime(task);
       const parts = category.split('/');
@@ -118,7 +105,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
 
       const secondMap = firstLevelMap.get(first) || new Map<string, Map<string, AggregatedTask>>();
       const taskMap = secondMap.get(second) || new Map<string, AggregatedTask>();
-      
+
       const existingTask = taskMap.get(task.name);
       if (existingTask) {
         existingTask.elapsedTime += taskTotalTime;
@@ -227,7 +214,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
 
     root.value = root.children.reduce((s, c) => s + c.value, 0);
     if (root.value <= 0) root.value = 1;
-    
+
     return root;
   }, [tasks, detailTopN, detailMinPercent, minLeafSeconds, showAllLeaf, calculateTotalTime]);
 
@@ -332,36 +319,36 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
   // ECharts 配置选项
   const option = React.useMemo(() => {
     const config = {
-    series: [
-      {
-        type: 'sunburst',
-        data: [sunburstData],
-        radius: [0, '95%'],
-        center: ['50%', '50%'],
-        sort: 'desc',
-        itemStyle: {
-          borderWidth: 2,
-          borderColor: '#ffffff'
-        },
-        label: {
-          show: true,
-          color: '#ffffff',
-          fontSize: 12
-        },
-        emphasis: {
-          focus: 'ancestor'
+      series: [
+        {
+          type: 'sunburst',
+          data: [sunburstData],
+          radius: [0, '95%'],
+          center: ['50%', '50%'],
+          sort: 'desc',
+          itemStyle: {
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          },
+          label: {
+            show: true,
+            color: '#ffffff',
+            fontSize: 12
+          },
+          emphasis: {
+            focus: 'ancestor'
+          }
+        }
+      ],
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: { name?: string; value?: number }) => {
+          const name = params?.name || '';
+          const value = params?.value || 0;
+          return `${name}<br/>时间: ${formatTime(value)}`;
         }
       }
-    ],
-    tooltip: {
-      trigger: 'item',
-      formatter: (params: { name?: string; value?: number }) => {
-        const name = params?.name || '';
-        const value = params?.value || 0;
-        return `${name}<br/>时间: ${formatTime(value)}`;
-      }
-    }
-  };
+    };
     return config;
   }, [sunburstData, formatTime]);
 
@@ -422,7 +409,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
       {viewMode === 'instance' && instanceError && (
         <div className="text-center text-sm text-red-500 mb-2">{instanceError}</div>
       )}
-      <ReactECharts 
+      <ReactECharts
         ref={(e) => {
           if (e) {
             const chartInstance = e.getEchartsInstance();
@@ -430,19 +417,19 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
             (window as unknown as Record<string, unknown>).__echartInstance = chartInstance;
           }
         }}
-        option={option} 
+        option={option}
         style={{ height: '500px', width: '100%' }}
         opts={{ renderer: 'canvas' }}
         onEvents={{
           click: (params: unknown) => {
-            const chartInstance = (window as { 
-              __echartInstance?: { 
-                getOption: () => { series: Array<{ data: Array<{ name: string }> }> }; 
+            const chartInstance = (window as {
+              __echartInstance?: {
+                getOption: () => { series: Array<{ data: Array<{ name: string }> }> };
                 dispatchAction: (action: { type: string; targetNodeId?: string }) => void;
-              } 
+              }
             }).__echartInstance;
             if (!chartInstance) return;
-            
+
             const paramsObj = params as { data?: { name?: string }; treePathInfo?: Array<{ name?: string }> };
             if (!paramsObj.data) {
               return;
@@ -495,7 +482,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
               ✕ 关闭
             </button>
           </div>
-          
+
           {taskDetails.length > 0 ? (
             <div className="space-y-3">
               {(isTaskListExpanded ? taskDetails : taskDetails.slice(0, 5)).map((task) => (
@@ -514,7 +501,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
                   </div>
                 </div>
               ))}
-              
+
               {/* 展开/收起按钮 */}
               {taskDetails.length > 5 && (
                 <div className="text-center pt-2">
@@ -526,7 +513,7 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
                   </button>
                 </div>
               )}
-              
+
               <div className="mt-4 pt-4 border-t border-gray-700/50">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-gray-200">总计</span>

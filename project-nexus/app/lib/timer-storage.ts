@@ -1,16 +1,5 @@
-export interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  completedAt?: number;
-  date: string; // ISO date string
-}
+import { TimerTask } from '@dashboard/shared';
+
 
 const STORAGE_KEY = 'timer-tasks';
 
@@ -18,7 +7,7 @@ export const TimerStorage = {
   // 获取所有任务
   getAllTasks: (): TimerTask[] => {
     if (typeof window === 'undefined') return [];
-    
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
@@ -37,7 +26,7 @@ export const TimerStorage = {
   // 保存所有任务
   saveAllTasks: (tasks: TimerTask[]): void => {
     if (typeof window === 'undefined') return;
-    
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     } catch (error) {

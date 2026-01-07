@@ -27,7 +27,10 @@
         "./*"
       ],
       "@shared/*": [
-        "../shared/*"
+        "../shared/src/*"
+      ],
+      "@dashboard/shared": [
+        "../shared/src/index.ts"
       ]
     },
     "typeRoots": [

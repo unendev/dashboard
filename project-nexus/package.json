@@ -27,6 +27,7 @@
     "setup-demo": "node scripts/ensure-demo-user.mjs && node scripts/seed-demo-data.mjs"
   },
   "dependencies": {
+    "@dashboard/shared": "workspace:*",
     "@ai-sdk/deepseek": "^1.0.32",
     "@ai-sdk/google": "^2.0.46",
     "@ai-sdk/openai": "^2.0.86",

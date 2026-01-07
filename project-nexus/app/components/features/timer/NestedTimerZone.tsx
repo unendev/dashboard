@@ -21,28 +21,11 @@ import { Button } from '@/app/components/ui/button';
 import { useTimerControl } from '@/app/hooks/useTimerControl';
 import { TimerTaskList } from '@/app/features/timer/components/TimerTaskList/TimerTaskList';
 import { taskService } from '@/app/features/timer/services/taskService';
+import { TimerTask } from '@dashboard/shared';
 
 // ============ 类型定义 ============
 
-interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  instanceTag?: string | null;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  parentId?: string | null;
-  children?: TimerTask[];
-  totalTime?: number;
-  order?: number;
-  version?: number;
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 interface NestedTimerZoneProps {
   tasks: TimerTask[];
@@ -69,9 +52,9 @@ interface NestedTimerZoneProps {
 
 // ============ 主组件 ============
 
-const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({ 
-  tasks, 
-  onTasksChange, 
+const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
+  tasks,
+  onTasksChange,
   onOperationRecord,
   onTaskClone,
   onBeforeOperation,
@@ -95,7 +78,7 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
   const [localNewChildName, setLocalNewChildName] = useState('');
   const [localNewChildInitialTime, setLocalNewChildInitialTime] = useState('');
   const [localCollapsedTasks, setLocalCollapsedTasks] = useState<Set<string>>(new Set());
-  
+
   // 使用外部状态或本地状态
   const showAddChildDialog = externalShowAddChildDialog !== undefined ? externalShowAddChildDialog : localShowAddChildDialog;
   const setShowAddChildDialog = externalOnShowAddChildDialog || setLocalShowAddChildDialog;
@@ -103,7 +86,7 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
   const setNewChildName = externalOnNewChildNameChange || setLocalNewChildName;
   const newChildInitialTime = externalNewChildInitialTime !== undefined ? externalNewChildInitialTime : localNewChildInitialTime;
   const setNewChildInitialTime = externalOnNewChildInitialTimeChange || setLocalNewChildInitialTime;
-  
+
   const collapsedTasks = externalCollapsedTasks || localCollapsedTasks;
   const onToggleCollapse = externalOnToggleCollapse || ((taskId: string) => {
     setLocalCollapsedTasks(prev => {
@@ -131,7 +114,7 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
     if (groupFilter && groupFilter.length > 0) {
       filteredTasks = tasks.filter(t => groupFilter.includes(t.id));
     }
-    
+
     return [...filteredTasks].sort((a, b) => {
       if (a.order !== undefined && b.order !== undefined && a.order >= 0 && b.order >= 0) {
         if (a.order === b.order) {
@@ -239,7 +222,7 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
   };
 
   // ========== 渲染 ==========
-    return (
+  return (
     <>
       <TimerTaskList
         tasks={sortedTasks}
@@ -249,53 +232,53 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
         onDelete={deleteTimer}
         onAddSubtask={(taskId) => setShowAddChildDialog(taskId)}
         isProcessing={isProcessing}
-            onOperationRecord={onOperationRecord}
-            collapsedTasks={collapsedTasks}
-            onToggleCollapse={onToggleCollapse}
+        onOperationRecord={onOperationRecord}
+        collapsedTasks={collapsedTasks}
+        onToggleCollapse={onToggleCollapse}
         getCurrentDisplayTime={getCurrentDisplayTime}
         groupFilter={groupFilter}
       />
 
       {/* 添加子任务弹框 */}
-      <Dialog 
-        open={showAddChildDialog !== null} 
+      <Dialog
+        open={showAddChildDialog !== null}
         onOpenChange={(open) => !open && setShowAddChildDialog(null)}
       >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>添加子任务</DialogTitle>
-              </DialogHeader>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>添加子任务</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-                  <Input
+            <Input
               placeholder="子任务名称"
-                    value={newChildName}
-                    onChange={(e) => setNewChildName(e.target.value)}
+              value={newChildName}
+              onChange={(e) => setNewChildName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && showAddChildDialog) {
                   addChildTask(showAddChildDialog);
                 }
               }}
-                  />
-                  <Input
-                    type="number"
+            />
+            <Input
+              type="number"
               placeholder="初始时间（分钟，可选）"
-                    value={newChildInitialTime}
-                    onChange={(e) => setNewChildInitialTime(e.target.value)}
-                  />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowAddChildDialog(null)}>
-                  取消
-                </Button>
-            <Button 
+              value={newChildInitialTime}
+              onChange={(e) => setNewChildInitialTime(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddChildDialog(null)}>
+              取消
+            </Button>
+            <Button
               onClick={() => showAddChildDialog && addChildTask(showAddChildDialog)}
               disabled={!newChildName.trim()}
             >
               添加
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -5,26 +5,9 @@
 
 import { useState, useCallback } from 'react';
 import { getDeviceId } from '@/lib/device-fingerprint';
+import { TimerTask } from '@dashboard/shared';
 
-interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  instanceTag?: string | null;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  parentId?: string | null;
-  children?: TimerTask[];
-  totalTime?: number;
-  order?: number;
-  version?: number;
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 interface UseTimerControlOptions {
   tasks: TimerTask[];
@@ -88,7 +71,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
   /**
    * 启动计时器返回结果类型
    */
-  type StartTimerResult = 
+  type StartTimerResult =
     | { success: true }
     | { success: false; reason: 'version_conflict'; conflictTaskName?: string }
     | { success: false; reason: 'not_found' }
@@ -170,14 +153,14 @@ export function useTimerControl(options: UseTimerControlOptions) {
       // 5.1 先暂停所有运行中的任务
       let currentTasks = updatedTasks;  // 【修复】使用乐观更新后的 tasks，而不是旧的 tasks
       const deviceId = getDeviceId();
-      
+
       if (runningTasks.length > 0) {
         console.log(`⏸️ 暂停 ${runningTasks.length} 个运行中的任务`);
         for (const runningTask of runningTasks) {
           const runningTime = runningTask.startTime ? currentTime - runningTask.startTime : 0;
           // 【关键】使用 versionMap 中的版本号，而不是可能过期的 runningTask.version
           const currentVersion = versionMap.get(runningTask.id) ?? runningTask.version;
-          
+
           const pauseResponse = await fetch(`/api/timer-tasks`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -193,46 +176,46 @@ export function useTimerControl(options: UseTimerControlOptions) {
             })
           });
 
-        // 检测版本冲突
-        if (pauseResponse.status === 409) {
-          const conflictData = await pauseResponse.json();
-          console.error('⚠️ [暂停操作] 版本冲突 409，任务:', runningTask.name, '冲突数据:', conflictData);
-          
-          // 只有不同设备的冲突才弹出提示
-          if (!conflictData.isFromSameDevice) {
-            alert(`⚠️ 数据冲突\n\n任务"${runningTask.name}"的数据已在其他设备修改。\n\n页面将自动刷新以获取最新数据。`);
-          }
-          
-          setIsProcessing(false);
-          return { 
-            success: false, 
-            reason: 'version_conflict',
-            conflictTaskName: runningTask.name 
-          };
-        }
+          // 检测版本冲突
+          if (pauseResponse.status === 409) {
+            const conflictData = await pauseResponse.json();
+            console.error('⚠️ [暂停操作] 版本冲突 409，任务:', runningTask.name, '冲突数据:', conflictData);
 
-        // 成功：解析服务器返回的新数据（包含新version）
-        const updatedPausedTask = await pauseResponse.json();
-        console.log('✅ [暂停操作] 服务器返回新数据，任务:', runningTask.name, 'version:', updatedPausedTask.version);
-        
-        // 【关键】更新 versionMap 中的版本号
-        versionMap.set(runningTask.id, updatedPausedTask.version);
-        
-        // 累积更新前端tasks，确保version同步
-        currentTasks = updateTasksRecursive(currentTasks, (task) => {
-          if (task.id === runningTask.id) {
+            // 只有不同设备的冲突才弹出提示
+            if (!conflictData.isFromSameDevice) {
+              alert(`⚠️ 数据冲突\n\n任务"${runningTask.name}"的数据已在其他设备修改。\n\n页面将自动刷新以获取最新数据。`);
+            }
+
+            setIsProcessing(false);
             return {
-              ...task,
-              version: updatedPausedTask.version,  // ← 关键：更新version
-              elapsedTime: updatedPausedTask.elapsedTime,
-              isPaused: true,
-              isRunning: false,
-              startTime: null,
-              pausedTime: 0
+              success: false,
+              reason: 'version_conflict',
+              conflictTaskName: runningTask.name
             };
           }
-          return task;
-        });
+
+          // 成功：解析服务器返回的新数据（包含新version）
+          const updatedPausedTask = await pauseResponse.json();
+          console.log('✅ [暂停操作] 服务器返回新数据，任务:', runningTask.name, 'version:', updatedPausedTask.version);
+
+          // 【关键】更新 versionMap 中的版本号
+          versionMap.set(runningTask.id, updatedPausedTask.version);
+
+          // 累积更新前端tasks，确保version同步
+          currentTasks = updateTasksRecursive(currentTasks, (task) => {
+            if (task.id === runningTask.id) {
+              return {
+                ...task,
+                version: updatedPausedTask.version,  // ← 关键：更新version
+                elapsedTime: updatedPausedTask.elapsedTime,
+                isPaused: true,
+                isRunning: false,
+                startTime: null,
+                pausedTime: 0
+              };
+            }
+            return task;
+          });
         }
 
         // 通知上层（互斥暂停）
@@ -242,7 +225,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
       // 5.2 启动目标任务
       // 【关键】使用 versionMap 中的版本号
       const targetVersion = versionMap.get(taskId) ?? targetTask.version;
-      
+
       const startResponse = await fetch(`/api/timer-tasks`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -261,24 +244,24 @@ export function useTimerControl(options: UseTimerControlOptions) {
       if (startResponse.status === 409) {
         const conflictData = await startResponse.json();
         console.error('⚠️ [启动操作] 版本冲突 409，任务:', targetTask.name, '冲突数据:', conflictData);
-        
+
         // 只有不同设备的冲突才弹出提示
         if (!conflictData.isFromSameDevice) {
           alert(`⚠️ 数据冲突\n\n任务"${targetTask.name}"的数据已在其他设备修改。\n\n页面将自动刷新以获取最新数据。`);
         }
-        
+
         setIsProcessing(false);
-        return { 
-          success: false, 
+        return {
+          success: false,
           reason: 'version_conflict',
-          conflictTaskName: targetTask.name 
+          conflictTaskName: targetTask.name
         };
       }
 
       // 成功：解析服务器返回的新数据（包含新version）
       const updatedTask = await startResponse.json();
       console.log('✅ [启动操作] 服务器返回新数据，version:', updatedTask.version);
-      
+
       // 更新前端tasks，确保version同步（基于累积的 currentTasks）
       const finalTasks = updateTasksRecursive(currentTasks, (task) => {
         if (task.id === taskId) {
@@ -354,12 +337,12 @@ export function useTimerControl(options: UseTimerControlOptions) {
       if (response.status === 409) {
         const conflictData = await response.json();
         console.warn('⚠️ 检测到数据冲突，正在刷新...', conflictData);
-        
+
         // 只有不同设备的冲突才弹出提示
         if (!conflictData.isFromSameDevice) {
           alert(`⚠️ 数据冲突\n\n任务"${targetTask.name}"的数据已在其他设备修改。\n\n页面将自动刷新以获取最新数据。`);
         }
-        
+
         onVersionConflict?.();
         return;
       }
@@ -428,12 +411,12 @@ export function useTimerControl(options: UseTimerControlOptions) {
       if (response.status === 409) {
         const conflictData = await response.json();
         console.warn('⚠️ 检测到数据冲突，正在刷新...', conflictData);
-        
+
         // 只有不同设备的冲突才弹出提示
         if (!conflictData.isFromSameDevice) {
           alert(`⚠️ 数据冲突\n\n任务"${targetTask.name}"的数据已在其他设备修改。\n\n页面将自动刷新以获取最新数据。`);
         }
-        
+
         onVersionConflict?.();
         return;
       }

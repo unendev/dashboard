@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getApiUrl } from '../lib/api';
-import { setToken, setUser } from '../lib/auth-token';
+import { getApiUrl, API_BASE_URL } from '../lib/api';
+import { setToken, setUser, setApiOrigin } from '../lib/auth-token';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('a1634358912@gmail.com');
@@ -46,10 +46,11 @@ export default function LoginPage() {
 
       if (data?.token) {
         setToken(data.token);
+        setApiOrigin(API_BASE_URL); // 记录当前 API 来源
         if (data.user) {
           setUser(data.user);
         }
-        console.log('[Login] Success, token stored');
+        console.log('[Login] Success, token stored for:', API_BASE_URL);
         navigate('/timer');
         return;
       }

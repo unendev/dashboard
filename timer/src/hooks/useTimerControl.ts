@@ -7,7 +7,7 @@ import { useState, useCallback } from 'react';
 import { getDeviceId } from '@/lib/device-fingerprint';
 import { fetchWithRetry } from '@/lib/fetch-utils';
 
-import type { TimerTask } from '@shared/types/timer.types';
+import type { TimerTask } from '@dashboard/shared';
 
 interface UseTimerControlOptions {
   tasks: TimerTask[];

@@ -16,9 +16,9 @@ interface EnhancedInstanceTagInputProps {
   className?: string
 }
 
-export function EnhancedInstanceTagInput({ 
-  tags, 
-  onChange, 
+export function EnhancedInstanceTagInput({
+  tags,
+  onChange,
   userId = 'user-1',
   placeholder = '输入事务项...',
   maxTags = 10,
@@ -47,19 +47,19 @@ export function EnhancedInstanceTagInput({
         try {
           const parsed = JSON.parse(recent)
           setRecentTags(Array.isArray(parsed) ? parsed.slice(0, 10) : [])
-        } catch (e) {}
+        } catch (e) { }
       }
 
       const cachedData = InstanceTagCache.loadFromStorage()
       if (cachedData && cachedData.length > 0) {
         setAvailableTags(cachedData)
       }
-      
+
       const blackList = localStorage.getItem('deleted_history_tags')
       if (blackList) {
-          try {
-              setDeletedHistoryTags(JSON.parse(blackList));
-          } catch(e) {}
+        try {
+          setDeletedHistoryTags(JSON.parse(blackList));
+        } catch (e) { }
       }
     }
     initData()
@@ -71,48 +71,48 @@ export function EnhancedInstanceTagInput({
       if (availableTags.length === 0) setIsLoading(true);
       try {
         const [predefinedTags, usedTagsResponse] = await Promise.all([
-          InstanceTagCache.preload(userId).catch(() => []),
+          InstanceTagCache.fetchFromServer(userId).catch(() => []),
           fetch(getApiUrl(`/api/timer-tasks/instance-tags?userId=${userId}`), { credentials: 'include' })
             .then(res => res.ok ? res.json() : { instanceTags: [] })
             .catch(() => ({ instanceTags: [] }))
         ])
 
         const safePredefinedTags = Array.isArray(predefinedTags) ? predefinedTags : []
-        
+
         // 关键逻辑：分拆旧有的逗号分隔脏数据
         const rawHistoryTags: string[] = usedTagsResponse.instanceTags || [];
         const splitHistoryTags: string[] = [];
-        
+
         rawHistoryTags.forEach(tagStr => {
-            if (tagStr.includes(',')) {
-                // 如果包含逗号，分拆并清理
-                const parts = tagStr.split(',').map(p => p.trim()).filter(p => p.length > 0);
-                splitHistoryTags.push(...parts);
-            } else {
-                splitHistoryTags.push(tagStr.trim());
-            }
+          if (tagStr.includes(',')) {
+            // 如果包含逗号，分拆并清理
+            const parts = tagStr.split(',').map(p => p.trim()).filter(p => p.length > 0);
+            splitHistoryTags.push(...parts);
+          } else {
+            splitHistoryTags.push(tagStr.trim());
+          }
         });
 
         // 转换为 InstanceTag 对象并进行初步去重
         const historyTags = Array.from(new Set(splitHistoryTags)).map((tagName: string) => ({
-            id: `used-${tagName}`,
-            name: tagName.startsWith('#') ? tagName : `#${tagName}`,
-            userId: userId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+          id: `used-${tagName}`,
+          name: tagName.startsWith('#') ? tagName : `#${tagName}`,
+          userId: userId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         }))
 
         // 全局合并并去重
         const allTagsMap: Record<string, InstanceTag> = {};
         safePredefinedTags.forEach(tag => allTagsMap[tag.name] = tag);
         historyTags.forEach((tag: InstanceTag) => {
-            if (!allTagsMap[tag.name]) allTagsMap[tag.name] = tag;
+          if (!allTagsMap[tag.name]) allTagsMap[tag.name] = tag;
         });
 
         const mergedTags = Object.values(allTagsMap);
         if (JSON.stringify(mergedTags) !== JSON.stringify(availableTags)) {
-            setAvailableTags(mergedTags);
-            InstanceTagCache.updateInstanceTags(mergedTags);
+          setAvailableTags(mergedTags);
+          // InstanceTagCache.updateInstanceTags(mergedTags); // REMOVED: Do not pollute cache with history tags
         }
       } catch (error) {
         console.error('[TagInput] Sync failed:', error)
@@ -125,59 +125,59 @@ export function EnhancedInstanceTagInput({
 
   // 过滤逻辑
   const searchPart = inputValue.toLowerCase().replace(/^#/, '').trim();
-  
+
   const filteredRecent = recentTags.filter(tag => {
-      const isNotSelected = !tags.includes(tag);
-      const isNotDeleted = !deletedHistoryTags.includes(tag);
-      const normalizedTagName = tag.toLowerCase().replace(/^#/, '');
-      if (!searchPart) return isNotSelected && isNotDeleted;
-      return isNotSelected && isNotDeleted && normalizedTagName.includes(searchPart);
+    const isNotSelected = !tags.includes(tag);
+    const isNotDeleted = !deletedHistoryTags.includes(tag);
+    const normalizedTagName = tag.toLowerCase().replace(/^#/, '');
+    if (!searchPart) return isNotSelected && isNotDeleted;
+    return isNotSelected && isNotDeleted && normalizedTagName.includes(searchPart);
   });
 
   const filteredAvailable = availableTags.filter(tag => {
-      const isNotSelected = !tags.includes(tag.name);
-      const isNotDeleted = !deletedHistoryTags.includes(tag.name);
-      const normalizedTagName = tag.name.toLowerCase().replace(/^#/, '');
-      const notInRecent = !filteredRecent.includes(tag.name);
-      if (!searchPart) return isNotSelected && isNotDeleted && notInRecent;
-      return isNotSelected && isNotDeleted && notInRecent && normalizedTagName.includes(searchPart);
+    const isNotSelected = !tags.includes(tag.name);
+    const isNotDeleted = !deletedHistoryTags.includes(tag.name);
+    const normalizedTagName = tag.name.toLowerCase().replace(/^#/, '');
+    const notInRecent = !filteredRecent.includes(tag.name);
+    if (!searchPart) return isNotSelected && isNotDeleted && notInRecent;
+    return isNotSelected && isNotDeleted && notInRecent && normalizedTagName.includes(searchPart);
   });
 
   const totalSuggestions = filteredRecent.length + filteredAvailable.length;
 
   const deleteTag = async (id: string, name: string) => {
-      if (!window.confirm(`确定要移除事务项 "${name.replace(/^#/, '')}" 吗？`)) return;
-      
-      console.log('[TagInput] Deleting tag:', id, name);
-      
-      if (id.startsWith('used-')) {
-          // 对于历史标签，本地拉黑
-          const newBlacklist = [...deletedHistoryTags, name];
-          setDeletedHistoryTags(newBlacklist);
-          localStorage.setItem('deleted_history_tags', JSON.stringify(newBlacklist));
-          setAvailableTags(prev => prev.filter(t => t.name !== name));
-      } else {
-          // 对于正式标签，调用 API
-          try {
-              const response = await fetch(getApiUrl(`/api/instance-tags/${id}`), {
-                  method: 'DELETE',
-                  credentials: 'include'
-              });
-              if (response.ok) {
-                  setAvailableTags(prev => prev.filter(t => t.id !== id));
-                  InstanceTagCache.removeInstanceTag(id);
-              }
-          } catch (error) {
-              console.error('[TagInput] Delete API failed:', error);
-          }
+    if (!window.confirm(`确定要移除事务项 "${name.replace(/^#/, '')}" 吗？`)) return;
+
+    console.log('[TagInput] Deleting tag:', id, name);
+
+    if (id.startsWith('used-')) {
+      // 对于历史标签，本地拉黑
+      const newBlacklist = [...deletedHistoryTags, name];
+      setDeletedHistoryTags(newBlacklist);
+      localStorage.setItem('deleted_history_tags', JSON.stringify(newBlacklist));
+      setAvailableTags(prev => prev.filter(t => t.name !== name));
+    } else {
+      // 对于正式标签，调用 API
+      try {
+        const response = await fetch(getApiUrl(`/api/instance-tags/${id}`), {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        if (response.ok) {
+          setAvailableTags(prev => prev.filter(t => t.id !== id));
+          InstanceTagCache.removeInstanceTag(id);
+        }
+      } catch (error) {
+        console.error('[TagInput] Delete API failed:', error);
       }
-      
-      // 统一清理最近使用
-      const updatedRecent = recentTags.filter(t => t !== name);
-      if (updatedRecent.length !== recentTags.length) {
-          setRecentTags(updatedRecent);
-          localStorage.setItem('recentInstanceTags', JSON.stringify(updatedRecent));
-      }
+    }
+
+    // 统一清理最近使用
+    const updatedRecent = recentTags.filter(t => t !== name);
+    if (updatedRecent.length !== recentTags.length) {
+      setRecentTags(updatedRecent);
+      localStorage.setItem('recentInstanceTags', JSON.stringify(updatedRecent));
+    }
   }
 
   const createTag = async (tagName: string) => {
@@ -195,7 +195,7 @@ export function EnhancedInstanceTagInput({
         InstanceTagCache.addInstanceTag(newTag)
         return formattedTag
       }
-    } catch (error) {} finally {
+    } catch (error) { } finally {
       setIsCreating(false)
     }
     return null
@@ -206,7 +206,7 @@ export function EnhancedInstanceTagInput({
 
     let finalTag = tagName
     const existing = availableTags.find(t => t.name === tagName || t.name === `#${tagName}` || t.name.replace(/^#/, '') === tagName.replace(/^#/, ''))
-    
+
     if (!existing) {
       const created = await createTag(tagName)
       if (!created) return
@@ -243,9 +243,9 @@ export function EnhancedInstanceTagInput({
       e.preventDefault();
       if (open && totalSuggestions > 0) {
         if (selectedIndex < filteredRecent.length) {
-            addTag(filteredRecent[selectedIndex]);
+          addTag(filteredRecent[selectedIndex]);
         } else {
-            addTag(filteredAvailable[selectedIndex - filteredRecent.length].name);
+          addTag(filteredAvailable[selectedIndex - filteredRecent.length].name);
         }
       } else if (inputValue.trim()) {
         addTag(inputValue.trim());
@@ -261,7 +261,7 @@ export function EnhancedInstanceTagInput({
         <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-tight">事务项 (可选)</label>
         {isLoading && <Loader2 className="h-3 w-3 animate-spin text-zinc-500" />}
       </div>
-      
+
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
           {tags.map((tag) => (
@@ -300,18 +300,18 @@ export function EnhancedInstanceTagInput({
             </div>
           </div>
         </PopoverAnchor>
-        <PopoverContent 
-          className="w-[var(--radix-popover-anchor-width)] p-0 bg-zinc-900 border-zinc-800 shadow-2xl z-[1002]" 
-          align="start" 
+        <PopoverContent
+          className="w-[var(--radix-popover-anchor-width)] p-0 bg-zinc-900 border-zinc-800 shadow-2xl z-[1002]"
+          align="start"
           sideOffset={8}
-          onOpenAutoFocus={(e) => e.preventDefault()} 
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command className="bg-transparent" shouldFilter={false}>
             <div className="hidden">
               <CommandInput value={inputValue} onValueChange={setInputValue} />
             </div>
             <CommandList className="max-h-[280px] overflow-y-auto custom-scrollbar">
-              
+
               {filteredRecent.length > 0 && (
                 <CommandGroup heading={
                   <div className="flex items-center gap-1.5 py-1">
@@ -325,8 +325,8 @@ export function EnhancedInstanceTagInput({
                       value={tag}
                       onSelect={() => addTag(tag)}
                       className={cn(
-                          "cursor-pointer py-2 px-2 flex items-center justify-between transition-colors",
-                          selectedIndex === index ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-300 hover:bg-zinc-800"
+                        "cursor-pointer py-2 px-2 flex items-center justify-between transition-colors",
+                        selectedIndex === index ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-300 hover:bg-zinc-800"
                       )}
                     >
                       <div className="flex items-center flex-1">
@@ -362,21 +362,21 @@ export function EnhancedInstanceTagInput({
                         value={tag.name}
                         onSelect={() => addTag(tag.name)}
                         className={cn(
-                            "cursor-pointer py-2 px-2 flex items-center justify-between transition-colors",
-                            selectedIndex === globalIndex ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-300 hover:bg-zinc-800"
+                          "cursor-pointer py-2 px-2 flex items-center justify-between transition-colors",
+                          selectedIndex === globalIndex ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-300 hover:bg-zinc-800"
                         )}
                       >
                         <div className="flex items-center flex-1">
-                            <ChevronRight className={cn("mr-2 h-3 w-3", selectedIndex === globalIndex ? "text-emerald-400" : "text-zinc-600")} />
-                            <Tag className={cn("mr-2 h-3 w-3", selectedIndex === globalIndex ? "text-emerald-400" : "text-zinc-500")} />
-                            <span className="text-sm">{tag.name.replace(/^#/, '')}</span>
+                          <ChevronRight className={cn("mr-2 h-3 w-3", selectedIndex === globalIndex ? "text-emerald-400" : "text-zinc-600")} />
+                          <Tag className={cn("mr-2 h-3 w-3", selectedIndex === globalIndex ? "text-emerald-400" : "text-zinc-500")} />
+                          <span className="text-sm">{tag.name.replace(/^#/, '')}</span>
                         </div>
                         <button
-                            onClick={(e) => { e.stopPropagation(); deleteTag(tag.id, tag.name); }}
-                            className="p-1 rounded-md text-zinc-600 hover:text-red-400 transition-colors ml-2"
-                            title="移除此标签"
+                          onClick={(e) => { e.stopPropagation(); deleteTag(tag.id, tag.name); }}
+                          className="p-1 rounded-md text-zinc-600 hover:text-red-400 transition-colors ml-2"
+                          title="移除此标签"
                         >
-                            <Trash2 size={14} />
+                          <Trash2 size={14} />
                         </button>
                       </CommandItem>
                     );
@@ -386,17 +386,17 @@ export function EnhancedInstanceTagInput({
 
               {inputValue.trim() && (
                 <div className="p-2">
-                    <Button variant="ghost" size="sm" className="w-full text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 justify-start h-9 px-2" onClick={() => addTag(inputValue)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        <span className="text-sm">创建并添加 "{inputValue}"</span>
-                    </Button>
+                  <Button variant="ghost" size="sm" className="w-full text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 justify-start h-9 px-2" onClick={() => addTag(inputValue)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="text-sm">创建并添加 "{inputValue}"</span>
+                  </Button>
                 </div>
               )}
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
-      
+
       {tags.length >= maxTags && (
         <p className="text-[10px] text-orange-400">已达到标签上限</p>
       )}

@@ -22,11 +22,11 @@ export function TreasureList({ className }: TreasureListProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingTreasure, setEditingTreasure] = useState<Treasure | null>(null)
-  
+
   // Persistent State for Tags
   const [lastTags, setLastTags] = useState<string[]>([])
   const [recentTags, setRecentTags] = useState<string[]>([])
-  
+
   const {
     treasures, setTreasures,
     searchQuery, setSearchQuery,
@@ -46,7 +46,14 @@ export function TreasureList({ className }: TreasureListProps) {
     setIsMounted(true)
     const storedRecentTags = localStorage.getItem('recentTreasureTags')
     if (storedRecentTags) {
-      try { setRecentTags(JSON.parse(storedRecentTags)); } catch (e) { console.error(e); }
+      try {
+        const parsed = JSON.parse(storedRecentTags);
+        // Filter out legacy tags
+        const filtered = Array.isArray(parsed)
+          ? parsed.filter((t: string) => !['Life', 'Thought', 'Knowledge', 'Root'].includes(t.replace(/^#/, '')))
+          : [];
+        setRecentTags(filtered);
+      } catch (e) { console.error(e); }
     }
     fetchStatsData()
   }, [fetchStatsData])
@@ -73,38 +80,48 @@ export function TreasureList({ className }: TreasureListProps) {
         const newTreasure = await response.json()
         console.info('[Treasure Create] success', { id: newTreasure.id })
 
-        if (!skipAiTagging) {
-          try {
-            console.info('[AI Tagging] trigger', { treasureId: newTreasure.id })
-            const aiResponse = await fetch(`/api/treasures/${newTreasure.id}/ai-tag`, { method: 'POST' })
-            if (!aiResponse.ok) {
-              const errorText = await aiResponse.text()
-              console.error('[AI Tagging] failed', {
-                treasureId: newTreasure.id,
-                status: aiResponse.status,
-                error: errorText
-              })
-            } else {
-              const aiResult = await aiResponse.json().catch(() => null)
-              console.info('[AI Tagging] completed', {
-                treasureId: newTreasure.id,
-                tagsCount: Array.isArray(aiResult?.tags) ? aiResult.tags.length : 0,
-                fallback: !!aiResult?.fallback
-              })
-            }
-          } catch (error) {
-            console.error('[AI Tagging] error', { treasureId: newTreasure.id, error })
-          }
-        }
-
+        // Optimistic update: Close modal and refresh list immediately
         await fetchTreasures(true)
         setShowCreateModal(false)
         setStatsData(prev => [{ id: newTreasure.id, createdAt: newTreasure.createdAt, tags: newTreasure.tags }, ...prev])
         setRecentTags(prevTags => {
-          const updatedTags = Array.from(new Set([...newTreasure.tags, ...prevTags])).slice(0, 20)
+          const legacyTags = ['Life', 'Thought', 'Knowledge', 'Root'];
+          const updatedTags = Array.from(new Set([...newTreasure.tags, ...prevTags]))
+            .filter(t => !legacyTags.includes(t.replace(/^#/, '')))
+            .slice(0, 20)
           localStorage.setItem('recentTreasureTags', JSON.stringify(updatedTags))
           return updatedTags
         })
+
+        if (!skipAiTagging) {
+          // Background AI Tagging
+          (async () => {
+            try {
+              console.info('[AI Tagging] trigger', { treasureId: newTreasure.id })
+              const aiResponse = await fetch(`/api/treasures/${newTreasure.id}/ai-tag`, { method: 'POST' })
+              if (!aiResponse.ok) {
+                const errorText = await aiResponse.text()
+                console.error('[AI Tagging] failed', {
+                  treasureId: newTreasure.id,
+                  status: aiResponse.status,
+                  error: errorText
+                })
+              } else {
+                const aiResult = await aiResponse.json().catch(() => null)
+                console.info('[AI Tagging] completed', {
+                  treasureId: newTreasure.id,
+                  tagsCount: Array.isArray(aiResult?.tags) ? aiResult.tags.length : 0,
+                  fallback: !!aiResult?.fallback
+                })
+                // Optional: refresh purely for tags if needed, but usually user moves on.
+                // If we want to show tags appearing magically, we might need to re-fetch or use a socket/polling.
+                // For now, "non-blocking" is the goal.
+              }
+            } catch (error) {
+              console.error('[AI Tagging] error', { treasureId: newTreasure.id, error })
+            }
+          })()
+        }
       } else {
         const errorText = await response.text()
         console.error('[Treasure Create] failed', { status: response.status, error: errorText })
@@ -200,7 +217,7 @@ export function TreasureList({ className }: TreasureListProps) {
                 />
               </div>
             ))}
-            
+
             {isLoadingMore && <LoadingIndicator />}
             {!hasMore && treasures.length > 0 && <EndOfList />}
           </div>
@@ -209,7 +226,7 @@ export function TreasureList({ className }: TreasureListProps) {
 
       {/* Sidebar: Stats */}
       <aside className="hidden xl:block self-start">
-        <TreasureStatsPanel 
+        <TreasureStatsPanel
           treasures={statsData}
           onTagClick={setSelectedTag}
           selectedTag={selectedTag}
@@ -232,7 +249,7 @@ export function TreasureList({ className }: TreasureListProps) {
           onClose={() => { setShowEditModal(false); setEditingTreasure(null); }}
           onSubmit={handleEditTreasure}
           mode="edit"
-          initialData={{...editingTreasure, content: editingTreasure.content ?? ''}}
+          initialData={{ ...editingTreasure, content: editingTreasure.content ?? '' }}
           recentTags={recentTags}
         />
       )}

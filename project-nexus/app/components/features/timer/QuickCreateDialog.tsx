@@ -194,7 +194,7 @@ const QuickCreateDialog: React.FC<QuickCreateDialogProps> = ({
       name: finalTaskName,
       categoryPath,
       instanceTagNames: savedSelectedTags,
-      initialTime: parsedInitialTime,
+      initialTime: parsedInitialTime ?? 0,
       autoStart
     };
     console.log('🚀 [Manual Create] Calling onCreate with:', manualCreateData);

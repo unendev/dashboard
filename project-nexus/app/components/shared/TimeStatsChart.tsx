@@ -2,24 +2,9 @@
 
 import React from 'react';
 import EChartsSunburstChart from './EChartsSunburstChart';
+import { TimerTask } from '@dashboard/shared';
 
-interface TimerTask {
-  id: string;
-  name: string;
-  categoryPath: string;
-  // 可选：事务项标签
-  instanceTag?: string | null;
-  elapsedTime: number;
-  initialTime: number;
-  isRunning: boolean;
-  startTime: number | null;
-  isPaused: boolean;
-  pausedTime: number;
-  parentId?: string | null;
-  children?: TimerTask[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+
 
 interface DateRangeValue {
   startDate: string;
@@ -141,7 +126,7 @@ const TimeStatsChart: React.FC<TimeStatsChartProps> = ({ tasks, userId, dateRang
             <div className="text-sm text-gray-300">{dateRange?.label || '今日'}总时间</div>
           </div>
         </div>
-        
+
         <div className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-400">
@@ -153,7 +138,7 @@ const TimeStatsChart: React.FC<TimeStatsChartProps> = ({ tasks, userId, dateRang
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-orange-400">

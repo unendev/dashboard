@@ -223,7 +223,7 @@ export default function TodoPage() {
                         console.log('Double click on todo:', item.text);
                         // Use IPC to open task memo window (frameless, separate context)
                         // @ts-ignore
-                        window.electron.send('open-task-memo-window', { taskId: item.id });
+                        window.electron.send('open-task-memo-window', { taskId: item.id, taskName: item.text });
                       }}
                       data-drag="false"
                     >

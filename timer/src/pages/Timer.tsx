@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
 import { Play, Pause, FileText, CheckSquare, Bot, GripVertical, Loader2 } from 'lucide-react';
 import { useTimerControl } from '@/hooks/useTimerControl';
-import type { TimerTask } from '@shared/types/timer.types';
+import { TimerTask, formatTime } from '@dashboard/shared';
 import { fetcher, getApiUrl } from '@/lib/api';
 import { getUser } from '@/lib/auth-token';
 
@@ -111,6 +111,7 @@ export default function TimerPage() {
       updatedAt: new Date().toISOString(),
       children: [],
       parentId: taskData.parentId || null, // Added parentId
+      date: new Date().toISOString().split('T')[0], // Added missing date
     };
 
     // 立即更新 UI，让用户感觉到“秒开”
@@ -259,7 +260,11 @@ export default function TimerPage() {
     const topLevelTasks = tasks.filter((t) => !t.parentId);
     return topLevelTasks
       .filter((t) => t.id !== activeTask?.id)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      .sort((a, b) => {
+        const timeA = new Date(a.updatedAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
   }, [tasks, activeTask]);
 
   // 移除 Emoji 的辅助函数
@@ -284,12 +289,7 @@ export default function TimerPage() {
     return () => clearInterval(interval);
   }, [activeTask]);
 
-  const formatTime = (totalSeconds: number) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+
 
   if (!userId) {
     return (
@@ -341,7 +341,7 @@ export default function TimerPage() {
               >
                 <div className={`transition-all ${isBlurred ? 'blur-md' : ''}`}>
                   <div className="font-mono text-2xl font-bold">{formatTime(displayTime)}</div>
-                  <div className={`text-xs truncate ${activeTask.isPaused ? 'text-yellow-300/70' : 'text-emerald-300/70'}`}>
+                  <div className={`text-xs truncate ${activeTask.isPaused ? 'text-yellow-300/70' : 'text-emerald-300/70'}`} title={activeTask.categoryPath}>
                     {displayTaskName}
                   </div>
                 </div>
@@ -385,6 +385,7 @@ export default function TimerPage() {
                       : 'bg-zinc-800/50 border-transparent hover:bg-zinc-700/50'
                     }`}
                   data-drag="false"
+                  title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}`}
                 >
                   <Play size={12} className={`shrink-0 transition-colors ${hasInstanceTag ? 'text-orange-400 group-hover:text-orange-300' : 'text-zinc-500 group-hover:text-emerald-400'}`} fill="currentColor" />
                   <div className={`flex flex-col min-w-0 transition-all ${isBlurred ? 'blur-sm' : ''}`}>

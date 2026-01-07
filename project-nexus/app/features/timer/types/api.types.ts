@@ -4,7 +4,7 @@
  * @created 2025-11-02
  */
 
-import type { TimerTask } from '@shared/types/timer.types';
+import type { TimerTask } from '@dashboard/shared';
 
 /**
  * 创建任务请求

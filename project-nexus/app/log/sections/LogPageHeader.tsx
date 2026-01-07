@@ -78,6 +78,15 @@ export function LogPageHeader({
           </Link>
         )}
 
+        {/* 标签管理入口 */}
+        <Link
+          href="/log/tags"
+          className="hidden md:flex bg-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-full px-3 md:px-4 py-1.5 md:py-2 shadow-sm hover:shadow-md hover:border-emerald-500/50 transition-all duration-200 items-center gap-1.5 md:gap-2"
+        >
+          <span className="text-base md:text-lg">🏷️</span>
+          <span className="text-xs md:text-sm font-medium text-gray-200">标签</span>
+        </Link>
+
         {/* 每周回顾按钮 */}
         <button
           onClick={onWeeklyReview}
@@ -122,13 +131,13 @@ export function LogPageHeader({
               ▼
             </span>
           </button>
-          
+
           {/* 操作记录下拉面板 */}
           {isOperationHistoryExpanded && (
             <div className="absolute top-full right-0 mt-2 w-72 bg-gray-900/90 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-lg p-4 max-h-80 overflow-y-auto">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-200">操作记录</h3>
-                <button 
+                <button
                   onClick={onToggleOperationHistory}
                   className="text-gray-400 hover:text-gray-200 text-lg hover:bg-gray-800 rounded-full w-6 h-6 flex items-center justify-center"
                 >
