@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         tags: normalizedTags
       });
     }
+
     const treasure = await prisma.treasure.create({
       data: {
         userId,

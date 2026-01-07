@@ -38,7 +38,7 @@ function getDeepSeekProvider() {
 }
 
 export function getAIModel({ provider, modelId, enableThinking }: { provider: string, modelId?: string, enableThinking?: boolean }) {
-  const effectiveModelId = modelId || (provider === 'gemini' ? 'gemini-2.5-flash' : 'deepseek-chat');
+  const effectiveModelId = modelId || (provider === 'gemini' ? 'gemini-2.0-flash-exp' : 'deepseek-chat'); // Default to DeepSeek V3
   let model: any;
   let providerOptions: any = {};
 

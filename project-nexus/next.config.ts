@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  
+
   // 配置图片域名
   images: {
     remotePatterns: [
@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '*.aliyuncs.com',
+        hostname: '**.aliyuncs.com',
         port: '',
         pathname: '/**',
       }

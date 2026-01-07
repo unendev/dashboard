@@ -23,7 +23,7 @@ export function useOssUpload() {
         useWebWorker: true,
         fileType: 'image/webp' as const,
       };
-      
+
       const compressedFile = await imageCompression(file, compressionOptions);
       const filename = `${file.name.split('.').slice(0, -1).join('.') || 'image'}.webp`;
 
@@ -31,20 +31,22 @@ export function useOssUpload() {
       const signatureUrl = new URL('/api/upload/oss/signature', window.location.origin);
       signatureUrl.searchParams.set('filename', filename);
       signatureUrl.searchParams.set('contentType', 'image/webp');
-      
+
       const signatureRes = await fetch(signatureUrl.toString());
       const signatureData = await signatureRes.json();
-      
+
       if (signatureData.error) {
         // OSS未配置兜底
         return { originalUrl: '', signedUrl: '' };
       }
 
-      // 3. 构建表单并上传
+      // 3. 构建表单并上传（阿里云 OSS 要求字段按特定顺序，file 必须最后）
       const formData = new FormData();
-      Object.entries(signatureData).forEach(([k, v]) => {
-        if (typeof v === 'string') formData.append(k, v);
-      });
+      formData.append('key', signatureData.key);
+      formData.append('policy', signatureData.policy);
+      formData.append('OSSAccessKeyId', signatureData.accessKeyId);
+      formData.append('signature', signatureData.signature);
+      formData.append('success_action_status', '200');
       formData.append('file', compressedFile, filename);
 
       await new Promise<void>((resolve, reject) => {
@@ -52,15 +54,21 @@ export function useOssUpload() {
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) options?.onProgress?.(Math.round((e.loaded / e.total) * 100));
         });
-        xhr.onload = () => resolve();
-        xhr.onerror = () => reject();
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`OSS Upload failed with status: ${xhr.status} ${xhr.responseText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error during upload'));
         xhr.open('POST', signatureData.endpoint);
         xhr.send(formData);
       });
 
       const baseUrl = (signatureData.cdnUrl || signatureData.endpoint).replace(/\/+$/, '');
       const originalUrl = `${baseUrl}/${signatureData.key.replace(/^\/+/, '')}`;
-      
+
       // 4. 获取预览签名
       const signRes = await fetch('/api/upload/oss/sign-url', {
         method: 'POST',

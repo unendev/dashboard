@@ -229,6 +229,7 @@ const MemoPage = () => {
             <main
                 className="flex-1 flex flex-col min-h-0 relative overflow-hidden"
                 onMouseEnter={() => setViewMode('edit')}
+                onMouseLeave={() => setViewMode('preview')}
             >
                 {viewMode === 'edit' ? (
                     <textarea

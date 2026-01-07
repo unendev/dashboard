@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
 
     const suggestions = await suggestHumanTagsForTreasure(
       { title, content: content || null },
-      { domain: domainPool, concept: conceptPool }
+      { domain: domainPool, concept: conceptPool },
+      body.tags || [] // Pass tags
     );
 
     return NextResponse.json(suggestions);

@@ -4,24 +4,34 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { findSimilarTags } from '@/lib/tag-similarity';
 
-function buildTaggingPrompt(existingAiTags: string[] = []) {
+function buildTaggingPrompt(existingAiTags: string[] = [], userTags: string[] = []) {
   const poolHint = existingAiTags.length > 0
-    ? `已有 AI 标签池（优先复用，必要时才新增）：${existingAiTags.join(', ')}`
+    ? `已有 AI 标签池（优先复用，必要时才新增）：${existingAiTags.slice(0, 50).join(', ')}`
     : '当前无 AI 标签池。';
 
-  return `你是一个专业的分类系统，负责为“藏宝阁”笔记进行精准的AI打标。你的任务是根据用户的笔记内容，严格遵守以下规则，只输出 AI 标签。
+  return `你是一个专业的分类系统，负责为“藏宝阁”笔记进行精准的AI打标。
+你的任务是：基于内容提取客观的**实体**和**性质**。
 
-**规则宪法：**
-1. **主题/领域/概念**：由用户手动维护，不属于 AI 标签。你不得输出 '#领域/...' 或 '#概念/...'，也不要输出主题。
-2. **标签格式**：统一使用 '#一级/二级' 格式，实体可使用更深层路径（例如 '#实体/技术/前端/React'）。
-3. **性质轴 (Nature)**：
-   - 作用：描述笔记的功能或形态。
-   - 触发条件：只有内容具备显著特征时才添加，**最多 1 个**。不确定就不要添加。
-   - 例子（非限制）：#性质/复盘, #性质/点子, #性质/教训, #性质/精华, #性质/情报, #性质/技巧, #性质/哲思, #性质/资源。
-4. **实体轴 (Entity)**：
-   - 作用：提取内容中的核心名词或概念，作为知识图谱节点。
-   - 格式：#实体/具体名词（允许层级路径）。
-   - 规则：尽量完整，但不要胡乱扩展。
+**严格限制（君主法则）**：
+1. **绝对禁止**输出 '#领域/...' 标签（这是人类的特权）。
+2. **绝对禁止**输出 '#概念/...' 标签（这是人类的特权）。
+3. 即使内容非常明显属于某个领域，你也不要输出。
+
+
+**你的核心职责（书记官模式）**：
+1. **实体轴 (Entity) - 必须尽力提取**：
+   - **指令**：扫描文中所有专有名词、产品名、人名、组织名、技术栈。不要犹豫，只要是客观存在的实体，统统提取。
+   - **示例**：
+     - 内容："建议 War Thunder 联动 BanG Dream!" -> 提取：'#实体/游戏/WarThunder', '#实体/动漫/BanG_Dream'
+     - 内容："使用 React 和 Next.js 开发" -> 提取：'#实体/技术/React', '#实体/技术/Next.js'
+   - **原则**：宁可多提（之后人类可以删），不可漏提。
+
+2. **性质轴 (Nature)**：
+   - 作用：描述笔记的功能或形态（如 #性质/教程, #性质/灵感）。
+
+**严格限制**：
+- 仅禁止 `#领域` 和 `#概念`。
+- 其他所有实体，请放心输出。
 
 ${poolHint}
 
@@ -29,7 +39,7 @@ ${poolHint}
 请直接返回包含 'tags' 字段的 JSON 对象。`;
 }
 
-function buildHumanTagSuggestionPrompt(domainPool: string[], conceptPool: string[]) {
+function buildHumanTagSuggestionPrompt(domainPool: string[], conceptPool: string[], userTags: string[] = []) {
   const domainHint = domainPool.length > 0
     ? `已有领域标签池（优先复用）：${domainPool.join(', ')}`
     : '当前无领域标签池。';
@@ -37,13 +47,20 @@ function buildHumanTagSuggestionPrompt(domainPool: string[], conceptPool: string
     ? `已有概念标签池（优先复用）：${conceptPool.join(', ')}`
     : '当前无概念标签池。';
 
-  return `你是一个标签体系助手，只负责**建议**人类标签，不允许直接修改或输出 AI 标签。
+  return `你是一个标签体系助手，只负责**建议**人类标签。
+  
+**当前用户已选标签**：${userTags.length > 0 ? userTags.join(', ') : '无'}
 
-**目标**：给出人类标签建议，仅包含以下两类：
-1) 领域标签：格式 '#领域/...'，必须是层级语义（如 '#领域/技术/前端/React'）。
-2) 概念标签：格式 '#概念/...'，用于高阶主观概念（如 '#概念/迷思'）。
+**目标**：基于用户的内容和 **已选标签**，提供 **补充性** 的建议。
+1. 如果用户已选了某个领域（如 #领域/游戏），请思考是否需要补充相关领域（如 #领域/技术 或 #领域/设计）。
+2. 如果用户没选领域，请推荐最合适的领域。
+3. 概念同理。
 
-**严格禁止**输出 '#实体/...' 或 '#性质/...'。
+**输出规则**：
+1. 领域标签：格式 '#领域/...'，必须是层级语义。
+2. 概念标签：格式 '#概念/...'，用于高阶主观概念。
+3. **不要重复**用户已经选过的标签。
+4. **严格禁止**输出 '#实体/...' 或 '#性质/...'。
 
 **数量限制**：
 - 领域标签最多 3 个
@@ -61,6 +78,7 @@ ${conceptHint}
 interface TreasureContent {
   title: string;
   content: string | null;
+  tags?: string[];
 }
 
 function normalizeAiTags(tags: string[], existingAiTags: string[]): string[] {
@@ -72,7 +90,12 @@ function normalizeAiTags(tags: string[], existingAiTags: string[]): string[] {
     if (!trimmed) continue;
 
     const withPrefix = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
-    if (!withPrefix.startsWith('#性质/') && !withPrefix.startsWith('#实体/')) {
+
+    // [Updated] Only Allow Nature and Entity (Sovereign/Scribe Rule)
+    if (
+      !withPrefix.startsWith('#性质/') &&
+      !withPrefix.startsWith('#实体/')
+    ) {
       continue;
     }
 
@@ -122,10 +145,14 @@ function normalizeHumanTags(
 
 export async function generateAiTagsForTreasure(
   treasure: TreasureContent,
-  existingAiTags: string[] = []
+  existingAiTags: string[] = [],
+  userTags: string[] = [] // New Param
 ): Promise<string[]> {
+  // Combine treasure.tags if provided
+  const finalUserTags = userTags.length > 0 ? userTags : (treasure.tags || []);
+
   const poolSample = existingAiTags.slice(0, 120);
-  const systemPrompt = buildTaggingPrompt(poolSample);
+  const systemPrompt = buildTaggingPrompt(poolSample, finalUserTags);
   const userPrompt = `标题: ${treasure.title}\n\n内容:\n${treasure.content || ''}`;
 
   try {
@@ -134,7 +161,7 @@ export async function generateAiTagsForTreasure(
       system: systemPrompt,
       prompt: userPrompt,
       schema: z.object({
-        tags: z.array(z.string()).describe('一个包含所有#性质/xx和#实体/xx标签的数组。'),
+        tags: z.array(z.string()).describe('补全的标签数组，包含 #领域, #概念, #性质, #实体 等缺失维度。'),
       }),
     });
 
@@ -152,11 +179,12 @@ export async function generateAiTagsForTreasure(
 
 export async function suggestHumanTagsForTreasure(
   treasure: TreasureContent,
-  pools: { domain: string[]; concept: string[] }
+  pools: { domain: string[]; concept: string[] },
+  userTags: string[] = [] // New Param
 ): Promise<{ domain: string[]; concept: string[] }> {
   const domainPool = pools.domain.slice(0, 120);
   const conceptPool = pools.concept.slice(0, 120);
-  const systemPrompt = buildHumanTagSuggestionPrompt(domainPool, conceptPool);
+  const systemPrompt = buildHumanTagSuggestionPrompt(domainPool, conceptPool, userTags);
   const userPrompt = `标题: ${treasure.title}\n\n内容:\n${treasure.content || ''}`;
 
   try {

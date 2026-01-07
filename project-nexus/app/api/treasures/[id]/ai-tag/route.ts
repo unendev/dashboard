@@ -6,7 +6,7 @@ import { generateAiTagsForTreasure } from '@/lib/ai/tagging';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id:string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let treasureId = '';
   try {
@@ -35,7 +35,7 @@ export async function POST(
       console.info('[AI Tagging] already tagged', { treasureId, count: treasure.aiTags.length });
       return NextResponse.json({ success: true, tags: treasure.aiTags, alreadyTagged: true });
     }
-    
+
     const fallbackTags = ['#实体/未分类'];
     const applyFallback = async (reason: string) => {
       try {
@@ -66,7 +66,7 @@ export async function POST(
 
     // Fire and forget is implicitly handled by the client not waiting for this response.
     // The AI generation happens here.
-    const aiTags = await generateAiTagsForTreasure(treasure, existingAiTags);
+    const aiTags = await generateAiTagsForTreasure(treasure, existingAiTags, treasure.tags);
 
     console.info('[AI Tagging] generated', { treasureId, count: aiTags.length });
 

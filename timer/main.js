@@ -100,7 +100,7 @@ function createToolWindow(type, existingWindow) {
   const configs = {
     memo: { width: 320, height: 450, title: '备忘录', route: '/memo', alwaysOnTop: true, skipTaskbar: true },
     'task-memo': { width: 320, height: 450, title: '任务备注', route: '/memo?type=task', alwaysOnTop: false, skipTaskbar: false },
-    todo: { width: 320, height: 450, title: '待办事项', route: '/todo', alwaysOnTop: true, skipTaskbar: true },
+    todo: { width: 340, height: 500, title: '项目管理', route: '/todo', alwaysOnTop: true, skipTaskbar: true },
     ai: { width: 360, height: 500, title: 'AI 助手', route: '/ai', alwaysOnTop: true, skipTaskbar: true },
     settings: { width: 300, height: 350, title: '设置', route: '/settings', alwaysOnTop: true, skipTaskbar: true },
     create: { width: 500, height: 600, title: '新建任务', route: '/create', alwaysOnTop: true, skipTaskbar: true },
@@ -124,7 +124,7 @@ function createToolWindow(type, existingWindow) {
     frame: false,
     transparent: false,
     backgroundColor: '#1a1a1a',
-    alwaysOnTop: config.alwaysOnTop ?? true,
+    alwaysOnTop: config.alwaysOnTop || false,
     resizable: true,
     maximizable: false,
     minWidth: 250,
@@ -284,9 +284,10 @@ function createMainWindow() {
 
 app.on('ready', () => {
   const ses = session.fromPartition('persist:timer-widget');
-  ses.clearCache().then(() => {
-    setTimeout(createMainWindow, 300);
-  });
+  // ses.clearCache().then(() => {
+  //   setTimeout(createMainWindow, 300);
+  // });
+  setTimeout(createMainWindow, 300);
 
   // Create Tray
   const iconPath = path.join(__dirname, 'icon.ico');
@@ -348,11 +349,6 @@ function openCreateWindow() {
   });
 }
 
-function openMemoWindow() {
-  if (memoWindow) { memoWindow.focus(); return; }
-  memoWindow = createToolWindow('memo', null);
-  memoWindow.on('closed', () => { memoWindow = null; });
-}
 
 function openTaskMemoWindow(taskId, taskName) {
   if (taskMemoWindows.has(taskId)) {
@@ -431,31 +427,109 @@ function openTaskMemoWindow(taskId, taskName) {
 }
 
 function openTodoWindow() {
-  if (todoWindow) { todoWindow.focus(); return; }
+  if (todoWindow) {
+    todoWindow.close();
+    // todoWindow = null; // Handled by 'closed' event, but explicit is fine
+    return;
+  }
   todoWindow = createToolWindow('todo', null);
   todoWindow.on('closed', () => { todoWindow = null; });
 }
 
 function openSettingsWindow() {
-  if (settingsWindow) { settingsWindow.focus(); return; }
+  if (settingsWindow) {
+    settingsWindow.close();
+    return;
+  }
   settingsWindow = createToolWindow('settings', null);
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
 function openAiWindow() {
-  if (aiWindow) { aiWindow.focus(); return; }
+  if (aiWindow) {
+    aiWindow.close();
+    return;
+  }
   aiWindow = createToolWindow('ai', null);
   if (isDev) aiWindow.webContents.openDevTools({ mode: 'detach' });
   aiWindow.on('closed', () => { aiWindow = null; });
 }
 
+// Added toggle logic for Memo as well
+function openMemoWindow() {
+  if (memoWindow) {
+    memoWindow.close();
+    return;
+  }
+  memoWindow = createToolWindow('memo', null);
+  memoWindow.on('closed', () => { memoWindow = null; });
+}
+
 ipcMain.on('open-create-window', () => openCreateWindow());
-ipcMain.on('open-create-window', () => openCreateWindow());
+// ipcMain.on('open-create-window', () => openCreateWindow()); // Duplicate removed
 ipcMain.on('open-memo-window', () => openMemoWindow());
 ipcMain.on('open-task-memo-window', (event, { taskId, taskName }) => openTaskMemoWindow(taskId, taskName));
 ipcMain.on('open-todo-window', () => openTodoWindow());
 ipcMain.on('open-ai-window', () => openAiWindow());
 ipcMain.on('open-settings-window', () => openSettingsWindow());
+
+const projectWindows = new Map(); // Map<projectId, BrowserWindow>
+
+ipcMain.on('open-project-window', (event, { projectId, title }) => {
+  console.log(`[Main] Request open project window: ${projectId}`);
+
+  if (projectWindows.has(projectId)) {
+    const existingWin = projectWindows.get(projectId);
+    if (!existingWin.isDestroyed()) {
+      console.log(`[Main] Focusing existing window for ${projectId}`);
+      if (existingWin.isMinimized()) existingWin.restore();
+      existingWin.show();
+      existingWin.focus();
+      return;
+    }
+    projectWindows.delete(projectId);
+  }
+
+  const ses = session.fromPartition('persist:timer-widget');
+  const win = new BrowserWindow({
+    width: 400,
+    height: 600,
+    title: title || 'Project',
+    frame: false,
+    transparent: false,
+    backgroundColor: '#1a1a1a',
+    alwaysOnTop: false,
+    skipTaskbar: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      session: ses,
+      preload: path.join(__dirname, 'preload.cjs'),
+      webSecurity: false,
+    },
+  });
+
+  const url = isDev
+    ? `http://localhost:5173/#/project/${projectId}`
+    : `file://${path.join(__dirname, 'dist/index.html')}#/project/${projectId}`;
+
+  win.loadURL(url);
+
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.insertCSS(`
+      * { scrollbar-width: none !important; }
+      *::-webkit-scrollbar { display: none !important; }
+      [data-drag="true"] { -webkit-app-region: drag; }
+      [data-drag="false"] { -webkit-app-region: no-drag; }
+    `);
+  });
+
+  win.on('closed', () => {
+    projectWindows.delete(projectId);
+  });
+
+  projectWindows.set(projectId, win);
+});
 
 // Handle task creation IPC from Create window to Main window
 ipcMain.on('start-task', (event, taskData) => {

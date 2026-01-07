@@ -4,13 +4,13 @@ export const API_ORIGIN_KEY = 'auth_api_origin';
 
 // 检查当前 API 地址是否与存储的一致，不一致则清除 Token
 export function validateTokenOrigin(currentApiUrl: string): void {
-  const storedOrigin = localStorage.getItem(API_ORIGIN_KEY);
-  if (storedOrigin && storedOrigin !== currentApiUrl) {
-    console.log('[Auth] API origin changed, clearing stored token');
-    console.log(`  Previous: ${storedOrigin}`);
-    console.log(`  Current: ${currentApiUrl}`);
-    removeToken();
-  }
+  // const storedOrigin = localStorage.getItem(API_ORIGIN_KEY);
+  // if (storedOrigin && storedOrigin !== currentApiUrl) {
+  //   console.log('[Auth] API origin changed, clearing stored token');
+  //   console.log(`  Previous: ${storedOrigin}`);
+  //   console.log(`  Current: ${currentApiUrl}`);
+  //   removeToken();
+  // }
 }
 
 // 保存当前 API 地址

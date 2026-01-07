@@ -58,7 +58,12 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[Token API] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('❌ [Token API] Critical Error:', error);
+    // @ts-ignore
+    if (error.stack) console.error(error.stack);
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

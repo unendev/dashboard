@@ -25,7 +25,7 @@ interface DiscordStyleInputProps {
 
 export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'create', lastTags, recentTags }: DiscordStyleInputProps) {
   // 1. State Management
-  const { 
+  const {
     content, setContent,
     images, setImages,
     uploadingImages, setUploadingImages,
@@ -38,10 +38,6 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
   const [isDragging, setIsDragging] = useState(false)
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [skipAiTagging, setSkipAiTagging] = useState(false)
-  const [suggestedDomainTags, setSuggestedDomainTags] = useState<string[]>([])
-  const [suggestedConceptTags, setSuggestedConceptTags] = useState<string[]>([])
-  const [isSuggesting, setIsSuggesting] = useState(false)
-  const [suggestError, setSuggestError] = useState<string | null>(null)
 
   // 2. Logic Hooks
   const { upload } = useOssUpload()
@@ -81,10 +77,10 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
 
   const handleUploadFiles = async (files: File[]) => {
     const imageFiles = files.filter(f => f.type.startsWith('image/'))
-    
+
     for (const file of imageFiles) {
       const uploadId = Math.random().toString(36).substr(2, 9)
-      
+
       setUploadingImages(prev => [...prev, { id: uploadId, file, progress: 0 }])
 
       try {
@@ -128,7 +124,7 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
       const extractTitle = (text: string) => text.split('\n').filter(line => line.trim())[0] || '未命名'
       const title = extractTitle(content)
       const contentWithoutTitle = content.split('\n').slice(1).join('\n').trim()
-      
+
       let type: TreasureData['type'] = 'TEXT'
       if (images.length > 0) type = 'IMAGE'
 
@@ -168,47 +164,10 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
     setDefaultTags(lastTags)
   }
 
-  const handleSuggestTags = async () => {
-    if (!content.trim() && images.length === 0) {
-      alert('请先输入内容')
-      return
-    }
-
-    setIsSuggesting(true)
-    setSuggestError(null)
-
-    try {
-      const extractTitle = (text: string) => text.split('\n').filter(line => line.trim())[0] || '未命名'
-      const title = extractTitle(content)
-      const contentWithoutTitle = content.split('\n').slice(1).join('\n').trim()
-
-      const response = await fetch('/api/treasures/ai-suggest-tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content: contentWithoutTitle })
-      })
-
-      if (!response.ok) {
-        throw new Error(`AI建议失败: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setSuggestedDomainTags(Array.isArray(data.domain) ? data.domain : [])
-      setSuggestedConceptTags(Array.isArray(data.concept) ? data.concept : [])
-    } catch (error) {
-      console.error('Suggest tags error:', error)
-      setSuggestError('AI建议失败，请稍后重试')
-    } finally {
-      setIsSuggesting(false)
-    }
-  }
-
   const canSubmit = primaryCategories.length > 0 && (!!content.trim() || images.length > 0) && !isSubmitting && uploadingImages.length === 0
-  const availableDomainSuggestions = suggestedDomainTags.filter(tag => !topicTags.includes(tag))
-  const availableConceptSuggestions = suggestedConceptTags.filter(tag => !topicTags.includes(tag))
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="space-y-4"
       onDrop={(e) => {
@@ -230,58 +189,6 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
             />
           ))}
         </div>
-      )}
-
-      <div className="flex items-center justify-between pt-2 border-t border-gray-700/50">
-        <span className="text-sm text-gray-400">AI建议标签</span>
-        <button
-          type="button"
-          onClick={handleSuggestTags}
-          disabled={isSuggesting}
-          className={cn(
-            "text-xs px-2 py-1 rounded border border-white/10 hover:bg-white/5 transition-colors",
-            isSuggesting ? "text-white/40" : "text-white/70"
-          )}
-        >
-          {isSuggesting ? '生成中...' : '生成建议'}
-        </button>
-      </div>
-
-      {(availableDomainSuggestions.length > 0 || availableConceptSuggestions.length > 0) && (
-        <div className="space-y-2">
-          {availableDomainSuggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <span className="text-xs text-gray-400 mr-1">领域:</span>
-              {availableDomainSuggestions.map(tag => (
-                <HierarchicalTag
-                  key={tag}
-                  tag={tag}
-                  variant="default"
-                  size="sm"
-                  onClick={() => setTopicTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
-                />
-              ))}
-            </div>
-          )}
-          {availableConceptSuggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <span className="text-xs text-gray-400 mr-1">概念:</span>
-              {availableConceptSuggestions.map(tag => (
-                <HierarchicalTag
-                  key={tag}
-                  tag={tag}
-                  variant="default"
-                  size="sm"
-                  onClick={() => setTopicTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {suggestError && (
-        <div className="text-xs text-red-400">{suggestError}</div>
       )}
 
       <TagInput
@@ -323,7 +230,7 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSubmit(); }
             if (e.key === 'Escape') {
-               handleCancel();
+              handleCancel();
             }
           }}
           placeholder="分享你的想法..."
@@ -343,8 +250,8 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
       )}
 
       <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => {
-         handleUploadFiles(Array.from(e.target.files || []));
-         e.target.value = '';
+        handleUploadFiles(Array.from(e.target.files || []));
+        e.target.value = '';
       }} className="hidden" />
 
       <InputToolbar
