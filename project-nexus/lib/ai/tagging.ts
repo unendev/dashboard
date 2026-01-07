@@ -30,7 +30,7 @@ function buildTaggingPrompt(existingAiTags: string[] = [], userTags: string[] = 
    - 作用：描述笔记的功能或形态（如 #性质/教程, #性质/灵感）。
 
 **严格限制**：
-- 仅禁止 `#领域` 和 `#概念`。
+- 仅禁止 \`#领域\` 和 \`#概念\`。
 - 其他所有实体，请放心输出。
 
 ${poolHint}

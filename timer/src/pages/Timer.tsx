@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
-import { Play, Pause, FileText, Folder, Bot, GripVertical, Loader2 } from 'lucide-react';
+import { Play, Pause, FileText, Files, Bot, GripVertical, Loader2 } from 'lucide-react';
 import { useTimerControl } from '@/hooks/useTimerControl';
 import { TimerTask, formatTime } from '@dashboard/shared';
 import { fetcher, getApiUrl } from '@/lib/api';
@@ -58,19 +58,183 @@ export default function TimerPage() {
   const today = new Date().toISOString().split('T')[0];
   const apiUrl = userId ? `/api/timer-tasks?userId=${userId}&date=${today}` : null;
 
-  const { data: tasks = [], mutate: mutateTasks, isValidating } = useSWR<TimerTask[]>(
+  const { data: tasks = [], mutate: mutateTasks } = useSWR<TimerTask[]>(
     apiUrl,
     fetcher,
-    { refreshInterval: 0, revalidateOnFocus: true, dedupingInterval: 2000 }
+    { refreshInterval: 5000, revalidateOnFocus: false, dedupingInterval: 2000 }
   );
 
-  // ... (existing code for finding/stopping tasks) ...
+  // 递归查找所有运行中的任务（包括子任务）
+  const findAllRunningTasks = useCallback((taskList: TimerTask[]): TimerTask[] => {
+    const running: TimerTask[] = [];
+    for (const task of taskList) {
+      if (task.isRunning && !task.isPaused) {
+        running.push(task);
+      }
+      if (task.children && task.children.length > 0) {
+        running.push(...findAllRunningTasks(task.children));
+      }
+    }
+    return running;
+  }, []);
+
+  // 递归停止任务状态
+  const stopTasksRecursive = useCallback((taskList: TimerTask[]): TimerTask[] => {
+    return taskList.map(task => {
+      const updatedChildren = task.children ? stopTasksRecursive(task.children) : [];
+      if (task.isRunning) {
+        return { ...task, isRunning: false, startTime: null, children: updatedChildren };
+      }
+      return { ...task, children: updatedChildren };
+    });
+  }, []);
 
   const handleStartTask = useCallback(async (taskData: any) => {
-    // ... (existing handleStartTask implementation) ...
-  }, [tasks, mutateTasks]); // Removed duplicate definition if any, ensuring single definition
+    console.log('[Timer] Processing start-task:', taskData.name);
 
-  // ... (existing effects) ...
+    // 1. 本地乐观更新 (Optimistic UI)
+    const now = Math.floor(Date.now() / 1000);
+    const optimisticTask: TimerTask = {
+      id: `temp-${Date.now()}`,
+      name: taskData.name,
+      categoryPath: taskData.categoryPath || '未分类',
+      instanceTag: Array.isArray(taskData.instanceTagNames)
+        ? taskData.instanceTagNames[0] || ''
+        : (typeof taskData.instanceTagNames === 'string' ? taskData.instanceTagNames : ''),
+      initialTime: taskData.initialTime || 0,
+      elapsedTime: taskData.initialTime || 0,
+      isRunning: true,
+      startTime: now,
+      isPaused: false,
+      pausedTime: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      children: [],
+      parentId: taskData.parentId || null, // Added parentId
+      date: new Date().toISOString().split('T')[0], // Added missing date
+    };
+
+    // 立即更新 UI，让用户感觉到“秒开”
+    await mutateTasks((currentTasks) => {
+      const current = currentTasks || [];
+      // 递归停止所有正在运行的任务
+      const stoppedTasks = stopTasksRecursive(current);
+      return [optimisticTask, ...stoppedTasks];
+    }, false);
+
+    // 2. 备份到 LocalStorage (容错)
+    localStorage.setItem('widget-pending-task', JSON.stringify(taskData));
+
+    try {
+      // 3. 后台同步
+      // 使用递归查找确保找到所有层级的运行任务
+      const runningTasks = findAllRunningTasks(tasks);
+
+      if (runningTasks.length > 0) {
+        await Promise.all(runningTasks.map(task =>
+          fetch(getApiUrl('/api/timer-tasks'), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              id: task.id,
+              isRunning: false,
+              startTime: null,
+              elapsedTime: task.elapsedTime + (task.startTime ? now - task.startTime : 0),
+            }),
+          })
+        ));
+      }
+
+      const createBody = {
+        name: taskData.name,
+        userId: taskData.userId || userId, // Fallback to current user
+        categoryPath: taskData.categoryPath,
+        date: taskData.date || today, // Fallback to today
+        initialTime: taskData.initialTime || 0,
+        elapsedTime: taskData.initialTime || 0,
+        instanceTagNames: taskData.instanceTagNames
+          ? (typeof taskData.instanceTagNames === 'string'
+            ? taskData.instanceTagNames.split(',').map((t: string) => t.trim()).filter((t: string) => t)
+            : taskData.instanceTagNames)
+          : (taskData.instanceTags || []), // Map AI instanceTags
+        isRunning: true,
+        startTime: now,
+        parentId: taskData.parentId || null,
+      };
+
+      const createResponse = await fetch(getApiUrl('/api/timer-tasks'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(createBody),
+      });
+
+      if (!createResponse.ok) {
+        throw new Error(await createResponse.text());
+      } else {
+        console.log('[Timer] Task created successfully');
+        localStorage.removeItem('widget-pending-task'); // 同步成功，移除备份
+        mutateTasks(); // 重新验证，获取真实 ID
+      }
+    } catch (err) {
+      console.error('[Timer] Error processing start-task:', err);
+      // 注意：出错时不移除 widget-pending-task，保留以供重试
+      // 这里的乐观状态会被 SWR 的下一次自动验证冲掉，变回原样（符合预期，提示失败）
+      // 但数据留在了 LocalStorage
+    }
+  }, [tasks, mutateTasks]);
+
+  // 启动时检查是否有未完成的任务 (Retry Pending Task)
+  useEffect(() => {
+    const pendingTask = localStorage.getItem('widget-pending-task');
+    if (pendingTask) {
+      try {
+        console.log('[Timer] Found pending task, retrying...');
+        const taskData = JSON.parse(pendingTask);
+        // 稍微延迟，避免和 SWR 初始化冲突
+        setTimeout(() => handleStartTask(taskData), 1000);
+      } catch (e) {
+        localStorage.removeItem('widget-pending-task');
+      }
+    }
+  }, []); // Run once on mount
+
+  useEffect(() => {
+    // 1. IPC Listener (Preferred)
+    let unsubscribeStart: (() => void) | undefined;
+
+    if (window.electron) {
+      console.log('[Timer] Subscribing to IPC');
+      unsubscribeStart = window.electron.receive('on-start-task', (taskData) => {
+        handleStartTask(taskData);
+      });
+
+      // Listen for logs from Main Process
+      window.electron.receive('on-console-log', ({ type, message }) => {
+        if (type === 'error') console.error(message);
+        else console.log(message);
+      });
+    }
+
+    // 2. Storage Event (Fallback)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'widget-pending-task' && e.newValue) {
+        try {
+          const taskData = JSON.parse(e.newValue);
+          handleStartTask(taskData);
+        } catch (err) {
+          console.error('[Timer] Storage parse error:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (unsubscribeStart) unsubscribeStart();
+    };
+  }, [handleStartTask]);
 
   const { startTimer, pauseTimer } = useTimerControl({
     tasks,
@@ -79,38 +243,80 @@ export default function TimerPage() {
   });
 
   const activeTask = useMemo(() => {
-    // ... (existing activeTask calculation) ...
+    const findActive = (list: TimerTask[]): TimerTask | null => {
+      for (const task of list) {
+        if (task.isRunning) return task;
+        if (task.children) {
+          const found = findActive(task.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return findActive(tasks);
   }, [tasks]);
 
   const recentTasks = useMemo(() => {
-    // ... (existing recentTasks calculation) ...
+    const topLevelTasks = tasks.filter((t) => !t.parentId);
+    return topLevelTasks
+      .filter((t) => t.id !== activeTask?.id)
+      .sort((a, b) => {
+        const timeA = new Date(a.updatedAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
   }, [tasks, activeTask]);
 
-  // ... (rest of helper functions and effects) ...
+  // 移除 Emoji 的辅助函数
+  const removeEmojis = (str: string) => {
+    return str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+  };
+
+  const displayTaskName = activeTask ? removeEmojis(activeTask.name) : '';
+
+  const [displayTime, setDisplayTime] = useState(0);
+  useEffect(() => {
+    if (!activeTask) { setDisplayTime(0); return; }
+    const calculateTime = () => {
+      if (activeTask.startTime) {
+        const now = Math.floor(Date.now() / 1000);
+        return activeTask.elapsedTime + (now - activeTask.startTime);
+      }
+      return activeTask.elapsedTime;
+    };
+    setDisplayTime(calculateTime());
+    const interval = setInterval(() => setDisplayTime(calculateTime()), 1000);
+    return () => clearInterval(interval);
+  }, [activeTask]);
+
+
 
   if (!userId) {
-    // ... (existing login view) ...
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full bg-[#1a1a1a] text-zinc-400 gap-3 p-4">
+        <span className="text-sm">请先登录</span>
+        <Link
+          to="/login"
+          className="text-sm text-emerald-400 hover:text-emerald-300 underline"
+          onClick={() => console.log('[Navigation] Clicking login link')}
+        >
+          点击登录
+        </Link>
+      </div>
+    );
   }
 
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-white select-none overflow-hidden flex">
       <div className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0">
-        <button onClick={openMemoWindow} className="h-10 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="备忘录">
+        <button onClick={openMemoWindow} className="h-1/3 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="备忘录">
           <FileText size={18} />
         </button>
-        <button onClick={openTodoWindow} className="h-10 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="项目管理">
-          <Folder size={18} />
+        <button onClick={openTodoWindow} className="h-1/3 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="项目">
+          <Files size={18} />
         </button>
-        <button onClick={openAiWindow} className="h-10 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="AI 助手">
+        <button onClick={openAiWindow} className="h-1/3 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors" title="AI 助手">
           <Bot size={18} />
-        </button>
-        <div className="flex-1" /> {/* Spacer */}
-        <button
-          onClick={() => mutateTasks()}
-          className={`h-10 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ${isValidating ? 'animate-spin text-emerald-500' : ''}`}
-          title="刷新数据"
-        >
-          <RotateCw size={16} />
         </button>
       </div>
 
