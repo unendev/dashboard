@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const type = searchParams.get('type');
     const search = searchParams.get('search');
+    const theme = searchParams.get('theme');  // 新增：主题参数
 
     const where: Prisma.TreasureWhereInput = { userId };
 
@@ -69,12 +70,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. 类型筛选
+    // 2. 主题筛选（新增）
+    if (theme) {
+      where.theme = { has: theme };
+    }
+
+    // 3. 类型筛选
     if (type && ['TEXT', 'IMAGE'].includes(type)) {
       where.type = type as any;
     }
 
-    // 3. 搜索关键词
+    // 4. 搜索关键词
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },

@@ -5,14 +5,12 @@ import { MarkdownRenderer } from '@/lib/markdown'
 import { Button } from '@/app/components/ui/button'
 import Image from 'next/image'
 import { LazyNextImage } from '@/app/components/shared/LazyNextImage'
+import { ImageLightbox } from '../treasure/ImageLightbox'
 import {
   Tag,
   Trash2,
   Edit,
   Image as ImageIcon,
-  X,
-  ChevronLeft,
-  ChevronRight,
   Wand
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -427,24 +425,6 @@ function TwitterStyleCardComponent({
 
   const shouldTruncate = treasure.content && treasure.content.length > 280
 
-  // 图片导航处理 - 使用 useCallback 优化
-  const handlePrevImage = useCallback(() => {
-    if (selectedImageIndex !== null && selectedImageIndex > 0) {
-      setSelectedImageIndex(selectedImageIndex - 1)
-    }
-  }, [selectedImageIndex])
-
-  const handleNextImage = useCallback(() => {
-    const images = treasure.images || []
-    if (selectedImageIndex !== null && selectedImageIndex < images.length - 1) {
-      setSelectedImageIndex(selectedImageIndex + 1)
-    }
-  }, [selectedImageIndex, treasure.images])
-
-  const handleCloseImageModal = useCallback(() => {
-    setSelectedImageIndex(null)
-  }, [])
-
   return (
     <>
       <article className={cn(
@@ -644,85 +624,20 @@ function TwitterStyleCardComponent({
         </div>
       </article>
 
-      {/* 图片预览模态框 */}
-      {selectedImageIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
-          onClick={handleCloseImageModal}
-        >
-          {/* 关闭按钮 */}
-          <button
-            onClick={handleCloseImageModal}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-
-          {/* 图片计数器 */}
-          {treasure.images.length > 1 && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 rounded-full bg-black/50 text-white text-sm">
-              {selectedImageIndex + 1} / {treasure.images.length}
-            </div>
-          )}
-
-          {/* 左箭头 */}
-          {treasure.images.length > 1 && selectedImageIndex > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handlePrevImage()
-              }}
-              className="absolute left-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            >
-              <ChevronLeft className="h-8 w-8" />
-            </button>
-          )}
-
-          {/* 右箭头 */}
-          {treasure.images.length > 1 && selectedImageIndex < treasure.images.length - 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleNextImage()
-              }}
-              className="absolute right-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            >
-              <ChevronRight className="h-8 w-8" />
-            </button>
-          )}
-
-          {/* 图片显示 */}
-
-          <div
-
-            className="relative w-[90vw] h-[90vh]"
-
-            onClick={(e) => e.stopPropagation()}
-
-          >
-
-            {selectedImageIndex !== null && (
-
-              <Image
-
-                src={treasure.images[selectedImageIndex].url}
-
-                alt={treasure.images[selectedImageIndex].alt || treasure.title}
-
-                fill
-
-                className="object-contain"
-
-                sizes="(max-width: 768px) 90vw, 90vw"
-
-                priority={true}
-
-              />
-
-            )}
-
-          </div>      </div>
-      )}
+      {/* 图片预览模态框 - 使用新的 ImageLightbox 组件 */}
+      <ImageLightbox
+        images={treasure.images.map((img) => ({
+          id: img.id,
+          url: img.url,
+          alt: img.alt,
+          width: img.width,
+          height: img.height,
+        }))}
+        initialIndex={selectedImageIndex ?? 0}
+        isOpen={selectedImageIndex !== null}
+        onClose={() => setSelectedImageIndex(null)}
+        title={treasure.title}
+      />
     </>
   )
 }
