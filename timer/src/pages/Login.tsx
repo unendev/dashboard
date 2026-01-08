@@ -30,7 +30,7 @@ export default function LoginPage() {
       });
 
       const rawBody = await response.text();
-      let data: { token?: string; user?: unknown; error?: string } | null = null;
+      let data: { token?: string; user?: { id: string; email?: string; name?: string }; error?: string } | null = null;
       if (rawBody) {
         try {
           data = JSON.parse(rawBody);
@@ -47,7 +47,7 @@ export default function LoginPage() {
       if (data?.token) {
         setToken(data.token);
         setApiOrigin(API_BASE_URL); // 记录当前 API 来源
-        if (data.user) {
+        if (data.user && data.user.id) {
           setUser(data.user);
         }
         console.log('[Login] Success, token stored for:', API_BASE_URL);

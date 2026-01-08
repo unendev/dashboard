@@ -32,6 +32,7 @@ export function TreasureList({ className }: TreasureListProps) {
     searchQuery, setSearchQuery,
     isSearching,
     selectedTag, setSelectedTag,
+    selectedTheme, setSelectedTheme,  // 新增：主题筛选
     isLoadingMore,
     hasMore,
     statsData, setStatsData,
@@ -193,6 +194,8 @@ export function TreasureList({ className }: TreasureListProps) {
           isSearching={isSearching}
           selectedTag={selectedTag}
           setSelectedTag={setSelectedTag}
+          selectedTheme={selectedTheme}
+          setSelectedTheme={setSelectedTheme}
         />
 
         {treasures.length === 0 ? (

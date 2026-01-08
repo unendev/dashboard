@@ -24,6 +24,7 @@ export function useTreasureList(pageSize: number = 20) {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedTag, setSelectedTag] = useState('');
+  const [selectedTheme, setSelectedTheme] = useState('');  // 新增：主题筛选
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [statsData, setStatsData] = useState<any[]>([]);
@@ -59,7 +60,7 @@ export function useTreasureList(pageSize: number = 20) {
   // 获取宝藏列表
   const fetchTreasures = useCallback(async (isInitial = true) => {
     if (!isInitial && (isLoadingMore || !hasMore)) return;
-    
+
     try {
       if (isInitial) setIsSearching(true);
       else setIsLoadingMore(true);
@@ -76,15 +77,16 @@ export function useTreasureList(pageSize: number = 20) {
           params.append('search', debouncedSearchQuery);
         }
       }
-      
+
       if (selectedTag) params.append('tag', selectedTag);
+      if (selectedTheme) params.append('theme', selectedTheme);  // 新增：主题筛选
       params.append('page', currentPage.toString());
       params.append('limit', pageSize.toString());
-      
+
       const response = await fetch(`/api/treasures?${params}`);
       if (response.ok) {
         const data = await response.json();
-        
+
         if (isInitial) {
           setTreasures(data);
           pageRef.current = 1;
@@ -106,18 +108,18 @@ export function useTreasureList(pageSize: number = 20) {
       if (isInitial) setIsSearching(false);
       else setIsLoadingMore(false);
     }
-  }, [debouncedSearchQuery, selectedTag, pageSize, isLoadingMore, hasMore]);
+  }, [debouncedSearchQuery, selectedTag, selectedTheme, pageSize, isLoadingMore, hasMore]);
 
   // 初始化加载
   useEffect(() => {
     fetchTreasures(true);
-  }, [debouncedSearchQuery, selectedTag, fetchTreasures]);
+  }, [debouncedSearchQuery, selectedTag, selectedTheme, fetchTreasures]);
 
   // 无限滚动 Hook
   useEffect(() => {
     let throttleTimer: NodeJS.Timeout | null = null;
     let lastScrollTop = 0;
-    
+
     const handleScroll = () => {
       if (throttleTimer) return;
       throttleTimer = setTimeout(() => {
@@ -128,9 +130,9 @@ export function useTreasureList(pageSize: number = 20) {
         const distanceToBottom = scrollHeight - scrollTop - clientHeight;
         const isScrollingDown = scrollTop > lastScrollTop;
         lastScrollTop = scrollTop;
-        
-        if (distanceToBottom < 500 && !isLoadingMore && hasMore && isScrollingDown && 
-           (scrollTop - lastLoadScrollTop.current >= 300 || lastLoadScrollTop.current === 0)) {
+
+        if (distanceToBottom < 500 && !isLoadingMore && hasMore && isScrollingDown &&
+          (scrollTop - lastLoadScrollTop.current >= 300 || lastLoadScrollTop.current === 0)) {
           lastLoadScrollTop.current = scrollTop;
           fetchTreasures(false);
         }
@@ -147,7 +149,7 @@ export function useTreasureList(pageSize: number = 20) {
   // 视口追踪 Effect
   useEffect(() => {
     if (treasures.length === 0) return;
-    
+
     const isDesktop = window.matchMedia('(min-width: 1280px)').matches;
     if (!isDesktop) return;
 
@@ -162,7 +164,7 @@ export function useTreasureList(pageSize: number = 20) {
             const viewportCenter = window.innerHeight / 2;
             const elementCenter = rect.top + rect.height / 2;
             const distance = Math.abs(elementCenter - viewportCenter);
-            
+
             if (distance < minDistance) {
               minDistance = distance;
               closestEntry = entry;
@@ -205,6 +207,7 @@ export function useTreasureList(pageSize: number = 20) {
     searchQuery, setSearchQuery,
     isSearching,
     selectedTag, setSelectedTag,
+    selectedTheme, setSelectedTheme,  // 新增：导出主题筛选
     isLoadingMore,
     hasMore,
     statsData, setStatsData,

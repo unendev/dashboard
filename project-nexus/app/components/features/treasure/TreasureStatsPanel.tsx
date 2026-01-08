@@ -96,14 +96,18 @@ export function TreasureStatsPanel({ treasures, onTagClick, selectedTag }: Treas
     const isNewTag = (tag: string) =>
       tag.startsWith('#领域/') || tag.startsWith('#概念/') || tag.startsWith('#实体/') || tag.startsWith('#性质/') || tag.startsWith('#技术/')
 
+    // 主题列表（小写）
+    const PRIMARY_THEMES = ['life', 'knowledge', 'thought', 'root']
+
     treasures.forEach(t => {
       // 【修改】处理theme数组
       const themes = Array.isArray(t.theme) ? t.theme : (t.theme ? [t.theme] : [])
       const themeStr = themes.length > 0 ? themes.map(th => th.toLowerCase()).join(',') : null
 
       t.tags.filter(isNewTag).forEach(tag => {
-        // 排除主要分类
-        if (!['Life', 'Knowledge', 'Thought', 'Root'].includes(tag)) {
+        // 排除主要分类（修复：使用小写匹配）
+        const tagLower = tag.toLowerCase().replace(/^#/, '')
+        if (!PRIMARY_THEMES.includes(tagLower)) {
           // 聚合 (Theme, Tag) 组合
           const key = `${themeStr || 'none'}|${tag}`
 

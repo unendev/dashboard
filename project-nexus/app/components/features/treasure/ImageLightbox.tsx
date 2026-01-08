@@ -3,7 +3,6 @@
 import { useEffect, useCallback, useState } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { LazyNextImage } from '@/app/components/shared/LazyNextImage'
 
 export interface ImageLightboxImage {
@@ -124,7 +123,7 @@ export function ImageLightbox({
 
   return (
     <div
-      className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+      className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center overflow-hidden"
       onClick={onClose}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -135,30 +134,29 @@ export function ImageLightbox({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Image viewer */}
-        <div className="relative max-w-4xl max-h-full w-full h-full flex items-center justify-center">
+        <div className="relative w-full h-full flex items-center justify-center">
           {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
             </div>
           )}
 
-          <LazyNextImage
-            src={currentImage.url}
-            alt={currentImage.alt || title || 'Image'}
-            width={currentImage.width || 1200}
-            height={currentImage.height || 800}
-            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 95vw, 1200px"
-            quality={90}
-            className={cn(
-              'max-w-full max-h-full transition-opacity duration-200',
-              isLoading ? 'opacity-0' : 'opacity-100'
-            )}
-            objectFit="contain"
-            priority={true}
-            rootMargin="0px"
-            showLoader={false}
-            onLoad={() => setIsLoading(false)}
-          />
+          <div className="relative w-full h-full flex items-center justify-center">
+            <LazyNextImage
+              src={currentImage.url}
+              alt={currentImage.alt || title || 'Image'}
+              width={currentImage.width || 1200}
+              height={currentImage.height || 800}
+              sizes="(max-width: 640px) 90vw, (max-width: 1024px) 95vw, 100vw"
+              quality={90}
+              className="max-w-full max-h-full object-contain"
+              objectFit="contain"
+              priority={true}
+              rootMargin="0px"
+              showLoader={false}
+              onLoad={() => setIsLoading(false)}
+            />
+          </div>
         </div>
 
         {/* Close button */}

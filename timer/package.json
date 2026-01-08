@@ -8,7 +8,8 @@
     "build:ui": "vite build",
     "preview": "vite preview",
     "start": "concurrently \"pnpm dev\" \"wait-on tcp:5173 && electron .\"",
-    "build": "pnpm build:ui && electron-builder --win portable --publish never",
+    "typecheck": "tsc --noEmit",
+    "build": "pnpm typecheck && pnpm build:ui && electron-builder --win portable --publish never",
     "build:fast": "pnpm build:ui && electron-builder --dir"
   },
   "build": {
