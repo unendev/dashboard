@@ -3,7 +3,6 @@
 import { useEffect, useCallback, useState } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { LazyNextImage } from '@/app/components/shared/LazyNextImage'
 
 export interface ImageLightboxImage {
   id: string
@@ -130,31 +129,29 @@ export function ImageLightbox({
     >
       {/* Main content container - prevent click propagation */}
       <div
-        className="relative w-full h-full flex items-center justify-center p-4"
+        className="relative w-full h-full flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Image viewer */}
-        <div className="relative w-full h-full flex items-center justify-center">
+        {/* Image viewer - fullscreen display */}
+        <div className="absolute inset-0 flex items-center justify-center">
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
             </div>
           )}
 
-          <div className="relative w-full h-full flex items-center justify-center">
-            <LazyNextImage
+          {/* Image container - no padding, full viewport */}
+          <div className="relative w-full h-full flex items-center justify-center px-4 py-4">
+            <img
               src={currentImage.url}
               alt={currentImage.alt || title || 'Image'}
-              width={currentImage.width || 1200}
-              height={currentImage.height || 800}
-              sizes="(max-width: 640px) 90vw, (max-width: 1024px) 95vw, 100vw"
-              quality={90}
               className="max-w-full max-h-full object-contain"
-              objectFit="contain"
-              priority={true}
-              rootMargin="0px"
-              showLoader={false}
               onLoad={() => setIsLoading(false)}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain'
+              }}
             />
           </div>
         </div>
