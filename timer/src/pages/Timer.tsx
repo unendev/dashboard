@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
-import { Play, Pause, FileText, Files, Bot, GripVertical, Loader2 } from 'lucide-react';
+import { Play, Pause, FileText, Files, Bot, BookText, GripVertical, Loader2 } from 'lucide-react';
 import { useTimerControl } from '@/hooks/useTimerControl';
 import { TimerTask, formatTime } from '@dashboard/shared';
 import { fetcher, getApiUrl } from '@/lib/api';
@@ -22,6 +22,14 @@ const openTodoWindow = () => {
 const openAiWindow = () => {
   console.log('[Navigation] Opening AI window');
   window.open(window.location.pathname + '#/ai', '_blank');
+};
+const openPromptLibraryWindow = () => {
+  console.log('[Navigation] Opening Prompt Library window');
+  if (window.electron) {
+    window.electron.send('open-prompt-library-window');
+  } else {
+    window.open(window.location.pathname + '#/prompt-library', '_blank');
+  }
 };
 
 function useDoubleTap(callback: () => void, delay = 300) {
@@ -61,7 +69,12 @@ export default function TimerPage() {
   const { data: tasks = [], mutate: mutateTasks } = useSWR<TimerTask[]>(
     apiUrl,
     fetcher,
-    { refreshInterval: 5000, revalidateOnFocus: false, dedupingInterval: 2000 }
+    {
+      refreshInterval: 0,           // 禁用自动轮询，节省 Vercel 资源
+      revalidateOnFocus: true,      // 窗口聚焦时自动刷新
+      revalidateOnReconnect: true,  // 网络重连时刷新
+      dedupingInterval: 2000
+    }
   );
 
   // 递归查找所有运行中的任务（包括子任务）
@@ -309,13 +322,16 @@ export default function TimerPage() {
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-white select-none overflow-hidden flex">
       <div className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0">
-        <button onClick={openMemoWindow} className="h-1/3 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="备忘录">
+        <button onClick={openMemoWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="备忘录">
           <FileText size={18} />
         </button>
-        <button onClick={openTodoWindow} className="h-1/3 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="项目">
+        <button onClick={openTodoWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="项目">
           <Files size={18} />
         </button>
-        <button onClick={openAiWindow} className="h-1/3 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors" title="AI 助手">
+        <button onClick={openPromptLibraryWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="提示词库">
+          <BookText size={18} />
+        </button>
+        <button onClick={openAiWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors" title="AI 助手">
           <Bot size={18} />
         </button>
       </div>

@@ -104,6 +104,7 @@ function createToolWindow(type, existingWindow) {
     ai: { width: 360, height: 500, title: 'AI 助手', route: '/ai', alwaysOnTop: true, skipTaskbar: true },
     settings: { width: 300, height: 350, title: '设置', route: '/settings', alwaysOnTop: true, skipTaskbar: true },
     create: { width: 500, height: 600, title: '新建任务', route: '/create', alwaysOnTop: true, skipTaskbar: true },
+    promptLibrary: { width: 700, height: 600, title: '提示词库', route: '/prompt-library', alwaysOnTop: false, skipTaskbar: false },
   };
   const config = configs[type];
   console.log(`[Main] Creating window type: ${type}`, config);
@@ -170,6 +171,7 @@ const taskMemoWindows = new Map(); // Map<taskId, BrowserWindow>
 let todoWindow;
 let aiWindow;
 let settingsWindow;
+let promptLibraryWindow;
 let tray = null;
 let isQuitting = false;
 
@@ -465,6 +467,16 @@ function openMemoWindow() {
   memoWindow.on('closed', () => { memoWindow = null; });
 }
 
+function openPromptLibraryWindow() {
+  if (promptLibraryWindow) {
+    promptLibraryWindow.close();
+    return;
+  }
+  promptLibraryWindow = createToolWindow('promptLibrary', null);
+  if (isDev) promptLibraryWindow.webContents.openDevTools({ mode: 'detach' });
+  promptLibraryWindow.on('closed', () => { promptLibraryWindow = null; });
+}
+
 ipcMain.on('open-create-window', () => openCreateWindow());
 // ipcMain.on('open-create-window', () => openCreateWindow()); // Duplicate removed
 ipcMain.on('open-memo-window', () => openMemoWindow());
@@ -472,6 +484,7 @@ ipcMain.on('open-task-memo-window', (event, { taskId, taskName }) => openTaskMem
 ipcMain.on('open-todo-window', () => openTodoWindow());
 ipcMain.on('open-ai-window', () => openAiWindow());
 ipcMain.on('open-settings-window', () => openSettingsWindow());
+ipcMain.on('open-prompt-library-window', () => openPromptLibraryWindow());
 
 const projectWindows = new Map(); // Map<projectId, BrowserWindow>
 

@@ -11,15 +11,13 @@ import {
   Trash2, 
   MoreVertical,
   Heart,
-  Share2,
-  ChevronLeft,
-  ChevronRight,
-  X
+  Share2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getImageDisplayStrategy } from '@/lib/image-display-utils'
 import { useIsMobile } from '@/app/hooks/useMediaQuery'
 import { LazyNextImage } from '@/app/components/shared/LazyNextImage'
+import { ImageLightbox } from './ImageLightbox'
 
 interface ImageGalleryCardProps {
   treasure: {
@@ -316,63 +314,20 @@ export function ImageGalleryCard({
         </div>
       </Card>
 
-      {/* 图片查看器 */}
-      {showLightbox && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-          <div className="relative max-w-4xl max-h-full p-4">
-            <LazyNextImage
-              src={treasure.images[currentImageIndex].url}
-              alt={treasure.images[currentImageIndex].alt || treasure.title}
-              width={treasure.images[currentImageIndex].width || 1200}
-              height={treasure.images[currentImageIndex].height || 800}
-              sizes="(max-width: 1024px) 90vw, 1200px"
-              quality={90}
-              className="max-w-full max-h-full"
-              objectFit="contain"
-              priority={true}
-              rootMargin="0px"
-              showLoader={false}
-            />
-            
-            {/* 关闭按钮 */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowLightbox(false)}
-              className="absolute top-2 right-2 bg-black bg-opacity-50 text-white hover:bg-opacity-70"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            
-            {/* 导航按钮 */}
-            {treasure.images.length > 1 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={prevImage}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white hover:bg-opacity-70"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={nextImage}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white hover:bg-opacity-70"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            
-            {/* 图片计数 */}
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-              {currentImageIndex + 1} / {treasure.images.length}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 图片查看器 - 使用新的 ImageLightbox 组件 */}
+      <ImageLightbox
+        images={treasure.images.map((img) => ({
+          id: img.id,
+          url: img.url,
+          alt: img.alt,
+          width: img.width,
+          height: img.height,
+        }))}
+        initialIndex={currentImageIndex}
+        isOpen={showLightbox}
+        onClose={() => setShowLightbox(false)}
+        title={treasure.title}
+      />
     </>
   )
 }
