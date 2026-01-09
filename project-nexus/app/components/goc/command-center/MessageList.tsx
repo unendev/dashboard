@@ -4,7 +4,7 @@ import { useRef, useEffect } from "react";
 import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownView } from "@/app/components/shared/MarkdownView";
-import { ReasoningBlock } from "./ReasoningBlock";
+import { ReasoningBlock } from "@/app/components/shared/ReasoningBlock";
 import { ToolCallInline } from "./ToolCallInline";
 
 interface MessageListProps {
@@ -25,7 +25,7 @@ export const MessageList = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottom = useRef(true);
-  
+
   // 智能滚动逻辑
   const handleScroll = () => {
     if (messagesContainerRef.current) {
@@ -34,7 +34,7 @@ export const MessageList = ({
       isNearBottom.current = scrollHeight - scrollTop - clientHeight < 150;
     }
   };
-  
+
   // 仅当消息列表末尾项变化时，且用户在底部时，才触发滚动
   useEffect(() => {
     if (isNearBottom.current) {
@@ -64,14 +64,14 @@ export const MessageList = ({
   };
 
   return (
-    <div 
+    <div
       ref={messagesContainerRef}
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto p-4 pt-32 space-y-4 custom-scrollbar"
     >
       {messages.map((m: any) => {
         if (m.role === 'system' || m.role === 'tool') return null;
-        
+
         const isAI = m.role === 'assistant';
         const isMine = isMyOwnMessage(m);
         const content = getUIMessageContent(m);
@@ -81,7 +81,7 @@ export const MessageList = ({
         // AI 消息居中显示
         if (isAI) {
           const toolCallsFromSync = m.toolCalls || [];
-          
+
           return (
             <div key={m.id} className="flex flex-col items-center">
               {/* AI Header */}
@@ -100,7 +100,7 @@ export const MessageList = ({
                       let accumulatedReasoning = '';
                       let reasoningState: 'streaming' | 'done' | undefined;
                       const renderedParts: React.ReactNode[] = [];
-                      
+
                       m.parts.forEach((part: any, idx: number) => {
                         if (part.type === 'text' && part.text) {
                           renderedParts.push(
@@ -124,18 +124,19 @@ export const MessageList = ({
                           );
                         }
                       });
-                      
+
                       if (accumulatedReasoning) {
                         const isReasoningStreaming = reasoningState === 'streaming' || status === 'streaming';
                         renderedParts.unshift(
-                          <ReasoningBlock 
-                            key={`reasoning-${m.id}-${accumulatedReasoning.length}`} 
-                            content={accumulatedReasoning} 
+                          <ReasoningBlock
+                            key={`reasoning-${m.id}-${accumulatedReasoning.length}`}
+                            content={accumulatedReasoning}
                             isStreaming={isReasoningStreaming}
+                            className="bg-zinc-800/50 border-zinc-600 text-zinc-400"
                           />
                         );
                       }
-                      
+
                       return renderedParts;
                     })()}
                   </div>
@@ -149,19 +150,20 @@ export const MessageList = ({
                     )}
                     {/* Render reasoning from synced data */}
                     {m.reasoning && (
-                       <ReasoningBlock 
-                         key={`reasoning-${m.id}`} 
-                         content={m.reasoning} 
-                         isStreaming={false} // Synced messages are always "done"
-                       />
+                      <ReasoningBlock
+                        key={`reasoning-${m.id}`}
+                        content={m.reasoning}
+                        isStreaming={false} // Synced messages are always "done"
+                        className="bg-zinc-800/50 border-zinc-600 text-zinc-400"
+                      />
                     )}
                     {/* 从同步数据渲染工具调用 */}
                     {toolCallsFromSync.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-2 border-t border-zinc-700/50">
                         {toolCallsFromSync.map((tc: any, idx: number) => (
-                          <ToolCallInline 
-                            key={tc.toolCallId || `sync-tool-${idx}`} 
-                            part={{ type: `tool-${tc.toolName}`, state: tc.state, toolCallId: tc.toolCallId }} 
+                          <ToolCallInline
+                            key={tc.toolCallId || `sync-tool-${idx}`}
+                            part={{ type: `tool-${tc.toolName}`, state: tc.state, toolCallId: tc.toolCallId }}
                           />
                         ))}
                       </div>
@@ -189,10 +191,10 @@ export const MessageList = ({
                 {displayName}
               </span>
             </div>
-            
+
             <div className={cn(
               "relative max-w-[75%] p-3 rounded-xl text-sm border shadow-lg backdrop-blur-sm",
-              isMine 
+              isMine
                 ? "bg-zinc-800/80 border-zinc-700 text-zinc-100 rounded-tr-none"
                 : "bg-zinc-900/80 border-zinc-600 text-zinc-200 rounded-tl-none"
             )}>

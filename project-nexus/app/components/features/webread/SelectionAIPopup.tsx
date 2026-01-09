@@ -5,6 +5,7 @@ import { X, Send, Loader2, Sparkles, Copy, Check, AlertCircle, ChevronDown, Chev
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { MarkdownView } from '@/app/components/shared/MarkdownView';
+import { ReasoningBlock } from '@/app/components/shared/ReasoningBlock';
 import { getAIConfig, getProviderBaseUrl, getAIRoles, getBookRole, setBookRole } from '@/lib/ai-config';
 import * as webdavCache from '@/lib/webdav-cache';
 
@@ -25,52 +26,7 @@ interface SelectionAIPopupProps {
   onNoteAdded?: (note: webdavCache.BookNote) => void;
 }
 
-// 推理过程显示组件
-const ReasoningBlock = ({ 
-  content, 
-  isStreaming = false, 
-  autoCollapse = false 
-}: { 
-  content: string; 
-  isStreaming?: boolean; 
-  autoCollapse?: boolean;
-}) => {
-  const [expanded, setExpanded] = useState(true);
-  const contentRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    if (isStreaming && expanded && contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [content, isStreaming, expanded]);
-  
-  useEffect(() => {
-    if (autoCollapse && !isStreaming) {
-      setExpanded(false);
-    }
-  }, [autoCollapse, isStreaming]);
-  
-  return (
-    <div className="mb-3">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400 transition-colors"
-      >
-        {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        <span>{isStreaming ? '思考中...' : '思考过程'}</span>
-      </button>
-      {expanded && (
-        <div 
-          ref={contentRef}
-          className="mt-1 pl-4 text-xs text-slate-500 max-h-[80px] overflow-y-auto custom-scrollbar border-l border-slate-700"
-        >
-          <span className="whitespace-pre-wrap">{content}</span>
-          {isStreaming && <span className="inline-block w-1 h-3 bg-slate-500 animate-pulse ml-0.5" />}
-        </div>
-      )}
-    </div>
-  );
-};
+// 推理过程显示组件已移至 @/app/components/shared/ReasoningBlock
 
 export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, bookId, cfiRange, onNoteAdded }: SelectionAIPopupProps) {
   const [copied, setCopied] = useState(false);
@@ -84,7 +40,7 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
 
   const config = getAIConfig();
   const roles = getAIRoles();
-  const [selectedRoleId, setSelectedRoleId] = useState(() => 
+  const [selectedRoleId, setSelectedRoleId] = useState(() =>
     bookId ? getBookRole(bookId) : 'default'
   );
   const selectedRole = roles.find(r => r.id === selectedRoleId) || roles[0];
@@ -103,7 +59,7 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
     ?.filter(p => p.type === 'text')
     .map(p => (p as any).text)
     .join('') || '';
-  
+
   const reasoningParts = lastAssistantMessage?.parts?.filter(p => p.type === 'reasoning') || [];
   const reasoning = reasoningParts.map(p => (p as any).text || '').join('');
   const isReasoningStreaming = reasoningParts.some(p => (p as any).state === 'streaming');
@@ -132,12 +88,12 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
     setMode('ai');
     setConfigError(null);
     hasSentRef.current = true;
-    
+
     if (!config.enabled) {
       setConfigError('AI 功能已禁用，请在设置中启用');
       return;
     }
-    
+
     if (!config.apiKey) {
       setConfigError('未配置 API Key，请在书架设置中配置');
       return;
@@ -150,14 +106,14 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
       apiKey: config.apiKey,
       model: config.model,
     };
-    
+
     if (config.provider === 'custom' && config.baseUrl) {
       body.baseUrl = config.baseUrl || getProviderBaseUrl(config.provider);
     }
 
     sendMessage(
       { text: `请解释这段文字：\n\n"${selectedText}"` },
-      { 
+      {
         body: {
           ...body,
           messages: [
@@ -170,10 +126,10 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
 
   const handleSaveNote = async (color: string) => {
     if (!bookId) return;
-    
+
     setMode('note');
     setSavedColor(color);
-    
+
     // 调试日志
     console.log('[SelectionAIPopup] Saving note:', {
       bookId,
@@ -181,7 +137,7 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
       cfiRange,
       color,
     });
-    
+
     try {
       const note: webdavCache.BookNote = {
         id: `note-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -192,16 +148,16 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      
+
       console.log('[SelectionAIPopup] Note object:', note);
-      
+
       await webdavCache.saveNote(bookId, note);
       setNoteSaved(true);
-      
+
       // 通知父组件笔记已添加
       console.log('[SelectionAIPopup] Calling onNoteAdded with note');
       onNoteAdded?.(note);
-      
+
       // 1秒后关闭
       setTimeout(() => {
         onClose();
@@ -234,7 +190,7 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
   // 初始状态：显示问AI按钮和颜色选择球
   if (mode === 'idle') {
     return (
-      <div 
+      <div
         ref={popupRef}
         style={popupStyle}
         className="bg-slate-800/95 backdrop-blur border border-amber-500/30 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
@@ -274,7 +230,7 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
   if (mode === 'note') {
     const colorConfig = HIGHLIGHT_COLORS.find(c => c.id === savedColor) || HIGHLIGHT_COLORS[0];
     return (
-      <div 
+      <div
         ref={popupRef}
         style={popupStyle}
         className={`bg-slate-800/95 backdrop-blur border ${colorConfig.border} rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}
@@ -298,7 +254,7 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
 
   // AI 模式
   return (
-    <div 
+    <div
       ref={popupRef}
       style={popupStyle}
       className="w-[340px] max-h-[400px] bg-slate-800/95 backdrop-blur border border-amber-500/30 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
@@ -322,11 +278,10 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
                   <button
                     key={role.id}
                     onClick={() => handleRoleChange(role.id)}
-                    className={`w-full px-3 py-2 text-left text-sm transition-colors ${
-                      role.id === selectedRoleId 
-                        ? 'bg-amber-500/20 text-amber-300' 
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`}
+                    className={`w-full px-3 py-2 text-left text-sm transition-colors ${role.id === selectedRoleId
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'text-slate-300 hover:bg-slate-700'
+                      }`}
                   >
                     {role.name}
                   </button>
@@ -359,20 +314,20 @@ export function SelectionAIPopup({ selectedText, position, onClose, bookTitle, b
         ) : (
           <>
             {reasoning && (
-              <ReasoningBlock 
-                content={reasoning} 
-                isStreaming={isReasoningStreaming} 
+              <ReasoningBlock
+                content={reasoning}
+                isStreaming={isReasoningStreaming}
                 autoCollapse={!isLoading && !!aiResponse}
               />
             )}
-            
+
             {isLoading && !aiResponse && !reasoning && (
               <div className="flex items-center gap-2 text-amber-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-sm">加载中...</span>
               </div>
             )}
-            
+
             {aiResponse && (
               <div className="text-sm text-slate-200 leading-relaxed">
                 <MarkdownView content={aiResponse} variant="default" />
