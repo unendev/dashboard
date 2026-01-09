@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { MarkdownRenderer } from '@/lib/markdown'
 import { Button } from '@/app/components/ui/button'
-import Image from 'next/image'
 import { LazyNextImage } from '@/app/components/shared/LazyNextImage'
 import { ImageLightbox } from '../treasure/ImageLightbox'
 import {
@@ -11,7 +10,8 @@ import {
   Trash2,
   Edit,
   Image as ImageIcon,
-  Wand
+  Wand,
+  ChevronRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getImageDisplayStrategy } from '@/lib/image-display-utils'
@@ -624,7 +624,7 @@ function TwitterStyleCardComponent({
         </div>
       </article>
 
-      {/* 图片预览模态框 - 使用新的 ImageLightbox 组件 */}
+      {/* 图片预览模态框 - 使用 Portal 渲染到 body */}
       <ImageLightbox
         images={treasure.images.map((img) => ({
           id: img.id,

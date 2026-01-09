@@ -117,6 +117,12 @@ function validateEnv() {
     if (!parsed.success) {
       console.error('❌ 环境变量验证失败:')
       console.error(parsed.error.format())
+
+      // 调试：如果 NEXTAUTH_URL 验证失败，打印出它的实际值（包括引号和长度），以便排查空格或引号问题
+      if (process.env.NEXTAUTH_URL && !parsed.success) {
+        console.error(`[DEBUG] NEXTAUTH_URL 实际值: [${process.env.NEXTAUTH_URL}] (长度: ${process.env.NEXTAUTH_URL.length})`);
+      }
+
       throw new Error('环境变量配置错误，请检查 .env 文件')
     }
 

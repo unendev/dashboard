@@ -30,9 +30,8 @@ const Sidebar = () => {
 
       {/* 侧边栏 */}
       <aside
-        className={`h-screen bg-gray-900 flex flex-col absolute top-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out border-r border-gray-800 ${
-          isOpen ? 'w-72' : 'w-0'
-        }`}
+        className={`h-screen bg-gray-900 flex flex-col absolute top-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out border-r border-gray-800 ${isOpen ? 'w-72' : 'w-0'
+          }`}
       >
         {/* 头部 */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
@@ -89,12 +88,6 @@ const Sidebar = () => {
               <div className="px-4 py-2 text-xs font-semibold text-white/40 uppercase tracking-wider">
                 人生进度
               </div>
-            </li>
-            <li>
-              <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300 group">
-                <div className="w-2 h-2 bg-green-400 rounded-full group-hover:scale-150 transition-transform flex-shrink-0"></div>
-                <span className="font-medium">🏆 技能树</span>
-              </Link>
             </li>
             <li>
               <Link href="/log" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300 group">

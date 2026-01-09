@@ -5,6 +5,7 @@ import { FloatingActionButton } from '../../shared/FloatingActionButton'
 import { TreasureInputModal, TreasureData } from './treasure-input'
 import { TreasureStatsPanel } from './TreasureStatsPanel'
 import { TreasureOutline } from './TreasureOutline'
+import { TreasureAIAssistantSidebar } from './TreasureAIAssistantSidebar'
 
 // New Sub-components
 import { TreasureFilterBar } from './list/TreasureFilterBar'
@@ -12,6 +13,10 @@ import { TreasureCardWrapper } from './list/TreasureCardWrapper'
 
 // Hooks
 import { useTreasureList, Treasure } from '@/app/hooks/treasure/use-treasure-list'
+import { useTreasureAIAssistant } from '@/app/store/treasure-ai-assistant'
+
+// Icons
+import { Sparkles } from 'lucide-react'
 
 interface TreasureListProps {
   className?: string
@@ -81,9 +86,11 @@ export function TreasureList({ className }: TreasureListProps) {
         const newTreasure = await response.json()
         console.info('[Treasure Create] success', { id: newTreasure.id })
 
-        // Optimistic update: Close modal and refresh list immediately
-        await fetchTreasures(true)
+        // Optimistic update: Close modal immediately
         setShowCreateModal(false)
+
+        // Refresh list in background
+        fetchTreasures(true).catch(console.error)
         setStatsData(prev => [{ id: newTreasure.id, createdAt: newTreasure.createdAt, tags: newTreasure.tags }, ...prev])
         setRecentTags(prevTags => {
           const legacyTags = ['Life', 'Thought', 'Knowledge', 'Root'];
@@ -176,8 +183,8 @@ export function TreasureList({ className }: TreasureListProps) {
   return (
     <div className={`grid grid-cols-1 xl:grid-cols-[288px_1fr_320px] gap-4 xl:gap-6 w-full mx-auto px-2 xl:px-4 pb-8 pt-4 ${className}`}>
       {/* Sidebar: Outline */}
-      <aside className="hidden xl:block self-start">
-        <div className="bg-[#1e293b] rounded-xl border border-white/10">
+      <aside className="hidden xl:block self-start sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar">
+        <div className="bg-[#1e293b] rounded-xl border border-white/10 min-h-min">
           <TreasureOutline
             treasures={treasures.map(t => ({ id: t.id, title: t.title, type: t.type, createdAt: t.createdAt }))}
             selectedId={activeId}
@@ -228,7 +235,7 @@ export function TreasureList({ className }: TreasureListProps) {
       </div>
 
       {/* Sidebar: Stats */}
-      <aside className="hidden xl:block self-start">
+      <aside className="hidden xl:block self-start sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar">
         <TreasureStatsPanel
           treasures={statsData}
           onTagClick={setSelectedTag}
@@ -256,9 +263,11 @@ export function TreasureList({ className }: TreasureListProps) {
           recentTags={recentTags}
         />
       )}
+
     </div>
   )
 }
+
 
 // Internal Helper Components
 function EmptyState({ isFiltered }: { isFiltered: boolean }) {

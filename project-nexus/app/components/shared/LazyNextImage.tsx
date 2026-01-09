@@ -42,6 +42,8 @@ interface LazyNextImageProps {
   objectPosition?: string
   /** 填充模式（不需要设置 width/height） */
   fill?: boolean
+  /** 禁用 Next.js Image 优化（避免生成多尺寸请求） */
+  unoptimized?: boolean
 }
 
 /**
@@ -84,6 +86,7 @@ export function LazyNextImage({
   objectFit = 'cover',
   objectPosition = 'center',
   fill = false,
+  unoptimized = false,
 }: LazyNextImageProps) {
   const [shouldLoad, setShouldLoad] = useState(priority) // priority 图片立即加载
   const [isLoading, setIsLoading] = useState(false)
@@ -183,6 +186,7 @@ export function LazyNextImage({
             fill
             sizes={sizes}
             quality={quality}
+            unoptimized={unoptimized}
             className={cn(
               "transition-opacity duration-300",
               isLoaded ? "opacity-100" : "opacity-0",
@@ -201,6 +205,7 @@ export function LazyNextImage({
             height={height || 800}
             sizes={sizes}
             quality={quality}
+            unoptimized={unoptimized}
             className={cn(
               "transition-opacity duration-300",
               isLoaded ? "opacity-100" : "opacity-0",
@@ -247,6 +252,5 @@ export function LazyNextImageDesktop(props: LazyNextImageProps) {
     />
   )
 }
-
 
 

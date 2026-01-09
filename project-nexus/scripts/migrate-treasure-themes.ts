@@ -15,14 +15,8 @@ async function migrateTreasureThemes() {
     console.log('🚀 开始迁移宝藏主题数据...\n');
 
     try {
-        // 1. 查找需要迁移的宝藏
-        const treasures = await prisma.treasure.findMany({
-            where: {
-                OR: [
-                    { theme: { isEmpty: true } },  // theme 为空
-                    { theme: null }                // theme 为 null
-                ]
-            },
+        // 1. 查找所有宝藏（在代码中过滤）
+        const allTreasures = await prisma.treasure.findMany({
             select: {
                 id: true,
                 title: true,
@@ -30,6 +24,11 @@ async function migrateTreasureThemes() {
                 theme: true
             }
         });
+
+        // 过滤出需要迁移的宝藏（theme 为空或 null）
+        const treasures = allTreasures.filter(t =>
+            !t.theme || t.theme.length === 0
+        );
 
         console.log(`📊 找到 ${treasures.length} 个需要迁移的宝藏\n`);
 
