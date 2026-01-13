@@ -263,6 +263,55 @@ export const taskService = {
   },
 
   /**
+   * 完成任务
+   */
+  async complete(
+    tasks: TimerTask[],
+    taskId: string,
+    callbacks: TaskServiceCallbacks
+  ): Promise<boolean> {
+    const { onTasksChange, onOperationRecord, onBeforeOperation } = callbacks;
+
+    onBeforeOperation?.();
+
+    const task = findTaskById(tasks, taskId);
+    if (!task) {
+      console.error('❌ [taskService.complete] 未找到任务:', taskId);
+      return false;
+    }
+
+    if (!confirm(`确定要完成任务"${task.name}"吗？\n完成后的任务将自动归档。`)) {
+      return false;
+    }
+
+    // 乐观更新：在当前列表中移除该任务（模拟归档效果）
+    // 或者我们可以先标记为完成，然后由父组件决定是否渲染
+    // 根据用户需求 "打勾后自动归档"，我们应该把它从当前列表中移除
+    const previousTasks = tasks;
+    const updatedTasks = removeTaskFromList(tasks, taskId);
+    onTasksChange(updatedTasks);
+
+    onOperationRecord?.('完成任务', task.name);
+
+    try {
+      const completedAt = Date.now();
+      await timerAPI.updateTask({
+        id: taskId,
+        completedAt,
+        isRunning: false,
+        isPaused: false
+      });
+      console.log('✅ [taskService.complete] 成功:', task.name);
+      return true;
+    } catch (error) {
+      console.error('❌ [taskService.complete] 失败:', error);
+      // 回滚
+      onTasksChange(previousTasks);
+      throw error;
+    }
+  },
+
+  /**
    * 删除任务（统一处理父任务和子任务）
    */
   async delete(

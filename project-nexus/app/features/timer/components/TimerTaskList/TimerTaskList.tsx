@@ -38,6 +38,8 @@ interface TimerTaskListProps {
   getCurrentDisplayTime?: (task: Task) => number;
   /** 只显示指定ID的任务（用于分组显示） */
   groupFilter?: string[];
+  /** 完成任务回调 */
+  onComplete?: (taskId: string) => void;
 }
 
 /**
@@ -74,6 +76,7 @@ export function TimerTaskList({
   onToggleCollapse,
   getCurrentDisplayTime,
   groupFilter,
+  onComplete,
 }: TimerTaskListProps) {
   // 拖拽功能
   const { sensors, handleDragStart, handleDragEnd } = useTimerDragDrop({
@@ -104,7 +107,7 @@ export function TimerTaskList({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div 
+      <div
         className="space-y-3 overflow-x-hidden pr-2 timer-scroll-area"
         style={{
           // 移动端优化：防止拖拽时的滚动冲突
@@ -130,6 +133,7 @@ export function TimerTaskList({
               collapsedTasks={collapsedTasks}
               onToggleCollapse={onToggleCollapse}
               getCurrentDisplayTime={getCurrentDisplayTime}
+              onComplete={onComplete}
             />
           ))}
         </SortableContext>

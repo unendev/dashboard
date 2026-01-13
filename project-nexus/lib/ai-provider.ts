@@ -15,7 +15,7 @@ if (!isProduction) {
 // 初始化 Providers
 // 懒加载 Providers 避免构建时环境变量验证失败
 let googleProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
-let customGeminiProvider: ReturnType<typeof createOpenAI> | undefined;
+
 let deepseekProvider: ReturnType<typeof createDeepSeek> | undefined;
 
 function getGoogleProvider() {
@@ -29,18 +29,27 @@ function getGoogleProvider() {
   return googleProvider;
 }
 
+// Google 原生协议反代提供商
+let customGeminiProxyProvider: any = null;
+
 function getCustomGeminiProvider() {
-  if (!customGeminiProvider) {
-    if (env.GEMINI_BASE_URL) {
-      console.log(`[GeminiProxy] Using custom OpenAI-compatible proxy: ${env.GEMINI_BASE_URL}`);
-    }
-    customGeminiProvider = createOpenAI({
+  if (!customGeminiProxyProvider) {
+    // 基础 URL 处理：确保指向 v1beta (与 Google SDK 预期一致)
+    // 你的反代地址配置是 https://api.unendev.com/v1，我们需要把它调整为 Google 格式
+    // 如果配置是 /v1 结尾，去掉它，改用 /v1beta
+    const baseUrlConfig = env.GEMINI_BASE_URL || 'https://api.unendev.com';
+    const proxyBaseUrl = baseUrlConfig.replace(/\/v1\/?$/, '');
+    const fullBaseUrl = `${proxyBaseUrl}/v1beta`;
+
+    console.log(`[GeminiProxy] Using custom Google-native proxy: ${fullBaseUrl}`);
+
+    customGeminiProxyProvider = createGoogleGenerativeAI({
       apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
-      // @ts-ignore - 强制启用兼容模式，解决反代格式不标准导致的验证错误
-      compatibility: 'compatible',
+      baseURL: fullBaseUrl,
+      // 不需要 compatibility 选项，因为这是原生协议
     });
   }
-  return customGeminiProvider;
+  return customGeminiProxyProvider;
 }
 
 function getDeepSeekProvider() {
