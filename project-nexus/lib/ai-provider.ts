@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI, GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
 import { createDeepSeek } from '@ai-sdk/deepseek';
+import { createOpenAI } from '@ai-sdk/openai';
 import { env } from "@/lib/env";
 
 const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
@@ -14,6 +15,7 @@ if (!isProduction) {
 // 初始化 Providers
 // 懒加载 Providers 避免构建时环境变量验证失败
 let googleProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
+let customGeminiProvider: ReturnType<typeof createOpenAI> | undefined;
 let deepseekProvider: ReturnType<typeof createDeepSeek> | undefined;
 
 function getGoogleProvider() {
@@ -27,6 +29,20 @@ function getGoogleProvider() {
   return googleProvider;
 }
 
+function getCustomGeminiProvider() {
+  if (!customGeminiProvider) {
+    if (env.GEMINI_BASE_URL) {
+      console.log(`[GeminiProxy] Using custom OpenAI-compatible proxy: ${env.GEMINI_BASE_URL}`);
+    }
+    customGeminiProvider = createOpenAI({
+      apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
+      baseURL: env.GEMINI_BASE_URL || 'https://api.unendev.com/v1',
+      // ...proxyConfig, // ❌ 移除强制代理，让反代走直连 (或由系统环境决定)
+    });
+  }
+  return customGeminiProvider;
+}
+
 function getDeepSeekProvider() {
   if (!deepseekProvider) {
     deepseekProvider = createDeepSeek({
@@ -38,22 +54,34 @@ function getDeepSeekProvider() {
 }
 
 export function getAIModel({ provider, modelId, enableThinking }: { provider: string, modelId?: string, enableThinking?: boolean }) {
-  const effectiveModelId = modelId || (provider === 'gemini' ? 'gemini-2.0-flash-exp' : 'deepseek-chat'); // Default to DeepSeek V3
+  const effectiveModelId = modelId || (provider === 'gemini' ? 'gemini-2.0-flash-exp' : 'deepseek-chat');
   let model: any;
   let providerOptions: any = {};
 
   if (provider === 'gemini') {
-    model = getGoogleProvider()(effectiveModelId);
-    if (enableThinking && (effectiveModelId.includes('gemini-3') || effectiveModelId.includes('gemini-2.5'))) {
-      const thinkingConfig: any = { includeThoughts: true };
-      if (effectiveModelId.includes('gemini-3')) {
-        thinkingConfig.thinkingLevel = 'high';
-      } else if (effectiveModelId === 'gemini-2.5-flash') {
-        thinkingConfig.thinkingBudget = 8192;
+    // 路由逻辑:
+    // - gemini-2.5-flash / gemini-2.0-flash-exp -> 官方 Google 通道 (保留原样)
+    // - gemini-3-* (及其他) -> 自定义反代通道 (OpenAI 协议)
+    if (effectiveModelId.includes('gemini-2.5') || effectiveModelId.includes('gemini-2.0')) {
+      model = getGoogleProvider()(effectiveModelId);
+
+      // 官方通道的思考配置
+      if (enableThinking) {
+        const thinkingConfig: any = { includeThoughts: true };
+        if (effectiveModelId === 'gemini-2.5-flash') {
+          thinkingConfig.thinkingBudget = 8192;
+        }
+        providerOptions = {
+          google: { thinkingConfig } satisfies GoogleGenerativeAIProviderOptions,
+        };
       }
-      providerOptions = {
-        google: { thinkingConfig } satisfies GoogleGenerativeAIProviderOptions,
-      };
+    } else {
+      // 走自定义代理
+      console.log(`[Gemini] Routing ${effectiveModelId} via Custom Proxy`);
+      model = getCustomGeminiProvider()(effectiveModelId);
+      // OpenAI 协议通常通过 standard headers 或 params 传递思考配置，
+      // 但对于 Gemini 反代，通常取决于代理实现。由于 @ai-sdk/openai 不支持 google specific options，
+      // 这里暂不传 providerOptions，除非代理支持特定的 OpenAI extension。
     }
   } else if (provider === 'deepseek') {
     model = getDeepSeekProvider()(effectiveModelId);

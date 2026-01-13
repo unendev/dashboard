@@ -1,7 +1,8 @@
 {
 	"private": true,
 	"dependencies": {
-		"browser-image-compression": "^2.0.2"
+		"browser-image-compression": "^2.0.2",
+		"https-proxy-agent": "^7.0.6"
 	},
 	"pnpm": {
 		"overrides": {

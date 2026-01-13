@@ -6,6 +6,29 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 设置日志文件路径
+const logsDir = path.join(app.getPath('userData'), 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+const logFilePath = path.join(logsDir, `electron-${new Date().toISOString().split('T')[0]}.log`);
+
+// 日志函数：同时写入文件和控制台
+function writeLog(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  
+  // 写入文件
+  try {
+    fs.appendFileSync(logFilePath, logMessage);
+  } catch (e) {
+    console.error('Failed to write to log file:', e);
+  }
+  
+  // 写入控制台
+  console.log(message);
+}
+
 app.disableHardwareAcceleration();
 Menu.setApplicationMenu(null);
 
@@ -17,7 +40,7 @@ const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 // 打包后 (app.isPackaged = true) → 使用 Vercel 生产环境
 // 开发中 (app.isPackaged = false) → 使用本地 localhost
 const API_BASE_URL = app.isPackaged
-  ? 'https://dashboard-d3pbgul4p-uneneichs-projects.vercel.app'
+  ? 'https://dashboard.unendev.com'
   : 'http://localhost:10000';
 
 process.on('uncaughtException', (error) => {
@@ -556,14 +579,14 @@ ipcMain.on('start-task', (event, taskData) => {
 function logToCombined(type, ...args) {
   const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
   const prefix = type === 'error' ? '❌' : 'ℹ️';
+  const fullMessage = `${prefix} ${message}`;
 
-  // 1. Stdout
-  if (type === 'error') console.error(...args);
-  else console.log(...args);
+  // 1. 写入日志文件
+  writeLog(fullMessage);
 
   // 2. Send to Renderer
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('on-console-log', { type, message: `${prefix} ${message}` });
+    mainWindow.webContents.send('on-console-log', { type, message: fullMessage });
   }
 }
 
@@ -571,49 +594,82 @@ function logToCombined(type, ...args) {
 ipcMain.on('ai-create-task', async (event, { text, userId, autoStart }) => {
   logToCombined('info', '🤖 [Main Process] Received ai-create-task:', text, 'UserID:', userId);
 
-  // 1. Defensively check for backend availability or just try/catch
   try {
-    const response = await fetch(`${API_BASE_URL}/api/timer-tasks/parse`, {
+    const apiUrl = `${API_BASE_URL}/api/timer-tasks/parse`;
+    logToCombined('info', '📡 [Main Process] API_BASE_URL:', API_BASE_URL);
+    logToCombined('info', '📡 [Main Process] Full API URL:', apiUrl);
+
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    logToCombined('info', '📡 [Main Process] Request headers:', JSON.stringify(headers));
+    logToCombined('info', '📡 [Main Process] Request body:', JSON.stringify({ text }));
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ text })
     });
 
-    logToCombined('info', '📡 [Main Process] AI API Request sent to:', `${API_BASE_URL}/api/timer-tasks/parse`);
     logToCombined('info', '📡 [Main Process] Response Status:', response.status);
+    logToCombined('info', '📡 [Main Process] Response Headers:', JSON.stringify(Object.fromEntries(response.headers)));
 
     if (!response.ok) {
       const errorText = await response.text();
       logToCombined('error', '❌ [Main Process] AI API Error:', response.status, errorText);
+      logToCombined('error', '❌ [Main Process] Full error response:', errorText);
       return;
     }
 
     const parsed = await response.json();
     logToCombined('info', '✅ [Main Process] AI Parsed Result:', JSON.stringify(parsed, null, 2));
+    logToCombined('info', '✅ [Main Process] Parsed categoryPath:', parsed.categoryPath);
+    logToCombined('info', '✅ [Main Process] Parsed name:', parsed.name);
+    logToCombined('info', '✅ [Main Process] Parsed instanceTags:', JSON.stringify(parsed.instanceTags));
 
     if (mainWindow) {
-      // Construct the task object
+      if (mainWindow.isDestroyed()) {
+        logToCombined('error', '❌ [Main Process] mainWindow is destroyed!');
+        return;
+      }
+
       const taskData = {
         name: parsed.name,
-        userId: userId || 'user-1', // Fallback
+        userId: userId || 'user-1',
         categoryPath: parsed.categoryPath,
-        date: new Date().toISOString().split('T')[0], // Today
-        initialTime: parsed.duration ? parsed.duration * 60 : 0, // Convert minutes to seconds
-        instanceTagNames: parsed.instanceTags || [], // Keep as array, don't join
+        date: new Date().toISOString().split('T')[0],
+        initialTime: parsed.duration ? parsed.duration * 60 : 0,
+        instanceTagNames: parsed.instanceTags || [],
         timestamp: Date.now(),
         autoStart: autoStart
       };
 
-      logToCombined('info', '🚀 [Main Process] Starting parsed task:', taskData.name);
+      logToCombined('info', '🚀 [Main Process] Sending on-start-task to mainWindow with data:', JSON.stringify(taskData, null, 2));
       mainWindow.webContents.send('on-start-task', taskData);
     } else {
-      logToCombined('error', '❌ [Main Process] mainWindow is not available, cannot send on-start-task');
+      logToCombined('error', '❌ [Main Process] mainWindow is null!');
     }
 
   } catch (error) {
-    logToCombined('error', '❌ [Main Process] AI Processing Exception:', error);
+    logToCombined('error', '❌ [Main Process] AI Processing Exception:', error.message);
     logToCombined('error', '❌ [Main Process] Stack:', error.stack);
   }
+});
+
+// 工具栏右键菜单
+ipcMain.on('show-toolbar-context-menu', (event) => {
+  const template = [
+    {
+      label: '📚 提示词库',
+      click: () => {
+        openPromptLibraryWindow();
+      }
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
 });
 
 app.on('window-all-closed', () => {

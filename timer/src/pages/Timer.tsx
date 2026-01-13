@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
-import { Play, Pause, FileText, Files, Bot, BookText, GripVertical, Loader2 } from 'lucide-react';
+import { Play, Pause, FileText, FolderOpen, Bot, BookText, GripVertical, Loader2 } from 'lucide-react';
 import { useTimerControl } from '@/hooks/useTimerControl';
 import { TimerTask, formatTime } from '@dashboard/shared';
 import { fetcher, getApiUrl } from '@/lib/api';
@@ -58,6 +58,7 @@ function useDoubleTap(callback: () => void, delay = 300) {
 export default function TimerPage() {
   const doubleTapCreate = useDoubleTap(openCreateWindow);
   const [isBlurred, setIsBlurred] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const user = getUser();
   const userId = user?.id;
@@ -220,6 +221,7 @@ export default function TimerPage() {
     if (window.electron) {
       console.log('[Timer] Subscribing to IPC');
       unsubscribeStart = window.electron.receive('on-start-task', (taskData) => {
+        console.log('[Timer] IPC Received on-start-task:', taskData);
         handleStartTask(taskData);
       });
 
@@ -302,6 +304,28 @@ export default function TimerPage() {
     return () => clearInterval(interval);
   }, [activeTask]);
 
+  // 右键菜单处理
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+
+    // 如果在 Electron 环境，使用原生菜单
+    if (window.electron) {
+      window.electron.send('show-toolbar-context-menu');
+    } else {
+      // Web 环境使用自定义菜单，定位在工具栏左侧
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setContextMenu({ x: rect.right + 5, y: rect.top });
+    }
+  }, []);
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleClick = () => setContextMenu(null);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [contextMenu]);
+
 
 
   if (!userId) {
@@ -322,19 +346,48 @@ export default function TimerPage() {
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-white select-none overflow-hidden flex">
       <div className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0">
-        <button onClick={openMemoWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="备忘录">
+        <button
+          onClick={openMemoWindow}
+          onContextMenu={handleContextMenu}
+          className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
+          title="备忘录 (右键查看更多)"
+        >
           <FileText size={18} />
         </button>
-        <button onClick={openTodoWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="项目">
-          <Files size={18} />
+        <button
+          onClick={openTodoWindow}
+          onContextMenu={handleContextMenu}
+          className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
+          title="项目 (右键查看更多)"
+        >
+          <FolderOpen size={18} />
         </button>
-        <button onClick={openPromptLibraryWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800" title="提示词库">
-          <BookText size={18} />
-        </button>
-        <button onClick={openAiWindow} className="h-1/4 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors" title="AI 助手">
+        <button
+          onClick={openAiWindow}
+          onContextMenu={handleContextMenu}
+          className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+          title="AI 助手 (右键查看更多)"
+        >
           <Bot size={18} />
         </button>
       </div>
+
+      {/* 右键上下文菜单 - 仅显示不常用功能 */}
+      {contextMenu && (
+        <div
+          className="fixed bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 z-50 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { openPromptLibraryWindow(); setContextMenu(null); }}
+            className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors flex items-center gap-3"
+          >
+            <BookText size={16} />
+            <span>提示词库</span>
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 h-full flex flex-col overflow-hidden relative">
         <div className="shrink-0 p-3 pb-2 flex items-center gap-3">

@@ -1,0 +1,9 @@
+{
+    "model": "gemini-3-flash",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello"
+        }
+    ]
+}

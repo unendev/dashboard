@@ -72,6 +72,8 @@ const envSchema = z.object({
   // ==========================================
   DEEPSEEK_API_KEY: z.string().optional(),
   GOOGLE_AI_STUDIO_API_KEY: z.string().optional(),
+  GEMINI_BASE_URL: z.string().url().optional(),
+  GEMINI_PROXY_API_KEY: z.string().optional(),
 
   // ==========================================
   // 代理配置 (可选，用于本地开发)

@@ -65,27 +65,27 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
             <div
                 {...attributes}
                 {...listeners}
-                className={`group flex items-start gap-2 p-3 rounded-md transition-all border ${isDragging
-                    ? 'bg-zinc-800 shadow-xl opacity-80 border-zinc-600 scale-[1.02]'
-                    : 'bg-zinc-800/30 border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-800/50'
+                className={`group flex items-start gap-2 p-3 rounded-lg transition-all border ${isDragging
+                    ? 'bg-[#252a32] shadow-xl opacity-90 border-[#4a5260] scale-[1.02]'
+                    : 'bg-[#1f222a] border-[#3a3f4a] hover:border-[#4c5564] hover:bg-[#232731]'
                     }`}
             >
                 <button
                     onClick={() => toggleTodo(todo.id)}
-                    className="mt-0.5 text-zinc-600 hover:text-emerald-500 transition-colors shrink-0"
+                    className="mt-0.5 text-zinc-400 hover:text-emerald-400 transition-colors shrink-0"
                     onPointerDown={(e) => e.stopPropagation()}
                 >
                     <Square size={16} strokeWidth={1.5} />
                 </button>
                 <span
-                    className="flex-1 text-sm text-zinc-400 group-hover:text-zinc-300 break-all leading-relaxed cursor-text"
+                    className="flex-1 text-sm text-zinc-100 group-hover:text-white break-all leading-relaxed cursor-text"
                     onDoubleClick={() => openMemo(todo.id, todo.text)}
                 >
                     {todo.text}
                 </span>
                 <button
                     onClick={() => deleteTodo(todo.id)}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity shrink-0"
+                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-300 transition-opacity shrink-0"
                     onPointerDown={(e) => e.stopPropagation()}
                 >
                     <Trash2 size={13} strokeWidth={1.5} />
@@ -93,7 +93,7 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
             </div>
             {/* Recursive Children */}
             {todo.children && todo.children.length > 0 && (
-                <div className="pl-4 border-l border-zinc-800 ml-3 mt-1 space-y-1">
+                <div className="pl-4 border-l border-[#2f3440] ml-3 mt-1 space-y-1">
                     <SortableContext
                         items={todo.children.map(c => c.id)}
                         strategy={verticalListSortingStrategy}
@@ -146,11 +146,11 @@ function SortableTodoGroup({ group, todos, toggleTodo, deleteTodo, openMemo }: {
                     {...listeners}
                     className={`flex items-center gap-2 mb-2 mt-4 px-1 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
                 >
-                    <div className="h-px bg-zinc-800 flex-1"></div>
-                    <span className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-widest bg-zinc-900/50 px-2 py-0.5 rounded border border-emerald-500/20 hover:bg-zinc-800 transition-colors">
+                    <div className="h-px bg-[#2f3440] flex-1"></div>
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-zinc-900/60 px-2 py-0.5 rounded border border-emerald-400/25 hover:bg-[#1f222a] transition-colors">
                         {group}
                     </span>
-                    <div className="h-px bg-zinc-800 flex-1"></div>
+                    <div className="h-px bg-[#2f3440] flex-1"></div>
                 </div>
             )}
             <SortableContext
@@ -269,6 +269,12 @@ export default function ProjectDetail() {
         if (project) saveProject({ todos: deleteRecursive(project.todos) });
     };
 
+    const deleteProgress = (logId: string) => {
+        if (!project) return;
+        const newLogs = project.progressLogs.filter(log => log.id !== logId);
+        saveProject({ progressLogs: newLogs });
+    };
+
     const saveMemo = (text: string) => {
         saveProject({ memo: text });
     };
@@ -343,7 +349,7 @@ export default function ProjectDetail() {
     if (!project) return <div className="p-4 text-zinc-500">Loading...</div>;
 
     return (
-        <div className="flex flex-col h-screen bg-[#1a1a1a] text-zinc-100 font-sans select-none overflow-hidden">
+        <div className="flex flex-col h-screen bg-[#1a1a1a] text-zinc-100 font-sans overflow-hidden">
             {/* Header / Tabs */}
             <div className="flex flex-col shrink-0 bg-zinc-900 border-b border-zinc-800" data-drag="true">
                 <div className="flex items-center justify-between px-3 py-2">
@@ -373,20 +379,20 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-1 px-1 pb-1" data-drag="false">
                     <button
                         onClick={() => setTab('todo')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${tab === 'todo' ? 'bg-[#1a1a1a] text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${tab === 'todo' ? 'bg-[#1a1a1a] text-emerald-300' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                         <CheckSquare size={12} /> 待办
-                        <span className="bg-zinc-800 text-zinc-500 text-[9px] px-1 rounded-full">{project.todos.length}</span>
+                        <span className="bg-[#262a33] text-[#e2e6ed] text-[9px] px-1 rounded-full">{project.todos.length}</span>
                     </button>
                     <button
                         onClick={() => setTab('progress')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${tab === 'progress' ? 'bg-[#1a1a1a] text-blue-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${tab === 'progress' ? 'bg-[#1a1a1a] text-blue-300' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                         <Activity size={12} /> 进展
                     </button>
                     <button
                         onClick={() => setTab('memo')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${tab === 'memo' ? 'bg-[#1a1a1a] text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${tab === 'memo' ? 'bg-[#1a1a1a] text-amber-300' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                         <StickyNote size={12} /> 草稿
                     </button>
@@ -454,10 +460,10 @@ export default function ProjectDetail() {
                                 <div className="pt-2">
                                     <button
                                         onClick={() => setShowCompleted(!showCompleted)}
-                                        className="flex items-center gap-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-zinc-400 mb-2 w-full"
+                                        className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-200 mb-2 w-full"
                                     >
                                         <span>已完成 ({completedTodos.length})</span>
-                                        <div className="h-px bg-zinc-800 flex-1"></div>
+                                        <div className="h-px bg-[#2f3440] flex-1"></div>
                                     </button>
 
                                     {showCompleted && (
@@ -466,16 +472,16 @@ export default function ProjectDetail() {
                                                 <div key={todo.id} className="group flex items-start gap-2 p-2 rounded hover:bg-zinc-800/30 transition-colors">
                                                     <button
                                                         onClick={() => toggleTodo(todo.id)}
-                                                        className="mt-0.5 text-emerald-600 hover:text-zinc-500 transition-colors"
+                                                        className="mt-0.5 text-emerald-500 hover:text-zinc-400 transition-colors"
                                                     >
                                                         <CheckSquare size={14} />
                                                     </button>
-                                                    <span className="flex-1 text-sm text-zinc-500 line-through break-all leading-snug">
+                                                    <span className="flex-1 text-sm text-zinc-200 line-through break-all leading-snug">
                                                         {todo.text}
                                                     </span>
                                                     <button
                                                         onClick={() => deleteTodo(todo.id)}
-                                                        className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-400 transition-opacity"
+                                                        className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-300 transition-opacity"
                                                     >
                                                         <Trash2 size={12} />
                                                     </button>
@@ -487,22 +493,22 @@ export default function ProjectDetail() {
                             )}
                         </div>
 
-                        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded overflow-hidden focus-within:border-zinc-700 transition-colors">
+                        <div className="flex items-center bg-[#1f222a] border border-[#3a3f4a] rounded overflow-hidden focus-within:border-[#5b6475] transition-colors shadow-[0_6px_18px_rgba(0,0,0,0.35)]">
                             <input
                                 value={todoInput}
                                 onChange={(e) => setTodoInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addTodo()}
                                 placeholder="+ 添加新任务..."
-                                className="flex-1 bg-transparent border-none px-3 py-2 text-sm text-zinc-200 focus:outline-none placeholder:text-zinc-700"
+                                className="flex-1 bg-transparent border-none px-3 py-2 text-sm text-zinc-100 focus:outline-none placeholder:text-zinc-500"
                                 autoFocus
                             />
-                            <div className="w-px h-5 bg-zinc-800 mx-1"></div>
+                            <div className="w-px h-5 bg-[#2f3440] mx-1"></div>
                             <input
                                 value={todoGroupInput}
                                 onChange={(e) => setTodoGroupInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addTodo()}
                                 placeholder="Group"
-                                className="w-20 bg-transparent border-none py-2 text-xs text-zinc-400 text-center focus:outline-none placeholder:text-zinc-700"
+                                className="w-20 bg-transparent border-none py-2 text-xs text-zinc-200 text-center focus:outline-none placeholder:text-zinc-500"
                             />
                         </div>
                     </div>
@@ -525,8 +531,15 @@ export default function ProjectDetail() {
                                             <div className="text-[10px] text-blue-400/80 font-mono font-medium leading-none mb-1 mt-1.5">
                                                 {new Date(log.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                             </div>
-                                            <div className="bg-zinc-800/30 border border-zinc-800/50 rounded-lg p-3 text-sm text-zinc-300 leading-relaxed shadow-sm group-hover:bg-zinc-800/50 group-hover:border-blue-500/20 transition-all">
+                                            <div className="bg-zinc-800/30 border border-zinc-800/50 rounded-lg p-3 text-sm text-zinc-300 leading-relaxed shadow-sm group-hover:bg-zinc-800/50 group-hover:border-blue-500/20 transition-all relative pr-8">
                                                 <MarkdownRenderer content={log.text} variant="goc" className="prose-sm" />
+                                                <button
+                                                    onClick={() => deleteProgress(log.id)}
+                                                    className="absolute top-2 right-2 p-1 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    title="删除"
+                                                >
+                                                    <Trash2 size={12} strokeWidth={1.5} />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

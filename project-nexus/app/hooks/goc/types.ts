@@ -19,10 +19,10 @@ export interface Todo {
   id: string;
   text: string;
   completed: boolean;
-  group?: string;      
-  parentId?: string;   
-  ownerId?: string;    
-  ownerName?: string;  
+  group?: string;
+  parentId?: string;
+  ownerId?: string;
+  ownerName?: string;
 }
 
 export interface PlayerNote {
@@ -41,9 +41,9 @@ export const MODEL_CONFIG: Record<AIProvider, { label: string; models: { id: str
   gemini: {
     label: 'Gemini',
     models: [
-      { id: 'gemini-2.5-flash', name: '2.5 Flash', desc: '快速高效', thinking: true },
-      { id: 'gemini-2.5-pro', name: '2.5 Pro', desc: '高质量+思考', thinking: true },
-      { id: 'gemini-3-pro-preview', name: '3.0 Pro', desc: '深度推理', thinking: true },
+      { id: 'gemini-2.5-flash', name: '2.5 Flash', desc: '官方稳定版', thinking: true },
+      { id: 'gemini-3-flash', name: '3.0 Flash', desc: '第三方兼容', thinking: true },
+      { id: 'gemini-3-pro-high', name: '3.0 Pro High', desc: '深度推理/高算力', thinking: true },
     ]
   }
 };
