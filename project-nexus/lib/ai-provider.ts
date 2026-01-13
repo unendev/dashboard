@@ -36,8 +36,8 @@ function getCustomGeminiProvider() {
     }
     customGeminiProvider = createOpenAI({
       apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
-      baseURL: env.GEMINI_BASE_URL || 'https://api.unendev.com/v1',
-      // ...proxyConfig, // ❌ 移除强制代理，让反代走直连 (或由系统环境决定)
+      // @ts-ignore - 强制启用兼容模式，解决反代格式不标准导致的验证错误
+      compatibility: 'compatible',
     });
   }
   return customGeminiProvider;
