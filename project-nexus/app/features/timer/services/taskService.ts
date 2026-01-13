@@ -294,7 +294,7 @@ export const taskService = {
     onOperationRecord?.('完成任务', task.name);
 
     try {
-      const completedAt = Date.now();
+      const completedAt = Math.floor(Date.now() / 1000);
       await timerAPI.updateTask({
         id: taskId,
         completedAt,

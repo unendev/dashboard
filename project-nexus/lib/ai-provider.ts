@@ -29,27 +29,29 @@ function getGoogleProvider() {
   return googleProvider;
 }
 
-// Google 原生协议反代提供商
-let customGeminiProxyProvider: any = null;
+// 诊断测试证实：反代完美支持 OpenAI 协议 (/v1/chat/completions)
+// 反而对 Google 原生协议支持不佳 (400 Bad Request)
+// 因此切换回 createOpenAI
+let customGeminiProvider: ReturnType<typeof createOpenAI> | undefined;
 
 function getCustomGeminiProvider() {
-  if (!customGeminiProxyProvider) {
-    // 基础 URL 处理：确保指向 v1beta (与 Google SDK 预期一致)
-    // 你的反代地址配置是 https://api.unendev.com/v1，我们需要把它调整为 Google 格式
-    // 如果配置是 /v1 结尾，去掉它，改用 /v1beta
-    const baseUrlConfig = env.GEMINI_BASE_URL || 'https://api.unendev.com';
-    const proxyBaseUrl = baseUrlConfig.replace(/\/v1\/?$/, '');
-    const fullBaseUrl = `${proxyBaseUrl}/v1beta`;
+  if (!customGeminiProvider) {
+    // 处理 base URL：确保以 /v1 结尾 (SDK 会自动追加 /chat/completions)
+    let baseUrl = env.GEMINI_BASE_URL || 'https://api.unendev.com/v1';
+    if (!baseUrl.endsWith('/v1')) {
+      baseUrl = baseUrl.replace(/\/$/, '') + '/v1';
+    }
 
-    console.log(`[GeminiProxy] Using custom Google-native proxy: ${fullBaseUrl}`);
+    console.log(`[GeminiProxy] Using OpenAI-compatible protocol: ${baseUrl}`);
 
-    customGeminiProxyProvider = createGoogleGenerativeAI({
+    customGeminiProvider = createOpenAI({
       apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
-      baseURL: fullBaseUrl,
-      // 不需要 compatibility 选项，因为这是原生协议
+      baseURL: baseUrl,
+      // @ts-ignore - 保留兼容模式以防万一
+      compatibility: 'compatible',
     });
   }
-  return customGeminiProxyProvider;
+  return customGeminiProvider;
 }
 
 function getDeepSeekProvider() {
