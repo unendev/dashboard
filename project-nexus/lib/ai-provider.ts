@@ -48,6 +48,7 @@ function getCustomGeminiProvider() {
       apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
       baseURL: baseUrl,
       // @ts-ignore - 保留兼容模式以防万一
+      // @ts-ignore - 保留兼容模式以防万一
       compatibility: 'compatible',
     });
   }
