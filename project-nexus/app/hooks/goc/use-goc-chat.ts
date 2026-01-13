@@ -20,7 +20,7 @@ export function useGocChat() {
   const aiConfig = useStorage((root) => root.aiConfig);
   const me = useSelf();
   const others = useOthers();
-  
+
   // --- Liveblocks Mutations for AI Config ---
   const updateAiConfig = useMutation(({ storage }, newConfig: Partial<typeof aiConfig>) => {
     const currentConfig = storage.get('aiConfig');
@@ -47,7 +47,7 @@ export function useGocChat() {
   // --- Local State ---
   const [lastSentNotes, setLastSentNotes] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   // Local Message Timestamps mapping for stability
   const localMessageTimes = useRef<Map<string, number>>(new Map());
 
@@ -69,7 +69,7 @@ export function useGocChat() {
     },
     []
   );
-  
+
   const syncPlayerMessage = useMutation(
     ({ storage }, message: SharedMessage) => {
       let messages = storage.get("messages");
@@ -86,7 +86,7 @@ export function useGocChat() {
   const chatTransport = useMemo(() => new DefaultChatTransport({
     api: '/api/chat/goc',
   }), []);
-  
+
   const { messages, sendMessage, status } = useChat({
     id: roomId,
     transport: chatTransport,
@@ -99,7 +99,7 @@ export function useGocChat() {
   const lastSyncedLength = useRef<Map<string, number>>(new Map());
   const syncedMessageIds = useRef<Set<string>>(new Set());
   const SYNC_INTERVAL = 500;
-  
+
   // Helper to extract text content
   const getUIMessageContent = (uiMessage: any): string => {
     if (typeof uiMessage.content === 'string') return uiMessage.content;
@@ -112,25 +112,25 @@ export function useGocChat() {
 
   useEffect(() => {
     if (messages.length === 0) return;
-    
+
     const now = Date.now();
     const isStreaming = status === 'streaming';
-    
+
     if (isStreaming && now - lastSyncTime.current < SYNC_INTERVAL) {
       return;
     }
-    
+
     messages.forEach((msg: any) => {
       const content = getUIMessageContent(msg);
       const contentLength = content?.length || 0;
       const lastLength = lastSyncedLength.current.get(msg.id) || 0;
-      
+
       if (!content || contentLength === 0) return;
-      
-      const shouldSync = isStreaming 
-        ? contentLength > lastLength + 50 
+
+      const shouldSync = isStreaming
+        ? contentLength > lastLength + 50
         : !syncedMessageIds.current.has(msg.id) || contentLength > lastLength;
-      
+
       if (shouldSync) {
         // Extract reasoning and tool calls
         let reasoning = '';
@@ -147,7 +147,7 @@ export function useGocChat() {
             state: p.state || 'output-available',
             toolCallId: p.toolCallId,
           })) || [];
-        
+
         syncMessageToLiveblocks({
           id: msg.id,
           role: msg.role as 'user' | 'assistant',
@@ -157,14 +157,14 @@ export function useGocChat() {
           createdAt: msg.createdAt instanceof Date ? msg.createdAt.getTime() : (msg.createdAt || Date.now()),
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         });
-        
+
         lastSyncedLength.current.set(msg.id, contentLength + (reasoning?.length || 0));
         if (!isStreaming) {
           syncedMessageIds.current.add(msg.id);
         }
       }
     });
-    
+
     lastSyncTime.current = now;
   }, [messages, status, me?.info?.name, syncMessageToLiveblocks]);
 
@@ -172,7 +172,7 @@ export function useGocChat() {
   const displayMessages = useMemo(() => {
     const localIds = new Set(messages.map((m: any) => m.id));
     const sharedOnly = (sharedMessages || []).filter((m: any) => !localIds.has(m.id));
-    
+
     const now = Date.now();
     const allMessages = [
       ...messages.map((m: any, idx: number) => {
@@ -186,13 +186,27 @@ export function useGocChat() {
         };
       }),
       ...sharedOnly.map((m: any) => ({
-        ...m, 
+        ...m,
         createdAt: typeof m.createdAt === 'number' ? m.createdAt : (m.createdAt instanceof Date ? m.createdAt.getTime() : now),
-        _isLocal: false 
+        _isLocal: false
       })),
     ];
-    
-    return allMessages.sort((a: any, b: any) => {
+
+    // Aggressive deduplication by ID to prevent React key errors
+    const uniqueMessages = new Map<string, any>();
+    allMessages.forEach((m: any) => {
+      // If duplicates exist, prefer the one that is already in the map (or unexpected update strategy)
+      // Actually, standard behavior: last one wins or first one wins? 
+      // Usually we want the 'latest' version if they differ, but here they assume same ID = same msg.
+      // We'll just use the first occurrence or overwrite. 
+      // Given the order: local first, then shared. 
+      // If we have local, we likely prefer local (optimistic update state).
+      if (!uniqueMessages.has(m.id)) {
+        uniqueMessages.set(m.id, m);
+      }
+    });
+
+    return Array.from(uniqueMessages.values()).sort((a: any, b: any) => {
       const aTime = a.createdAt || 0;
       const bTime = b.createdAt || 0;
       if (aTime !== bTime) return aTime - bTime;
@@ -203,13 +217,13 @@ export function useGocChat() {
   const [isCompressing, setIsCompressing] = useState(false);
   const isAiConfigured = !!(aiConfig?.modelId && aiConfig?.provider);
   const [aiModeEnabled, setAiModeEnabled] = useState(isAiConfigured);
-  
+
   useEffect(() => {
     if (!isAiConfigured) {
       setAiModeEnabled(false);
     }
   }, [isAiConfigured]);
-  
+
   // --- Send Message Handler ---
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -219,7 +233,7 @@ export function useGocChat() {
     // --- Context Management Strategy ---
     const MAX_MESSAGES_BEFORE_COMPRESSION = 20;
     const RECENT_MESSAGES_TO_KEEP = 10;
-    
+
     // Explicitly cast to any to bypass strict type checking for mixed message types during processing
     // In a real scenario, we should normalize CoreMessage to UIMessage
     let processedMessages: any[] = messages;
@@ -228,23 +242,23 @@ export function useGocChat() {
       try {
         setIsCompressing(true);
         console.log(`[Chat Context] History too long (${messages.length}). Compressing...`);
-        
+
         const systemMessage = messages.find(m => m.role === 'system');
         const messagesToSummarize = messages.slice(systemMessage ? 1 : 0, -RECENT_MESSAGES_TO_KEEP);
         const recentMessages = messages.slice(-RECENT_MESSAGES_TO_KEEP);
 
         // Generate summary from the middle part of the conversation
         const summary = await generateContextSummary(messagesToSummarize);
-        
+
         const summaryMessage = {
           id: `summary-${Date.now()}`,
           role: 'system',
           content: `[Archived Context Summary]:\n${summary}`,
         };
-        
+
         // Reconstruct messages with summary
-        processedMessages = systemMessage 
-          ? [systemMessage, summaryMessage, ...recentMessages] 
+        processedMessages = systemMessage
+          ? [systemMessage, summaryMessage, ...recentMessages]
           : [summaryMessage, ...recentMessages];
 
         console.log(`[Chat Context] Compression complete. New history length: ${processedMessages.length}`);
@@ -262,7 +276,7 @@ export function useGocChat() {
     const trimmedInput = inputValue.trim();
     const hasAIPrefix = trimmedInput.startsWith('@AI') || trimmedInput.startsWith('@ai');
     const shouldSendToAI = (aiModeEnabled && isAiConfigured) || hasAIPrefix;
-    
+
     if (!shouldSendToAI) {
       const playerMsg: SharedMessage = {
         id: `player-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -275,7 +289,7 @@ export function useGocChat() {
       if (inputRef.current) inputRef.current.value = '';
       return;
     }
-    
+
     const aiQuery = hasAIPrefix ? trimmedInput.replace(/^@ai\s*/i, '') : trimmedInput;
     if (!aiQuery) {
       if (inputRef.current) inputRef.current.value = '';
@@ -288,7 +302,7 @@ export function useGocChat() {
     ];
 
     const hasNotesChanged = notes !== lastSentNotes;
-    
+
     const body: any = {
       players: playerList,
       mode: aiConfig?.aiMode,
@@ -298,7 +312,7 @@ export function useGocChat() {
       currentPlayerName: me?.info?.name || 'Unknown',
       enableThinking: aiConfig?.thinkingEnabled,
     };
-    
+
     if (hasNotesChanged) {
       body.notes = notes;
       setLastSentNotes(notes as string);
@@ -310,12 +324,12 @@ export function useGocChat() {
     // However, the `useChat` hook doesn't expose a `setMessages` function to do this directly before a call.
     // The workaround is to pass the compressed history in the `data` payload and handle it on the server-side.
     // This avoids TypeScript errors and aligns with the intended use of the SDK.
-    
+
     // Let's add the compressed messages to the body.
     body.messages = processedMessages;
-    
+
     sendMessage({ text: aiQuery }, { body });
-    
+
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -328,13 +342,13 @@ export function useGocChat() {
     inputRef,
     me,
     others,
-    
+
     // Unified AI Config from Liveblocks
     aiConfig,
     updateAiConfig,
     aiModeEnabled,
     setAiModeEnabled,
-    
+
     // Actions
     handleSendMessage,
     getUIMessageContent,

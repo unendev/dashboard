@@ -13,9 +13,9 @@ if (!isProduction) {
 }
 
 // 初始化 Providers
-// 懒加载 Providers 避免构建时环境变量验证失败
 let googleProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
-
+let customGeminiProxyProvider: ReturnType<typeof createOpenAI> | undefined;
+let customGoogleNativeProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
 let deepseekProvider: ReturnType<typeof createDeepSeek> | undefined;
 
 function getGoogleProvider() {
@@ -23,36 +23,56 @@ function getGoogleProvider() {
     googleProvider = createGoogleGenerativeAI({
       apiKey: env.GOOGLE_AI_STUDIO_API_KEY || process.env.GOOGLE_AI_STUDIO_API_KEY,
       ...proxyConfig,
-      fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(30000) }),
+      fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(300000) }),
     });
   }
   return googleProvider;
 }
 
-// 诊断测试证实：反代完美支持 OpenAI 协议 (/v1/chat/completions)
-// 反而对 Google 原生协议支持不佳 (400 Bad Request)
-// 因此切换回 createOpenAI
-let customGeminiProvider: ReturnType<typeof createOpenAI> | undefined;
-
-function getCustomGeminiProvider() {
-  if (!customGeminiProvider) {
-    // 处理 base URL：确保以 /v1 结尾 (SDK 会自动追加 /chat/completions)
+function getOpenAICompatibleGeminiProvider() {
+  if (!customGeminiProxyProvider) {
+    // 处理 base URL：确保以 /v1 结尾 (OpenAI SDK 会自动追加 /chat/completions)
     let baseUrl = env.GEMINI_BASE_URL || 'https://api.unendev.com/v1';
-    if (!baseUrl.endsWith('/v1')) {
+
+    // 如果没有 /v1 且没有 /v1beta (防止把 google url 传进来)，追加 /v1
+    if (!baseUrl.endsWith('/v1') && !baseUrl.includes('v1beta')) {
       baseUrl = baseUrl.replace(/\/$/, '') + '/v1';
     }
 
     console.log(`[GeminiProxy] Using OpenAI-compatible protocol: ${baseUrl}`);
 
-    customGeminiProvider = createOpenAI({
+    customGeminiProxyProvider = createOpenAI({
       apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
       baseURL: baseUrl,
-      // @ts-ignore - 保留兼容模式以防万一
-      // @ts-ignore - 保留兼容模式以防万一
-      compatibility: 'compatible',
     });
   }
-  return customGeminiProvider;
+  return customGeminiProxyProvider;
+}
+
+function getCustomGoogleNativeProvider() {
+  if (!customGoogleNativeProvider) {
+    let baseUrl = env.GEMINI_BASE_URL || 'https://api.unendev.com/v1';
+
+    // 转换逻辑：将 /v1 (OpenAI style) 转换为 /v1beta (Google style)
+    if (baseUrl.endsWith('/v1')) {
+      baseUrl = baseUrl.replace(/\/v1$/, ''); // Remove /v1 -> https://api.unendev.com
+    }
+
+    // 确保以 /v1beta 结尾 (诊断证实这是必须的)
+    if (!baseUrl.endsWith('/v1beta')) {
+      baseUrl = baseUrl.replace(/\/$/, '') + '/v1beta';
+    }
+
+    console.log(`[GeminiProxy] Using Google Native protocol: ${baseUrl}`);
+
+    customGoogleNativeProvider = createGoogleGenerativeAI({
+      apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || '',
+      baseURL: baseUrl,
+      ...proxyConfig,
+      fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(300000) }),
+    });
+  }
+  return customGoogleNativeProvider;
 }
 
 function getDeepSeekProvider() {
@@ -74,16 +94,20 @@ export function getAIModel({ provider, modelId, enableThinking }: { provider: st
     console.log(`[AI Provider] Gemini model requested: ${effectiveModelId}`);
 
     // 路由逻辑:
-    // - gemini-2.5-flash / gemini-2.0-flash-exp -> 官方 Google 通道 (保留原样)
-    // - gemini-3-* (及其他) -> 自定义反代通道 (OpenAI 协议)
-    const useOfficialProvider = effectiveModelId.includes('gemini-2.5') || effectiveModelId.includes('gemini-2.0');
+    // 1. 官方通道: 包含 2.5 或 2.0 的模型 (如果需要保持官方 key 优先)
+    // 2. Google Native 反代: gemini-3-* (诊断证实必须走 Google Native /v1beta)
+    // 3. OpenAI 兼容反代: 其他旧模型或默认 fallback
 
-    console.log(`[AI Provider] Using ${useOfficialProvider ? 'Official Google' : 'Custom Proxy'} provider`);
+    const useOfficialProvider = effectiveModelId.includes('gemini-2.5') || effectiveModelId.includes('gemini-2.0');
+    // 根据用户需求，gemini-3 系列必须走自定义 URL 且使用 Google 协议 (诊断)
+    const useGoogleNativeProxy = effectiveModelId.startsWith('gemini-3');
 
     if (useOfficialProvider) {
+      // 官方 Google 通道 (需要 GOOGLE_AI_STUDIO_API_KEY)
+      console.log(`[AI Provider] Routing to Official Google Provider`);
       model = getGoogleProvider()(effectiveModelId);
 
-      // 官方通道的思考配置
+      // 官方 Thinking 配置
       if (enableThinking) {
         const thinkingConfig: any = { includeThoughts: true };
         if (effectiveModelId === 'gemini-2.5-flash') {
@@ -93,14 +117,25 @@ export function getAIModel({ provider, modelId, enableThinking }: { provider: st
           google: { thinkingConfig } satisfies GoogleGenerativeAIProviderOptions,
         };
       }
+
+    } else if (useGoogleNativeProxy) {
+      // Gemini 3 + 自定义 URL -> Google Native Proxy
+      console.log(`[AI Provider] Routing to Custom Google Native Proxy`);
+      model = getCustomGoogleNativeProvider()(effectiveModelId);
+
+      // Google 协议支持 Thinking (如果是 gemini-3 且支持的话)
+      if (enableThinking) {
+        providerOptions = {
+          google: { thinkingConfig: { includeThoughts: true } } satisfies GoogleGenerativeAIProviderOptions,
+        };
+      }
+
     } else {
-      // 走自定义代理
-      console.log(`[Gemini] Routing ${effectiveModelId} via Custom Proxy`);
-      model = getCustomGeminiProvider()(effectiveModelId);
-      // OpenAI 协议通常通过 standard headers 或 params 传递思考配置，
-      // 但对于 Gemini 反代，通常取决于代理实现。由于 @ai-sdk/openai 不支持 google specific options，
-      // 这里暂不传 providerOptions，除非代理支持特定的 OpenAI extension。
+      // 其他模型 -> OpenAI 兼容反代
+      console.log(`[AI Provider] Routing to Custom OpenAI Compatible Proxy`);
+      model = getOpenAICompatibleGeminiProvider()(effectiveModelId);
     }
+
   } else if (provider === 'deepseek') {
     model = getDeepSeekProvider()(effectiveModelId);
   } else {
