@@ -59,10 +59,16 @@ export function getAIModel({ provider, modelId, enableThinking }: { provider: st
   let providerOptions: any = {};
 
   if (provider === 'gemini') {
+    console.log(`[AI Provider] Gemini model requested: ${effectiveModelId}`);
+
     // 路由逻辑:
     // - gemini-2.5-flash / gemini-2.0-flash-exp -> 官方 Google 通道 (保留原样)
     // - gemini-3-* (及其他) -> 自定义反代通道 (OpenAI 协议)
-    if (effectiveModelId.includes('gemini-2.5') || effectiveModelId.includes('gemini-2.0')) {
+    const useOfficialProvider = effectiveModelId.includes('gemini-2.5') || effectiveModelId.includes('gemini-2.0');
+
+    console.log(`[AI Provider] Using ${useOfficialProvider ? 'Official Google' : 'Custom Proxy'} provider`);
+
+    if (useOfficialProvider) {
       model = getGoogleProvider()(effectiveModelId);
 
       // 官方通道的思考配置
