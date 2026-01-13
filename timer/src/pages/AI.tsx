@@ -13,21 +13,21 @@ const MODELS = [
   { id: 'deepseek-chat', name: 'DeepSeek Chat', provider: 'deepseek' },
   { id: 'deepseek-reasoner', name: 'DeepSeek R1', provider: 'deepseek' },
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini' },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro', provider: 'gemini' },
+  { id: 'gemini-3-flash', name: 'Gemini 3.0 Flash', provider: 'gemini' },
+  { id: 'gemini-3-pro-high', name: 'Gemini 3.0 Pro High', provider: 'gemini' },
 ];
 
 const ReasoningBlock = ({ content, isStreaming = false }: { content: string; isStreaming?: boolean }) => {
   const [expanded, setExpanded] = useState(isStreaming);
   const contentRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => { setExpanded(isStreaming); }, [isStreaming]);
   useEffect(() => {
     if (isStreaming && contentRef.current) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
   }, [content, isStreaming]);
-  
+
   return (
     <div className="my-1 border border-zinc-600 rounded overflow-hidden bg-zinc-800/50">
       <button
@@ -72,7 +72,7 @@ export default function AIPage() {
       // Sync server data to local storage if newer or local is empty
       const localUpdatedAt = parseInt(localStorage.getItem(AI_SESSIONS_UPDATED_KEY) || "0");
       const serverUpdatedAt = data.reduce((max, session) => Math.max(max, new Date(session.updatedAt).getTime()), 0);
-      
+
       if (!localSessions.length || serverUpdatedAt > localUpdatedAt) {
         console.log("Syncing AI sessions from server (newer version found)");
         setLocalSessions(data);
@@ -92,7 +92,7 @@ export default function AIPage() {
         combined.push(serverSession);
       }
     });
-    
+
     // Sort by updatedAt, newest first
     combined.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return combined;
@@ -139,10 +139,10 @@ export default function AIPage() {
     // Load current session messages if currentSessionId is set
     if (currentSessionId) {
       const sessionToLoad = sessions.find(s => s.id === currentSessionId);
-      
+
       const isSessionSwitch = currentSessionId !== previousSessionIdRef.current;
       const isInitialLoad = !previousSessionIdRef.current;
-      
+
       if (sessionToLoad && (isSessionSwitch || isInitialLoad)) {
         setMessages(sessionToLoad.messages || []);
         lastSavedMessagesCount.current = sessionToLoad.messages?.length || 0;
@@ -187,10 +187,10 @@ export default function AIPage() {
         }
 
         const firstUserMsg = messages.find(m => m.role === 'user');
-        const title = firstUserMsg 
+        const title = firstUserMsg
           ? ((firstUserMsg as any).content || (firstUserMsg as any).parts?.find((p: any) => p.type === 'text')?.text || '新对话').slice(0, 20)
           : '新对话';
-        
+
         const newSessionData: ChatSession = {
           id: sessionId!,
           title,
@@ -295,9 +295,9 @@ export default function AIPage() {
   const handleSubmit = () => {
     const text = inputValue.trim();
     if (!text || isLoading) return;
-    
-    sendMessage({ text }, { 
-      body: { provider: selectedModel.provider, modelId: selectedModel.id } 
+
+    sendMessage({ text }, {
+      body: { provider: selectedModel.provider, modelId: selectedModel.id }
     });
     setInputValue('');
   };
@@ -306,11 +306,11 @@ export default function AIPage() {
     if (!msg.parts) {
       return <MarkdownView content={msg.content || '...'} className="text-xs" />;
     }
-    
+
     let reasoningContent = '';
     let reasoningState: string | undefined;
     const textParts: string[] = [];
-    
+
     msg.parts.forEach((part: any) => {
       if (part.type === 'reasoning') {
         reasoningContent += part.text || '';
@@ -319,10 +319,10 @@ export default function AIPage() {
         textParts.push(part.text || '');
       }
     });
-    
+
     const isReasoningStreaming = reasoningState === 'streaming';
     const textContent = textParts.join('');
-    
+
     return (
       <>
         {reasoningContent && <ReasoningBlock content={reasoningContent} isStreaming={isReasoningStreaming} />}
@@ -367,7 +367,7 @@ export default function AIPage() {
           </button>
         </div>
       </div>
-      
+
       {showHistory && (
         <div className="border-b border-zinc-700 bg-zinc-800/80 max-h-40 overflow-y-auto">
           {sessions.length === 0 ? (
@@ -397,7 +397,7 @@ export default function AIPage() {
         </div>
       )}
 
-      <div 
+      <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-6 select-text"
@@ -407,7 +407,7 @@ export default function AIPage() {
             <p>有什么可以帮你？</p>
           </div>
         )}
-        
+
         {messages.map(msg => (
           <div key={msg.id} className="flex flex-col gap-1">
             <div className={`text-[10px] text-zinc-500 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
@@ -420,7 +420,7 @@ export default function AIPage() {
             </div>
           </div>
         ))}
-        
+
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex flex-col gap-1">
             <div className="text-[10px] text-zinc-500 text-left">AI</div>
