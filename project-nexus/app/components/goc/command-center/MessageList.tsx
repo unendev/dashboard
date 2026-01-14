@@ -143,7 +143,12 @@ export const MessageList = ({
                 ) : (
                   // 共享消息：显示内容 + 工具调用摘要
                   <div className="space-y-2">
-                    {/* Render reasoning from synced data - MOVED TO TOP */}
+                    {content && (
+                      <div className="markdown-content">
+                        <MarkdownView content={content} variant="goc" />
+                      </div>
+                    )}
+                    {/* Render reasoning from synced data */}
                     {m.reasoning && (
                       <ReasoningBlock
                         key={`reasoning-${m.id}`}
@@ -151,11 +156,6 @@ export const MessageList = ({
                         isStreaming={false} // Synced messages are always "done"
                         className="bg-zinc-800/50 border-zinc-600 text-zinc-400"
                       />
-                    )}
-                    {content && (
-                      <div className="markdown-content">
-                        <MarkdownView content={content} variant="goc" />
-                      </div>
                     )}
                     {/* 从同步数据渲染工具调用 */}
                     {toolCallsFromSync.length > 0 && (
@@ -207,28 +207,6 @@ export const MessageList = ({
           </div>
         );
       })}
-
-
-      {/* Loading / Thinking Indicator */}
-      {status === 'submitted' && (
-        <div className="flex flex-col items-center animate-pulse">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot className="w-4 h-4 text-cyan-400" />
-            <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 opacity-70">
-              NEXUS AI
-            </span>
-          </div>
-          <div className="relative max-w-[90%] p-4 rounded-xl text-sm border shadow-lg backdrop-blur-sm bg-black/40 border-cyan-500/30 text-cyan-100 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-            <div className="flex items-center gap-2 text-cyan-200/70">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0s' }}></span>
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-              <span className="ml-2 text-xs font-mono">ESTABLISHING UPLINK...</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div ref={messagesEndRef} />
     </div>
   );

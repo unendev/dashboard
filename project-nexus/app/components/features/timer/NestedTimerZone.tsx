@@ -221,20 +221,6 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
     }
   };
 
-  // ========== 完成任务（使用统一的 taskService） ==========
-  const completeTask = async (taskId: string) => {
-    try {
-      await taskService.complete(tasks, taskId, {
-        onTasksChange,
-        onOperationRecord,
-        onBeforeOperation,
-      });
-    } catch (error) {
-      console.error('Failed to complete task:', error);
-      alert(`完成失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  };
-
   // ========== 渲染 ==========
   return (
     <>
@@ -243,7 +229,6 @@ const NestedTimerZone: React.FC<NestedTimerZoneProps> = ({
         onTasksChange={onTasksChange}
         onStart={hookStartTimer}
         onPause={hookPauseTimer}
-        onComplete={completeTask}
         onDelete={deleteTimer}
         onAddSubtask={(taskId) => setShowAddChildDialog(taskId)}
         isProcessing={isProcessing}

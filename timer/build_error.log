@@ -1,0 +1,15 @@
+  鈥?electron-builder  version=25.1.8 os=10.0.26200
+  鈥?loaded configuration  file=package.json ("build" field)
+  鈥?executing @electron/rebuild  electronVersion=39.2.7 arch=x64 buildFromSource=false appDir=./
+  鈥?installing native dependencies  arch=x64
+  鈥?completed installing native dependencies
+  鈥?packaging       platform=win32 arch=x64 electron=39.2.7 appOutDir=release\win-unpacked
+  鈥?updating asar integrity executable resource  executablePath=release\win-unpacked\Timer Widget.exe
+  鈥?signing with signtool.exe  path=release\win-unpacked\Timer Widget.exe
+  鈥?no signing info identified, signing is skipped  signHook=false cscInfo=null
+  鈥?signing with signtool.exe  path=release\win-unpacked\resources\app.asar.unpacked\node_modules\@esbuild\win32-x64\esbuild.exe
+  鈥?signing with signtool.exe  path=release\win-unpacked\resources\app.asar.unpacked\node_modules\@esbuild\win32-ia32\esbuild.exe
+  鈥?signing with signtool.exe  path=release\win-unpacked\resources\app.asar.unpacked\node_modules\@esbuild\win32-arm64\esbuild.exe
+  鈥?no signing info identified, signing is skipped  signHook=false cscInfo=null
+  鈥?no signing info identified, signing is skipped  signHook=false cscInfo=null
+  鈥?no signing info identified, signing is skipped  signHook=false cscInfo=null

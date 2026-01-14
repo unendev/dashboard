@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Folder, Plus, Trash2, Check, ChevronRight, ChevronDown } from 'lucide-react';
+import { X, Folder, Plus, Trash2, Check, ChevronRight, ChevronDown, Square, CheckSquare } from 'lucide-react';
 import { Project, STORAGE_KEY_PROJECTS, STORAGE_KEY_LEGACY_TODOS } from '../lib/project-types';
 import {
     DndContext,
@@ -56,48 +56,43 @@ function SortableProjectItem({
             style={style}
             {...attributes}
             {...listeners}
-            className={`group flex items-center gap-3 px-4 py-2 border-b border-zinc-800/50 transition-colors ${isDragging ? 'bg-zinc-800 shadow-xl opacity-80' : 'hover:bg-zinc-800'} ${isCompleted ? 'opacity-60' : ''}`}
+            onClick={() => openProjectWindow(project)}
+            className={`group flex items-center gap-3 px-4 py-2 border-b border-zinc-800/50 cursor-pointer transition-colors ${isDragging ? 'bg-zinc-800 shadow-xl opacity-80' : 'hover:bg-zinc-800'} ${isCompleted ? 'opacity-50' : ''}`}
         >
-            {/* Checkbox for Status - Isolated Click Area */}
-            <div
-                className="p-1 -ml-1 cursor-pointer"
-                onClick={(e) => onToggleStatus(project.id, e)}
-                onPointerDown={(e) => e.stopPropagation()}
-            >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-600 border-emerald-600 text-zinc-950' : 'border-zinc-600 hover:border-zinc-400'}`}>
-                    {isCompleted && <Check size={10} strokeWidth={4} />}
-                </div>
-            </div>
-
-            {/* Main Content Area - Click to Open */}
-            <div
-                className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
-                onClick={() => openProjectWindow(project)}
-            >
-                <Folder size={16} className={`shrink-0 transition-colors ${isCompleted ? 'text-zinc-600' : 'text-zinc-500 group-hover:text-emerald-400'}`} />
-
-                <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="flex items-center justify-between">
-                        <span className={`text-sm truncate ${isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-300 group-hover:text-zinc-100'}`}>
-                            {project.name}
-                        </span>
-                        {!isCompleted && activeCount > 0 && (
-                            <span className="text-[10px] font-mono bg-zinc-800 text-zinc-500 px-1.5 rounded-full group-hover:bg-zinc-700 group-hover:text-zinc-300">
-                                {activeCount}
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </div>
-
             <button
-                onClick={(e) => deleteProject(project.id, e)}
-                className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1 transition-opacity cursor-pointer"
-                title="删除项目"
+                onClick={(e) => onToggleStatus(project.id, e)}
+                className={`p-1 -ml-1 rounded transition-colors ${isCompleted ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-zinc-600 hover:text-emerald-400 hover:bg-zinc-700'}`}
+                title={isCompleted ? "恢复项目" : "归档项目"}
                 onPointerDown={(e) => e.stopPropagation()}
             >
-                <Trash2 size={12} />
+                {isCompleted ? <CheckSquare size={16} /> : <Square size={16} />}
             </button>
+
+            <Folder size={14} className={`${isCompleted ? 'text-zinc-600' : 'text-zinc-500 group-hover:text-emerald-400'} shrink-0 transition-colors`} />
+
+            <div className="flex-1 min-w-0 flex flex-col">
+                <div className="flex items-center justify-between">
+                    <span className={`text-sm ${isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-300 group-hover:text-zinc-100'} truncate`}>
+                        {project.name}
+                    </span>
+                    {!isCompleted && activeCount > 0 && (
+                        <span className="text-[10px] font-mono bg-zinc-800 text-zinc-500 px-1.5 rounded-full group-hover:bg-zinc-700 group-hover:text-zinc-300">
+                            {activeCount}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={(e) => deleteProject(project.id, e)}
+                    className="text-zinc-600 hover:text-red-400 p-1 hover:bg-zinc-700 rounded transition-colors"
+                    title="删除项目"
+                    onPointerDown={(e) => e.stopPropagation()}
+                >
+                    <Trash2 size={12} />
+                </button>
+            </div>
         </div>
     );
 }
@@ -166,8 +161,6 @@ export default function ProjectListPage() {
 
     // --- Initialization & Migration ---
     useEffect(() => {
-        // Poll for changes to keep list updated if changed in other windows?
-        // For now, load once. Ideally use event listener on storage.
         const loadProjects = () => {
             const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS);
             let loadedProjects: Project[] = [];
@@ -211,13 +204,11 @@ export default function ProjectListPage() {
                     }
                 }
             }
-            // Sort by update time? Or just initial load order.
             setProjects(loadedProjects);
         };
 
         loadProjects();
 
-        // Listen for storage events (if modified in detail window)
         const handleStorage = (e: StorageEvent) => {
             if (e.key === STORAGE_KEY_PROJECTS) {
                 loadProjects();
@@ -250,7 +241,6 @@ export default function ProjectListPage() {
         saveProjects([newProject, ...projects]);
         setCreateName('');
         setCreateGroup('');
-        // Immediately open the window
         openProjectWindow(newProject);
     };
 
@@ -263,16 +253,20 @@ export default function ProjectListPage() {
 
     const toggleProjectStatus = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        saveProjects(projects.map(p => {
+        const newProjects = projects.map(p => {
             if (p.id === id) {
-                return { ...p, status: p.status === 'completed' ? 'active' : 'completed' };
+                return {
+                    ...p,
+                    status: p.status === 'completed' ? 'active' as const : 'completed' as const,
+                    updatedAt: Date.now()
+                };
             }
             return p;
-        }));
+        });
+        saveProjects(newProjects);
     };
 
     const openProjectWindow = (p: Project) => {
-        // IPC call
         // @ts-ignore
         window.electron?.send('open-project-window', { projectId: p.id, title: p.name });
     };
@@ -293,32 +287,11 @@ export default function ProjectListPage() {
         const { active, over } = event;
         if (!over) return;
 
-        // Check if dragging a Group
-        if (active.data.current?.type === 'group') {
-            const activeId = active.id as string;
-            const overId = over.id as string;
-
-            if (activeId !== overId) {
-                const uniqueGroups = Array.from(new Set([...(projectGroupOrder || []), ...Object.keys(activeGroupedProjects)]));
-                const oldIndex = uniqueGroups.indexOf(activeId);
-                const newIndex = uniqueGroups.indexOf(overId);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    const newOrder = arrayMove(uniqueGroups, oldIndex, newIndex);
-                    setProjectGroupOrder(newOrder);
-                    localStorage.setItem('project-group-order-v1', JSON.stringify(newOrder));
-                }
-            }
-            return;
-        }
-
-        // Dragging a Project
         if (active.id !== over.id) {
             setProjects((items) => {
                 const oldIndex = items.findIndex(i => i.id === active.id);
                 const newIndex = items.findIndex(i => i.id === over.id);
                 const newItems = arrayMove(items, oldIndex, newIndex);
-                // Persist order
                 const projectsWithOrder = newItems.map((p, index) => ({ ...p, order: index }));
                 localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projectsWithOrder));
                 return projectsWithOrder;
@@ -326,11 +299,11 @@ export default function ProjectListPage() {
         }
     };
 
-    // Filter Logic
-    const activeProjects = projects.filter(p => p.status !== 'completed' && p.status !== 'archived');
+    // Grouping Logic
+    const activeProjects = projects.filter(p => p.status !== 'completed');
     const completedProjects = projects.filter(p => p.status === 'completed');
 
-    const activeGroupedProjects = activeProjects.reduce((acc, project) => {
+    const groupedProjects = activeProjects.reduce((acc, project) => {
         const group = project.group || 'Ungrouped';
         if (!acc[group]) acc[group] = [];
         acc[group].push(project);
@@ -347,8 +320,7 @@ export default function ProjectListPage() {
         }
     }, []);
 
-    const sortedGroups = Object.keys(activeGroupedProjects).sort((a, b) => {
-        // Prioritize saved order
+    const sortedGroups = Object.keys(groupedProjects).sort((a, b) => {
         if (projectGroupOrder.length > 0) {
             const indexA = projectGroupOrder.indexOf(a);
             const indexB = projectGroupOrder.indexOf(b);
@@ -378,10 +350,10 @@ export default function ProjectListPage() {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-0 flex flex-col">
                 <div className="flex-1">
-                    {activeProjects.length === 0 && completedProjects.length === 0 ? (
+                    {activeProjects.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-40 text-zinc-600 gap-2">
                             <Folder size={24} />
-                            <span className="text-xs">无项目</span>
+                            <span className="text-xs">无进行中的项目</span>
                         </div>
                     ) : (
                         <div className="flex flex-col pb-2">
@@ -395,7 +367,7 @@ export default function ProjectListPage() {
                                         <SortableProjectGroup
                                             key={group}
                                             group={group}
-                                            projects={activeGroupedProjects[group]}
+                                            projects={groupedProjects[group]}
                                             openProjectWindow={openProjectWindow}
                                             deleteProject={deleteProject}
                                             onToggleStatus={toggleProjectStatus}
@@ -403,30 +375,33 @@ export default function ProjectListPage() {
                                     ))}
                                 </SortableContext>
                             </DndContext>
+                        </div>
+                    )}
 
-                            {/* Completed Projects Section */}
-                            {completedProjects.length > 0 && (
-                                <div className="mt-4 border-t border-zinc-800/50">
-                                    <div
-                                        onClick={() => setShowCompleted(!showCompleted)}
-                                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-zinc-500 uppercase tracking-widest cursor-pointer hover:bg-zinc-800/50 transition-colors"
-                                    >
-                                        {showCompleted ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                        Completed ({completedProjects.length})
-                                    </div>
-                                    {showCompleted && (
-                                        <div className="opacity-70 bg-zinc-900/30">
-                                            {completedProjects.map(p => (
-                                                <SortableProjectItem
-                                                    key={p.id}
-                                                    project={p}
-                                                    openProjectWindow={openProjectWindow}
-                                                    deleteProject={deleteProject}
-                                                    onToggleStatus={toggleProjectStatus}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
+                    {/* Completed Projects Section */}
+                    {completedProjects.length > 0 && (
+                        <div className="mt-4 border-t border-zinc-800/50">
+                            <button
+                                onClick={() => setShowCompleted(!showCompleted)}
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors"
+                            >
+                                <div className="flex items-center gap-2 text-zinc-500">
+                                    {showCompleted ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    <span className="text-[10px] uppercase tracking-widest font-bold">已完成项目 ({completedProjects.length})</span>
+                                </div>
+                            </button>
+
+                            {showCompleted && (
+                                <div className="pb-4">
+                                    {completedProjects.map(p => (
+                                        <SortableProjectItem
+                                            key={p.id}
+                                            project={p}
+                                            openProjectWindow={openProjectWindow}
+                                            deleteProject={deleteProject}
+                                            onToggleStatus={toggleProjectStatus}
+                                        />
+                                    ))}
                                 </div>
                             )}
                         </div>

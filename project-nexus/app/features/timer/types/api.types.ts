@@ -38,7 +38,6 @@ export interface UpdateTaskRequest {
   instanceTag?: string | null;
   order?: number;
   initialTime?: number;
-  completedAt?: number | null;
 }
 
 /**

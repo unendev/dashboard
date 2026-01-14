@@ -38,8 +38,6 @@ interface TimerTaskProps {
   onToggleCollapse?: (taskId: string) => void;
   /** 计算当前显示时间的函数 */
   getCurrentDisplayTime?: (task: Task) => number;
-  /** 完成任务回调 */
-  onComplete?: (taskId: string) => void;
 }
 
 /**
@@ -105,7 +103,6 @@ export function TimerTask({
   collapsedTasks: externalCollapsedTasks,
   onToggleCollapse: externalOnToggleCollapse,
   getCurrentDisplayTime = defaultGetCurrentDisplayTime,
-  onComplete,
 }: TimerTaskProps) {
   // 本地折叠状态（如果外部没有提供）
   const [localCollapsedTasks, setLocalCollapsedTasks] = useState<Set<string>>(new Set());
@@ -308,7 +305,6 @@ export function TimerTask({
               onAddSubtask={onAddSubtask}
               isProcessing={isProcessing}
               hasInstanceTag={!!hasInstanceTag}
-              onComplete={onComplete}
             />
           </div>
         </CardContent>
@@ -330,7 +326,6 @@ export function TimerTask({
               collapsedTasks={collapsedTasks}
               onToggleCollapse={onToggleCollapse}
               getCurrentDisplayTime={getCurrentDisplayTime}
-              onComplete={onComplete}
             />
           ))}
         </div>
