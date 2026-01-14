@@ -228,7 +228,7 @@ export function useGocChat() {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const inputValue = inputRef.current?.value || '';
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim()) return;
 
     // --- Context Management Strategy ---
     const MAX_MESSAGES_BEFORE_COMPRESSION = 20;
@@ -276,6 +276,11 @@ export function useGocChat() {
     const trimmedInput = inputValue.trim();
     const hasAIPrefix = trimmedInput.startsWith('@AI') || trimmedInput.startsWith('@ai');
     const shouldSendToAI = (aiModeEnabled && isAiConfigured) || hasAIPrefix;
+
+    // 如果要发给 AI，但 AI 正在处理中，则阻止发送
+    if (shouldSendToAI && isLoading) {
+      return;
+    }
 
     if (!shouldSendToAI) {
       const playerMsg: SharedMessage = {
