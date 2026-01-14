@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Folder, Plus, Trash2, CheckSquare } from 'lucide-react';
+import { X, Folder, Plus, Trash2, Check, ChevronRight, ChevronDown } from 'lucide-react';
 import { Project, STORAGE_KEY_PROJECTS, STORAGE_KEY_LEGACY_TODOS } from '../lib/project-types';
 import {
     DndContext,
@@ -20,7 +20,17 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // --- Sortable Item Component ---
-function SortableProjectItem({ project, openProjectWindow, deleteProject }: { project: Project, openProjectWindow: (p: Project) => void, deleteProject: (id: string, e: React.MouseEvent) => void }) {
+function SortableProjectItem({
+    project,
+    openProjectWindow,
+    deleteProject,
+    onToggleStatus
+}: {
+    project: Project,
+    openProjectWindow: (p: Project) => void,
+    deleteProject: (id: string, e: React.MouseEvent) => void,
+    onToggleStatus: (id: string, e: React.MouseEvent) => void
+}) {
     const {
         attributes,
         listeners,
@@ -38,6 +48,7 @@ function SortableProjectItem({ project, openProjectWindow, deleteProject }: { pr
     };
 
     const activeCount = project.todos.filter(t => !t.completed).length;
+    const isCompleted = project.status === 'completed';
 
     return (
         <div
@@ -46,14 +57,25 @@ function SortableProjectItem({ project, openProjectWindow, deleteProject }: { pr
             {...attributes}
             {...listeners}
             onClick={() => openProjectWindow(project)}
-            className={`group flex items-center gap-3 px-4 py-2 border-b border-zinc-800/50 cursor-pointer transition-colors ${isDragging ? 'bg-zinc-800 shadow-xl opacity-80' : 'hover:bg-zinc-800'}`}
+            className={`group flex items-center gap-3 px-4 py-2 border-b border-zinc-800/50 cursor-pointer transition-colors ${isDragging ? 'bg-zinc-800 shadow-xl opacity-80' : 'hover:bg-zinc-800'} ${isCompleted ? 'opacity-60' : ''}`}
         >
-            <Folder size={16} className="text-zinc-500 group-hover:text-emerald-400 shrink-0 transition-colors" />
+            {/* Checkbox for Status */}
+            <button
+                onClick={(e) => onToggleStatus(project.id, e)}
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-600 border-emerald-600 text-zinc-950' : 'border-zinc-600 hover:border-zinc-400'}`}
+                onPointerDown={(e) => e.stopPropagation()}
+            >
+                {isCompleted && <Check size={10} strokeWidth={4} />}
+            </button>
+
+            <Folder size={16} className={`shrink-0 transition-colors ${isCompleted ? 'text-zinc-600' : 'text-zinc-500 group-hover:text-emerald-400'}`} />
 
             <div className="flex-1 min-w-0 flex flex-col">
                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-300 group-hover:text-zinc-100 truncate">{project.name}</span>
-                    {activeCount > 0 && (
+                    <span className={`text-sm truncate ${isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-300 group-hover:text-zinc-100'}`}>
+                        {project.name}
+                    </span>
+                    {!isCompleted && activeCount > 0 && (
                         <span className="text-[10px] font-mono bg-zinc-800 text-zinc-500 px-1.5 rounded-full group-hover:bg-zinc-700 group-hover:text-zinc-300">
                             {activeCount}
                         </span>
@@ -73,11 +95,12 @@ function SortableProjectItem({ project, openProjectWindow, deleteProject }: { pr
     );
 }
 
-function SortableProjectGroup({ group, projects, openProjectWindow, deleteProject }: {
+function SortableProjectGroup({ group, projects, openProjectWindow, deleteProject, onToggleStatus }: {
     group: string,
     projects: Project[],
     openProjectWindow: (p: Project) => void,
-    deleteProject: (id: string, e: React.MouseEvent) => void
+    deleteProject: (id: string, e: React.MouseEvent) => void,
+    onToggleStatus: (id: string, e: React.MouseEvent) => void
 }) {
     const {
         attributes,
