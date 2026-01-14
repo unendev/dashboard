@@ -56,36 +56,43 @@ function SortableProjectItem({
             style={style}
             {...attributes}
             {...listeners}
-            onClick={() => openProjectWindow(project)}
-            className={`group flex items-center gap-3 px-4 py-2 border-b border-zinc-800/50 cursor-pointer transition-colors ${isDragging ? 'bg-zinc-800 shadow-xl opacity-80' : 'hover:bg-zinc-800'} ${isCompleted ? 'opacity-60' : ''}`}
+            className={`group flex items-center gap-3 px-4 py-2 border-b border-zinc-800/50 transition-colors ${isDragging ? 'bg-zinc-800 shadow-xl opacity-80' : 'hover:bg-zinc-800'} ${isCompleted ? 'opacity-60' : ''}`}
         >
-            {/* Checkbox for Status */}
-            <button
+            {/* Checkbox for Status - Isolated Click Area */}
+            <div
+                className="p-1 -ml-1 cursor-pointer"
                 onClick={(e) => onToggleStatus(project.id, e)}
-                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-600 border-emerald-600 text-zinc-950' : 'border-zinc-600 hover:border-zinc-400'}`}
                 onPointerDown={(e) => e.stopPropagation()}
             >
-                {isCompleted && <Check size={10} strokeWidth={4} />}
-            </button>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-600 border-emerald-600 text-zinc-950' : 'border-zinc-600 hover:border-zinc-400'}`}>
+                    {isCompleted && <Check size={10} strokeWidth={4} />}
+                </div>
+            </div>
 
-            <Folder size={16} className={`shrink-0 transition-colors ${isCompleted ? 'text-zinc-600' : 'text-zinc-500 group-hover:text-emerald-400'}`} />
+            {/* Main Content Area - Click to Open */}
+            <div
+                className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
+                onClick={() => openProjectWindow(project)}
+            >
+                <Folder size={16} className={`shrink-0 transition-colors ${isCompleted ? 'text-zinc-600' : 'text-zinc-500 group-hover:text-emerald-400'}`} />
 
-            <div className="flex-1 min-w-0 flex flex-col">
-                <div className="flex items-center justify-between">
-                    <span className={`text-sm truncate ${isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-300 group-hover:text-zinc-100'}`}>
-                        {project.name}
-                    </span>
-                    {!isCompleted && activeCount > 0 && (
-                        <span className="text-[10px] font-mono bg-zinc-800 text-zinc-500 px-1.5 rounded-full group-hover:bg-zinc-700 group-hover:text-zinc-300">
-                            {activeCount}
+                <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="flex items-center justify-between">
+                        <span className={`text-sm truncate ${isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-300 group-hover:text-zinc-100'}`}>
+                            {project.name}
                         </span>
-                    )}
+                        {!isCompleted && activeCount > 0 && (
+                            <span className="text-[10px] font-mono bg-zinc-800 text-zinc-500 px-1.5 rounded-full group-hover:bg-zinc-700 group-hover:text-zinc-300">
+                                {activeCount}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
             <button
                 onClick={(e) => deleteProject(project.id, e)}
-                className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1 transition-opacity"
+                className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1 transition-opacity cursor-pointer"
                 title="删除项目"
                 onPointerDown={(e) => e.stopPropagation()}
             >
@@ -143,6 +150,7 @@ function SortableProjectGroup({ group, projects, openProjectWindow, deleteProjec
                         project={p}
                         openProjectWindow={openProjectWindow}
                         deleteProject={deleteProject}
+                        onToggleStatus={onToggleStatus}
                     />
                 ))}
             </SortableContext>
@@ -153,8 +161,8 @@ function SortableProjectGroup({ group, projects, openProjectWindow, deleteProjec
 export default function ProjectListPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [createName, setCreateName] = useState('');
-
     const [createGroup, setCreateGroup] = useState('');
+    const [showCompleted, setShowCompleted] = useState(false);
 
     // --- Initialization & Migration ---
     useEffect(() => {
@@ -253,6 +261,16 @@ export default function ProjectListPage() {
         }
     };
 
+    const toggleProjectStatus = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        saveProjects(projects.map(p => {
+            if (p.id === id) {
+                return { ...p, status: p.status === 'completed' ? 'active' : 'completed' };
+            }
+            return p;
+        }));
+    };
+
     const openProjectWindow = (p: Project) => {
         // IPC call
         // @ts-ignore
@@ -281,7 +299,7 @@ export default function ProjectListPage() {
             const overId = over.id as string;
 
             if (activeId !== overId) {
-                const uniqueGroups = Array.from(new Set([...(projectGroupOrder || []), ...Object.keys(groupedProjects)]));
+                const uniqueGroups = Array.from(new Set([...(projectGroupOrder || []), ...Object.keys(activeGroupedProjects)]));
                 const oldIndex = uniqueGroups.indexOf(activeId);
                 const newIndex = uniqueGroups.indexOf(overId);
 
@@ -308,8 +326,11 @@ export default function ProjectListPage() {
         }
     };
 
-    // Grouping Logic
-    const groupedProjects = projects.reduce((acc, project) => {
+    // Filter Logic
+    const activeProjects = projects.filter(p => p.status !== 'completed' && p.status !== 'archived');
+    const completedProjects = projects.filter(p => p.status === 'completed');
+
+    const activeGroupedProjects = activeProjects.reduce((acc, project) => {
         const group = project.group || 'Ungrouped';
         if (!acc[group]) acc[group] = [];
         acc[group].push(project);
@@ -326,7 +347,7 @@ export default function ProjectListPage() {
         }
     }, []);
 
-    const sortedGroups = Object.keys(groupedProjects).sort((a, b) => {
+    const sortedGroups = Object.keys(activeGroupedProjects).sort((a, b) => {
         // Prioritize saved order
         if (projectGroupOrder.length > 0) {
             const indexA = projectGroupOrder.indexOf(a);
@@ -357,7 +378,7 @@ export default function ProjectListPage() {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-0 flex flex-col">
                 <div className="flex-1">
-                    {projects.length === 0 ? (
+                    {activeProjects.length === 0 && completedProjects.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-40 text-zinc-600 gap-2">
                             <Folder size={24} />
                             <span className="text-xs">无项目</span>
@@ -374,13 +395,40 @@ export default function ProjectListPage() {
                                         <SortableProjectGroup
                                             key={group}
                                             group={group}
-                                            projects={groupedProjects[group]}
+                                            projects={activeGroupedProjects[group]}
                                             openProjectWindow={openProjectWindow}
                                             deleteProject={deleteProject}
+                                            onToggleStatus={toggleProjectStatus}
                                         />
                                     ))}
                                 </SortableContext>
                             </DndContext>
+
+                            {/* Completed Projects Section */}
+                            {completedProjects.length > 0 && (
+                                <div className="mt-4 border-t border-zinc-800/50">
+                                    <div
+                                        onClick={() => setShowCompleted(!showCompleted)}
+                                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-zinc-500 uppercase tracking-widest cursor-pointer hover:bg-zinc-800/50 transition-colors"
+                                    >
+                                        {showCompleted ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        Completed ({completedProjects.length})
+                                    </div>
+                                    {showCompleted && (
+                                        <div className="opacity-70 bg-zinc-900/30">
+                                            {completedProjects.map(p => (
+                                                <SortableProjectItem
+                                                    key={p.id}
+                                                    project={p}
+                                                    openProjectWindow={openProjectWindow}
+                                                    deleteProject={deleteProject}
+                                                    onToggleStatus={toggleProjectStatus}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
