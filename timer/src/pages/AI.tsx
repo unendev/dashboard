@@ -438,7 +438,7 @@ export default function AIPage() {
           <input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && handleSubmit()}
             placeholder="输入问题..."
             className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-zinc-600"
             disabled={isLoading}

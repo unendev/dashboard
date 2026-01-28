@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Folder, Plus, Trash2, Check, ChevronRight, ChevronDown, Square, CheckSquare } from 'lucide-react';
+import { X, Folder, Plus, Trash2, Check, ChevronRight, ChevronDown, Square, CheckSquare, List, Layout } from 'lucide-react';
 import { Project, STORAGE_KEY_PROJECTS, STORAGE_KEY_LEGACY_TODOS } from '../lib/project-types';
 import {
     DndContext,
@@ -8,7 +8,8 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    DragEndEvent
+    DragEndEvent,
+    DragOverEvent
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -38,7 +39,13 @@ function SortableProjectItem({
         transform,
         transition,
         isDragging
-    } = useSortable({ id: project.id });
+    } = useSortable({ 
+        id: project.id,
+        data: { 
+            type: 'project', 
+            group: project.group || 'Ungrouped' 
+        } 
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -111,7 +118,13 @@ function SortableProjectGroup({ group, projects, openProjectWindow, deleteProjec
         transform,
         transition,
         isDragging
-    } = useSortable({ id: group, data: { type: 'group' } });
+    } = useSortable({ 
+        id: group, 
+        data: { 
+            type: 'group',
+            group 
+        } 
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -139,15 +152,17 @@ function SortableProjectGroup({ group, projects, openProjectWindow, deleteProjec
                 items={projects.map(p => p.id)}
                 strategy={verticalListSortingStrategy}
             >
-                {projects.map(p => (
-                    <SortableProjectItem
-                        key={p.id}
-                        project={p}
-                        openProjectWindow={openProjectWindow}
-                        deleteProject={deleteProject}
-                        onToggleStatus={onToggleStatus}
-                    />
-                ))}
+                <div className="min-h-[20px]">
+                    {projects.map(p => (
+                        <SortableProjectItem
+                            key={p.id}
+                            project={p}
+                            openProjectWindow={openProjectWindow}
+                            deleteProject={deleteProject}
+                            onToggleStatus={onToggleStatus}
+                        />
+                    ))}
+                </div>
             </SortableContext>
         </div>
     );
@@ -158,6 +173,14 @@ export default function ProjectListPage() {
     const [createName, setCreateName] = useState('');
     const [createGroup, setCreateGroup] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
+    const [isGrouped, setIsGrouped] = useState(() => {
+        const saved = localStorage.getItem('project-list-grouped');
+        return saved ? saved === 'true' : true;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('project-list-grouped', String(isGrouped));
+    }, [isGrouped]);
 
     // --- Initialization & Migration ---
     useEffect(() => {
@@ -283,19 +306,80 @@ export default function ProjectListPage() {
         })
     );
 
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+        if (!over) return;
+
+        const activeId = active.id;
+        const overId = over.id;
+
+        if (activeId === overId) return;
+
+        const activeData = active.data.current;
+        const overData = over.data.current;
+
+        if (!activeData || activeData.type !== 'project') return;
+
+        // Find target group
+        let newGroup: string | undefined;
+        if (overData?.type === 'group') {
+            newGroup = overData.group;
+        } else if (overData?.type === 'project') {
+            newGroup = overData.group;
+        }
+
+        if (newGroup === 'Ungrouped') newGroup = undefined;
+
+        const activeProject = projects.find(p => p.id === activeId);
+        if (activeProject && activeProject.group !== newGroup) {
+            setProjects(prev => {
+                const newProjects = prev.map(p =>
+                    p.id === activeId ? { ...p, group: newGroup, updatedAt: Date.now() } : p
+                );
+                return newProjects;
+            });
+        }
+    };
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!over) return;
 
+        const activeData = active.data.current;
+        const overData = over.data.current;
+
         if (active.id !== over.id) {
-            setProjects((items) => {
-                const oldIndex = items.findIndex(i => i.id === active.id);
-                const newIndex = items.findIndex(i => i.id === over.id);
-                const newItems = arrayMove(items, oldIndex, newIndex);
-                const projectsWithOrder = newItems.map((p, index) => ({ ...p, order: index }));
-                localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projectsWithOrder));
-                return projectsWithOrder;
-            });
+            if (activeData?.type === 'group' && overData?.type === 'group') {
+                // Handle Group Reordering
+                setProjectGroupOrder((items) => {
+                    const currentOrder = items.length > 0 ? items : sortedGroups;
+                    const oldIndex = currentOrder.indexOf(active.id as string);
+                    const newIndex = currentOrder.indexOf(over.id as string);
+                    
+                    if (oldIndex === -1 || newIndex === -1) return items;
+                    
+                    const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+                    localStorage.setItem('project-group-order-v1', JSON.stringify(newOrder));
+                    return newOrder;
+                });
+            } else if (activeData?.type === 'project') {
+                // Handle Project Reordering
+                setProjects((items) => {
+                    const oldIndex = items.findIndex(i => i.id === active.id);
+                    const newIndex = items.findIndex(i => i.id === over.id);
+                    if (oldIndex === -1 || newIndex === -1) return items;
+                    
+                    const newItems = arrayMove(items, oldIndex, newIndex);
+                    const projectsWithOrder = newItems.map((p, index) => ({ ...p, order: index }));
+                    localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projectsWithOrder));
+                    return projectsWithOrder;
+                });
+            }
+        } else {
+            // Save current state if handleDragOver changed the group
+            if (activeData?.type === 'project') {
+                localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projects));
+            }
         }
     };
 
@@ -337,7 +421,15 @@ export default function ProjectListPage() {
         <div className="flex flex-col h-screen w-full bg-zinc-900 text-zinc-100 select-none overflow-hidden font-sans">
             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-900 shrink-0" data-drag="true">
                 <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Projects</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setIsGrouped(!isGrouped)}
+                        className={`p-1 rounded transition-colors ${isGrouped ? 'text-emerald-500 bg-emerald-500/10' : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800'}`}
+                        title={isGrouped ? "切换到平铺视图" : "切换到分组视图"}
+                        data-drag="false"
+                    >
+                        {isGrouped ? <Layout size={14} /> : <List size={14} />}
+                    </button>
                     <button
                         onClick={() => window.close()}
                         className="p-1 text-zinc-600 hover:text-white hover:bg-red-500/20 rounded transition-colors"
@@ -357,24 +449,45 @@ export default function ProjectListPage() {
                         </div>
                     ) : (
                         <div className="flex flex-col pb-2">
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext items={sortedGroups} strategy={verticalListSortingStrategy}>
-                                    {sortedGroups.map(group => (
-                                        <SortableProjectGroup
-                                            key={group}
-                                            group={group}
-                                            projects={groupedProjects[group]}
-                                            openProjectWindow={openProjectWindow}
-                                            deleteProject={deleteProject}
-                                            onToggleStatus={toggleProjectStatus}
-                                        />
-                                    ))}
-                                </SortableContext>
-                            </DndContext>
+                            {isGrouped ? (
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragOver={handleDragOver}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <SortableContext items={sortedGroups} strategy={verticalListSortingStrategy}>
+                                        {sortedGroups.map(group => (
+                                            <SortableProjectGroup
+                                                key={group}
+                                                group={group}
+                                                projects={groupedProjects[group]}
+                                                openProjectWindow={openProjectWindow}
+                                                deleteProject={deleteProject}
+                                                onToggleStatus={toggleProjectStatus}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
+                            ) : (
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <SortableContext items={activeProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                                        {activeProjects.map(p => (
+                                            <SortableProjectItem
+                                                key={p.id}
+                                                project={p}
+                                                openProjectWindow={openProjectWindow}
+                                                deleteProject={deleteProject}
+                                                onToggleStatus={toggleProjectStatus}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
+                            )}
                         </div>
                     )}
 
@@ -417,7 +530,7 @@ export default function ProjectListPage() {
                         <input
                             value={createName}
                             onChange={(e) => setCreateName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleCreate()}
                             className="bg-transparent border-none text-xs text-zinc-200 w-full py-1.5 focus:outline-none placeholder:text-zinc-600"
                             placeholder="New Project..."
                         />
@@ -425,7 +538,7 @@ export default function ProjectListPage() {
                         <input
                             value={createGroup}
                             onChange={(e) => setCreateGroup(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleCreate()}
                             className="bg-transparent border-none text-[10px] text-zinc-400 w-16 py-1.5 focus:outline-none placeholder:text-zinc-600 text-center"
                             placeholder="Group"
                         />

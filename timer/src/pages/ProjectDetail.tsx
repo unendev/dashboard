@@ -358,7 +358,7 @@ export default function ProjectDetail() {
                             value={titleInput}
                             onChange={e => setTitleInput(e.target.value)}
                             onBlur={handleTitleSave}
-                            onKeyDown={e => e.key === 'Enter' && handleTitleSave()}
+                            onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && handleTitleSave()}
                             className="text-sm font-bold text-zinc-200 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 w-full focus:outline-none focus:border-emerald-500"
                             autoFocus
                             data-drag="false"
@@ -497,7 +497,7 @@ export default function ProjectDetail() {
                             <input
                                 value={todoInput}
                                 onChange={(e) => setTodoInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+                                onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && addTodo()}
                                 placeholder="+ 添加新任务..."
                                 className="flex-1 bg-transparent border-none px-3 py-2 text-sm text-zinc-100 focus:outline-none placeholder:text-zinc-500"
                                 autoFocus
@@ -506,7 +506,7 @@ export default function ProjectDetail() {
                             <input
                                 value={todoGroupInput}
                                 onChange={(e) => setTodoGroupInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+                                onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && addTodo()}
                                 placeholder="Group"
                                 className="w-20 bg-transparent border-none py-2 text-xs text-zinc-200 text-center focus:outline-none placeholder:text-zinc-500"
                             />
@@ -549,7 +549,7 @@ export default function ProjectDetail() {
                         <input
                             value={progressInput}
                             onChange={(e) => setProgressInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && addProgress()}
+                            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && addProgress()}
                             placeholder="记录今天的进展..."
                             className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-700 placeholder:text-zinc-700"
                         />

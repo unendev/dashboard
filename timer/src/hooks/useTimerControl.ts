@@ -103,6 +103,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
 
     try {
       const currentTime = Math.floor(Date.now() / 1000);
+      const nowISO = new Date().toISOString(); // 用于本地排序刷新
 
       const runningTaskIds = new Set(runningTasks.map(t => t.id));
       const updatedTasks = updateTasksRecursive(tasks, (task) => {
@@ -114,7 +115,8 @@ export function useTimerControl(options: UseTimerControlOptions) {
             isPaused: true,
             elapsedTime: task.elapsedTime + runningTime,
             startTime: null,
-            pausedTime: 0
+            pausedTime: 0,
+            updatedAt: nowISO // 关键：更新时间戳，确保排序靠前
           };
         }
         if (task.id === taskId) {
@@ -123,7 +125,8 @@ export function useTimerControl(options: UseTimerControlOptions) {
             isRunning: true,
             isPaused: false,
             startTime: currentTime,
-            pausedTime: 0
+            pausedTime: 0,
+            updatedAt: nowISO
           };
         }
         return task;
@@ -181,7 +184,8 @@ export function useTimerControl(options: UseTimerControlOptions) {
                 isPaused: true,
                 isRunning: false,
                 startTime: null,
-                pausedTime: 0
+                pausedTime: 0,
+                updatedAt: updatedPausedTask.updatedAt || nowISO // 使用服务器返回的最新时间
               };
             }
             return task;
@@ -224,7 +228,8 @@ export function useTimerControl(options: UseTimerControlOptions) {
             isRunning: true,
             startTime: currentTime,
             isPaused: false,
-            pausedTime: 0
+            pausedTime: 0,
+            updatedAt: updatedTask.updatedAt || nowISO
           };
         }
         return task;
@@ -253,6 +258,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
 
     try {
       const currentTime = Math.floor(Date.now() / 1000);
+      const nowISO = new Date().toISOString();
       const runningTime = targetTask.startTime ? currentTime - targetTask.startTime : 0;
 
       console.log('⏸️ [useTimerControl] Pausing Task:', {
@@ -269,7 +275,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
 
       const updatedTasks = updateTasksRecursive(tasks, (task) =>
         task.id === taskId
-          ? { ...task, elapsedTime: newElapsedTime, isPaused: true, isRunning: false, startTime: null, pausedTime: 0 }
+          ? { ...task, elapsedTime: newElapsedTime, isPaused: true, isRunning: false, startTime: null, pausedTime: 0, updatedAt: nowISO }
           : task
       );
       onTasksChange(updatedTasks);
@@ -304,7 +310,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
 
         const finalTasks = updateTasksRecursive(updatedTasks, (task) =>
           task.id === taskId
-            ? { ...task, version: updatedTask.version, elapsedTime: finalElapsedTime }
+            ? { ...task, version: updatedTask.version, elapsedTime: finalElapsedTime, updatedAt: updatedTask.updatedAt || nowISO }
             : task
         );
         onTasksChange(finalTasks);
@@ -330,13 +336,14 @@ export function useTimerControl(options: UseTimerControlOptions) {
 
     try {
       const currentTime = Math.floor(Date.now() / 1000);
+      const nowISO = new Date().toISOString();
       const runningTime = targetTask.startTime ? currentTime - targetTask.startTime : 0;
       const newElapsedTime = targetTask.elapsedTime + runningTime;
       const deviceId = getDeviceId();
 
       const updatedTasks = updateTasksRecursive(tasks, (task) =>
         task.id === taskId
-          ? { ...task, elapsedTime: newElapsedTime, isRunning: false, isPaused: false, startTime: null, pausedTime: 0, completedAt: currentTime }
+          ? { ...task, elapsedTime: newElapsedTime, isRunning: false, isPaused: false, startTime: null, pausedTime: 0, completedAt: currentTime, updatedAt: nowISO }
           : task
       );
       onTasksChange(updatedTasks);
@@ -366,7 +373,7 @@ export function useTimerControl(options: UseTimerControlOptions) {
         const updatedTask = await response.json();
         const finalTasks = updateTasksRecursive(updatedTasks, (task) =>
           task.id === taskId
-            ? { ...task, version: updatedTask.version }
+            ? { ...task, version: updatedTask.version, updatedAt: updatedTask.updatedAt || nowISO }
             : task
         );
         onTasksChange(finalTasks);

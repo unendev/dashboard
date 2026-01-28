@@ -145,6 +145,7 @@ export default function TimerPage() {
     };
 
     // 立即更新 UI，让用户感觉到“秒开”
+    console.log('[Timer] Applying optimistic update for:', taskData.name);
     await mutateTasks((currentTasks) => {
       const current = currentTasks || [];
       // 递归停止所有正在运行的任务
@@ -193,6 +194,7 @@ export default function TimerPage() {
         parentId: taskData.parentId || null,
       };
 
+      console.log('[Timer] Sending POST request to create task...');
       const createResponse = await fetch(getApiUrl('/api/timer-tasks'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,11 +203,14 @@ export default function TimerPage() {
       });
 
       if (!createResponse.ok) {
-        throw new Error(await createResponse.text());
+        const errorText = await createResponse.text();
+        console.error('[Timer] Task creation failed. Status:', createResponse.status, 'Body:', errorText);
+        throw new Error(errorText);
       } else {
-        console.log('[Timer] Task created successfully');
+        console.log('[Timer] Task created successfully. Triggering revalidation.');
         localStorage.removeItem('widget-pending-task'); // 同步成功，移除备份
-        mutateTasks(); // 重新验证，获取真实 ID
+        await mutateTasks(); // 重新验证，获取真实 ID
+        console.log('[Timer] Revalidation complete.');
       }
     } catch (err) {
       console.error('[Timer] Error processing start-task:', err);
@@ -320,6 +325,38 @@ export default function TimerPage() {
     return () => clearInterval(interval);
   }, [activeTask]);
 
+  // 右键备份处理
+  const handleBackup = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!window.electron) return;
+
+    // 1. 收集 localStorage 数据
+    const backupData: Record<string, any> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        // 过滤掉 AI 聊天记录等大数据 (根据前缀或特定 key)
+        if (key.startsWith('chat-history-') || key.startsWith('ai-chat-')) continue;
+        
+        try {
+          const val = localStorage.getItem(key);
+          backupData[key] = val ? JSON.parse(val) : null;
+        } catch (e) {
+          backupData[key] = localStorage.getItem(key);
+        }
+      }
+    }
+
+    // 2. 发送到主进程进行保存和推送
+    console.log('[Timer] Triggering backup-and-push');
+    window.electron.send('backup-and-push', backupData);
+    
+    // 视觉反馈：按钮闪烁一下
+    const btn = e.currentTarget as HTMLElement;
+    btn.style.opacity = '0.5';
+    setTimeout(() => btn.style.opacity = '1', 200);
+  }, []);
+
   // 右键菜单处理
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -411,8 +448,9 @@ export default function TimerPage() {
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); activeTask.isPaused ? startTimer(activeTask.id) : pauseTimer(activeTask.id); }}
+                onContextMenu={handleBackup}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTask.isPaused ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}
-                title={activeTask.isPaused ? "开始" : "暂停"}
+                title={activeTask.isPaused ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
                 data-drag="false"
               >
                 {activeTask.isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
@@ -434,7 +472,12 @@ export default function TimerPage() {
             </>
           ) : (
             <>
-              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 shrink-0" data-drag="false">
+              <div 
+                className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 shrink-0 cursor-context-menu" 
+                data-drag="false"
+                onContextMenu={handleBackup}
+                title="右键备份数据"
+              >
                 <Play size={18} />
               </div>
               <div

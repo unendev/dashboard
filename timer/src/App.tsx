@@ -2,12 +2,14 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import TimerPage from './pages/Timer';
 import ProjectListPage from './pages/ProjectList';
 import ProjectDetailPage from './pages/ProjectDetail';
+import TodoMemoFusionPage from './pages/TodoMemoFusion';
 import MemoPage from './pages/Memo';
 import AIPage from './pages/AI';
 import SettingsPage from './pages/Settings';
 import CreatePage from './pages/Create';
 import LoginPage from './pages/Login';
 import PromptLibraryPage from './pages/PromptLibrary';
+import LinkStationPage from './pages/LinkStation';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { API_BASE_URL } from './lib/api';
 import { validateTokenOrigin } from './lib/auth-token';
@@ -30,6 +32,7 @@ function App() {
           <Route path="/create" element={<CreatePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/prompt-library" element={<PromptLibraryPage />} />
+          <Route path="/link-station" element={<LinkStationPage />} />
           <Route path="/" element={<Navigate to="/timer" replace />} />
         </Routes>
       </Router>

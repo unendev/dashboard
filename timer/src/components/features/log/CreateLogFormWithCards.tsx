@@ -193,7 +193,7 @@ export default function CreateLogFormWithCards({ onLogSaved, onAddToTimer, initi
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isParsing) {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !isParsing) {
                     e.preventDefault();
                     handleAiSubmit();
                   }

@@ -234,7 +234,7 @@ export default function ProjectPage() {
                                 onChange={(e) => updateProject(project.id, { name: e.target.value })}
                                 onBlur={() => setIsEditingName(false)}
                                 autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                                onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && setIsEditingName(false)}
                             />
                         ) : (
                             <h2
@@ -252,7 +252,7 @@ export default function ProjectPage() {
                                 onChange={(e) => updateProject(project.id, { description: e.target.value })}
                                 onBlur={() => setIsEditingDesc(false)}
                                 autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && setIsEditingDesc(false)}
+                                onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && setIsEditingDesc(false)}
                             />
                         ) : (
                             <p
@@ -297,7 +297,7 @@ export default function ProjectPage() {
                             value={progressInput}
                             onChange={(e) => setProgressInput(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                                     addProgress(project.id, progressInput);
                                     setProgressInput('');
                                 }
@@ -356,7 +356,7 @@ export default function ProjectPage() {
                             value={todoInput}
                             onChange={(e) => setTodoInput(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                                     addTodo(project.id, todoInput);
                                     setTodoInput('');
                                 }

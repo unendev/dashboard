@@ -239,7 +239,7 @@ export function EnhancedInstanceTagInput({
       e.preventDefault();
       setSelectedIndex(prev => (prev - 1 + totalSuggestions) % (totalSuggestions || 1));
       if (!open) setOpen(true);
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (open && totalSuggestions > 0) {
         if (selectedIndex < filteredRecent.length) {

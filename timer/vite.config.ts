@@ -23,7 +23,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:10000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
@@ -31,7 +31,7 @@ export default defineConfig({
             console.error('❌ [Vite Proxy Error]', err.message, 'on', req.method, req.url);
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('📡 [Vite Proxy] Forwarding:', req.method, req.url, '-> http://localhost:10000' + req.url);
+            console.log('📡 [Vite Proxy] Forwarding:', req.method, req.url, '-> http://localhost:3001' + req.url);
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
             console.log('📨 [Vite Proxy] Response:', proxyRes.statusCode, 'from', req.url);

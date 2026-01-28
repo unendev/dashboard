@@ -3,12 +3,19 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
   send: (channel, data) => {
     // whitelist channels
-    let validChannels = ['start-task', 'open-window', 'ai-create-task', 'open-create-window', 'open-memo-window', 'open-task-memo-window', 'open-todo-window', 'open-ai-window', 'open-settings-window', 'open-project-window', 'open-prompt-library-window', 'show-toolbar-context-menu'];
+    let validChannels = ['start-task', 'open-window', 'ai-create-task', 'open-create-window', 'open-memo-window', 'open-task-memo-window', 'open-todo-window', 'open-ai-window', 'open-settings-window', 'open-project-window', 'open-prompt-library-window', 'show-toolbar-context-menu', 'open-link-station-window', 'save-links-data', 'backup-and-push', 'open-external-link'];
     if (validChannels.includes(channel)) {
       console.log(`[Preload] Sending IPC: ${channel}`);
       ipcRenderer.send(channel, data);
     } else {
       console.warn(`[Preload] Blocked unauthorized IPC: ${channel}`);
+    }
+  },
+  invoke: (channel, data) => {
+    let validChannels = ['get-links-data'];
+    if (validChannels.includes(channel)) {
+      console.log(`[Preload] Invoking IPC: ${channel}`);
+      return ipcRenderer.invoke(channel, data);
     }
   },
   receive: (channel, func) => {

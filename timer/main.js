@@ -1,47 +1,74 @@
-import { app, BrowserWindow, screen, globalShortcut, session, ipcMain, Menu, Tray, nativeImage } from 'electron';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const electron = require('electron');
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 设置日志文件路径
-const logsDir = path.join(app.getPath('userData'), 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+// 检查是否在 Electron 环境中运行
+if (typeof electron === 'string') {
+  console.error('ERROR: require("electron") returned a string instead of the Electron API.');
+  console.error('This usually means the script is being run with "node" instead of "electron".');
+  console.error('Electron Path:', electron);
+  process.exit(1);
 }
-const logFilePath = path.join(logsDir, `electron-${new Date().toISOString().split('T')[0]}.log`);
+
+const { app, BrowserWindow, screen, globalShortcut, session, ipcMain, Menu, Tray, nativeImage, shell } = electron;
+
+let logFilePath = null;
 
 // 日志函数：同时写入文件和控制台
 function writeLog(message) {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}\n`;
 
-  // 写入文件
-  try {
-    fs.appendFileSync(logFilePath, logMessage);
-  } catch (e) {
-    console.error('Failed to write to log file:', e);
+  // 如果日志路径还没初始化，先存控制台
+  if (logFilePath) {
+    try {
+      if (fs.existsSync(logFilePath)) {
+        fs.appendFileSync(logFilePath, logMessage);
+      }
+    } catch (e) {
+      console.error('Failed to write to log file:', e);
+    }
   }
 
   // 写入控制台
   console.log(message);
 }
 
-app.disableHardwareAcceleration();
-Menu.setApplicationMenu(null);
+// 延迟初始化日志路径，确保 app 已加载
+function initLogging() {
+  try {
+    const userDataPath = app.getPath('userData');
+    const logsDir = path.join(userDataPath, 'logs');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    logFilePath = path.join(logsDir, `electron-${new Date().toISOString().split('T')[0]}.log`);
+    // 创建初始日志文件如果不存在
+    if (!fs.existsSync(logFilePath)) {
+      fs.writeFileSync(logFilePath, '');
+    }
+    writeLog('[Main Process] Logging initialized');
+  } catch (e) {
+    console.error('Failed to initialize logging:', e);
+  }
+}
+
+// 在 app 准备好之前安全地调用
+if (app) {
+  app.disableHardwareAcceleration();
+}
 
 // 如果未打包且 NODE_ENV 不为 'production'，则视为开发模式
-const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
+const isDev = (app && !app.isPackaged) && process.env.NODE_ENV !== 'production';
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 
 // API 地址：根据是否打包自动切换
 // 打包后 (app.isPackaged = true) → 使用 Vercel 生产环境
 // 开发中 (app.isPackaged = false) → 使用本地 localhost
-const API_BASE_URL = app.isPackaged
+const API_BASE_URL = (app && app.isPackaged)
   ? 'https://dashboard.unendev.com'
-  : 'http://localhost:10000';
+  : 'http://localhost:3001';
 
 process.on('uncaughtException', (error) => {
   console.error('[Main Process] Uncaught Exception:', error);
@@ -55,9 +82,10 @@ process.on('unhandledRejection', (reason) => {
 let cachedSessionCookie = '';
 
 app.on('ready', () => {
+  initLogging();
   const ses = session.fromPartition('persist:timer-widget');
   // 已移除 Cookie 拦截器，改用纯 Token 认证方案
-  console.log('[Main Process] Ready (Token Auth Mode)');
+  writeLog('[Main Process] Ready (Token Auth Mode)');
 });
 
 const windowStatePath = () => path.join(app.getPath('userData'), 'timer-window-state.json');
@@ -128,6 +156,7 @@ function createToolWindow(type, existingWindow) {
     settings: { width: 300, height: 350, title: '设置', route: '/settings', alwaysOnTop: true, skipTaskbar: true },
     create: { width: 500, height: 600, title: '新建任务', route: '/create', alwaysOnTop: true, skipTaskbar: true },
     promptLibrary: { width: 700, height: 600, title: '提示词库', route: '/prompt-library', alwaysOnTop: false, skipTaskbar: false },
+    linkStation: { width: 340, height: 550, title: 'Link Station', route: '/link-station', alwaysOnTop: true, skipTaskbar: true },
   };
   const config = configs[type];
   console.log(`[Main] Creating window type: ${type}`, config);
@@ -163,6 +192,11 @@ function createToolWindow(type, existingWindow) {
     },
   });
 
+  if (config.alwaysOnTop) {
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+
   win.setMenu(null);
 
   if (isDev) {
@@ -195,6 +229,7 @@ let todoWindow;
 let aiWindow;
 let settingsWindow;
 let promptLibraryWindow;
+let linkStationWindow;
 let tray = null;
 let isQuitting = false;
 
@@ -234,6 +269,10 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
     },
   });
+
+  // 立即设置最高置顶层级
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   mainWindow.webContents.setWindowOpenHandler(({ url: openUrl }) => {
     if (openUrl.includes('#/create')) { openCreateWindow(); return { action: 'deny' }; }
@@ -275,6 +314,9 @@ function createMainWindow() {
       [data-drag="false"] { -webkit-app-region: no-drag !important; }
     `);
     mainWindow.show();
+    // 强制设置置顶层级，确保在 Windows 上不被 Obsidian 等应用覆盖
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   });
 
   if (isDev) {
@@ -292,6 +334,8 @@ function createMainWindow() {
   mainWindow.on('close', () => saveWindowState(mainWindow));
 
   mainWindow.on('focus', () => {
+    // 每次获取焦点时重新应用置顶
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
     globalShortcut.register('F5', () => mainWindow.reload());
     globalShortcut.register('CommandOrControl+Shift+I', () => mainWindow.webContents.toggleDevTools());
   });
@@ -299,6 +343,16 @@ function createMainWindow() {
   mainWindow.on('blur', () => {
     globalShortcut.unregister('F5');
     globalShortcut.unregister('CommandOrControl+Shift+I');
+    // Re-enforce always on top on blur to prevent losing z-index
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+
+  mainWindow.on('restore', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -335,6 +389,7 @@ app.on('ready', () => {
       click: () => {
         if (mainWindow) {
           mainWindow.show();
+          mainWindow.setAlwaysOnTop(true, 'screen-saver');
           mainWindow.focus();
         } else {
           createMainWindow();
@@ -358,6 +413,7 @@ app.on('ready', () => {
         mainWindow.hide();
       } else {
         mainWindow.show();
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
         mainWindow.focus();
       }
     } else {
@@ -502,6 +558,16 @@ function openPromptLibraryWindow() {
   promptLibraryWindow.on('closed', () => { promptLibraryWindow = null; });
 }
 
+function openLinkStationWindow() {
+  if (linkStationWindow) {
+    linkStationWindow.close();
+    return;
+  }
+  linkStationWindow = createToolWindow('linkStation', null);
+  if (isDev) linkStationWindow.webContents.openDevTools({ mode: 'detach' });
+  linkStationWindow.on('closed', () => { linkStationWindow = null; });
+}
+
 ipcMain.on('open-create-window', () => openCreateWindow());
 // ipcMain.on('open-create-window', () => openCreateWindow()); // Duplicate removed
 ipcMain.on('open-memo-window', () => openMemoWindow());
@@ -510,6 +576,35 @@ ipcMain.on('open-todo-window', () => openTodoWindow());
 ipcMain.on('open-ai-window', () => openAiWindow());
 ipcMain.on('open-settings-window', () => openSettingsWindow());
 ipcMain.on('open-prompt-library-window', () => openPromptLibraryWindow());
+ipcMain.on('open-link-station-window', () => openLinkStationWindow());
+ipcMain.on('open-external-link', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+  } catch (err) {
+    console.error(`[Main] Failed to open external link '${url}':`, err);
+  }
+});
+
+// Link Station Data Persistence
+ipcMain.handle('get-links-data', async () => {
+  try {
+    const dataPath = path.join(app.getPath('userData'), 'link-station-data.json');
+    if (!fs.existsSync(dataPath)) return null;
+    return JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+  } catch (e) {
+    console.error('Failed to read link station data', e);
+    return null;
+  }
+});
+
+ipcMain.on('save-links-data', (event, data) => {
+  try {
+    const dataPath = path.join(app.getPath('userData'), 'link-station-data.json');
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('Failed to save link station data', e);
+  }
+});
 
 const projectWindows = new Map(); // Map<projectId, BrowserWindow>
 
@@ -667,11 +762,47 @@ ipcMain.on('show-toolbar-context-menu', (event) => {
       click: () => {
         openPromptLibraryWindow();
       }
+    },
+    {
+      label: '🔗 链接收纳槽',
+      click: () => {
+        openLinkStationWindow();
+      }
     }
   ];
 
   const menu = Menu.buildFromTemplate(template);
   menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
+});
+
+ipcMain.on('backup-and-push', async (event, backupData) => {
+  const timestamp = new Date().toLocaleString();
+  const backupFilePath = path.join(__dirname, 'backup_projects.json');
+  
+  logToCombined('info', `📦 [Main Process] Starting backup to: ${backupFilePath}`);
+  
+  try {
+    // 1. 写入文件
+    fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2));
+    logToCombined('info', '✅ [Main Process] Backup file written.');
+
+    // 2. 执行 Git 命令
+    const commitMsg = `chore: auto-backup local projects [${timestamp}]`;
+    const gitCmd = `git add backup_projects.json && git commit -m "${commitMsg}" && git push`;
+    
+    logToCombined('info', `🐚 [Main Process] Executing: ${gitCmd}`);
+    
+    exec(gitCmd, { cwd: __dirname }, (error, stdout, stderr) => {
+      if (error) {
+        logToCombined('error', `❌ [Main Process] Git backup failed: ${error.message}`);
+        return;
+      }
+      logToCombined('info', '✅ [Main Process] Git backup successful.');
+      if (stdout) logToCombined('info', `[Git Output] ${stdout}`);
+    });
+  } catch (err) {
+    logToCombined('error', `❌ [Main Process] Backup process failed: ${err.message}`);
+  }
 });
 
 app.on('window-all-closed', () => {

@@ -2,12 +2,11 @@
   "name": "timer-widget",
   "version": "1.0.1",
   "main": "main.js",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build:ui": "vite build",
     "preview": "vite preview",
-    "start": "concurrently \"pnpm dev\" \"wait-on tcp:5173 && electron .\"",
+    "start": "concurrently \"pnpm dev\" \"wait-on tcp:5173 && npx electron .\"",
     "typecheck": "tsc --noEmit",
     "build": "pnpm typecheck && pnpm build:ui && electron-builder --win portable --publish never",
     "build:fast": "pnpm build:ui && electron-builder --dir"
