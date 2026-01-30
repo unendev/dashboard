@@ -1,248 +1,248 @@
 # Project Nexus
 
-A comprehensive personal productivity and content aggregation platform built with Next.js 15, featuring AI-powered insights, multi-source feed aggregation, and advanced task management.
+基于 Next.js 15 构建的综合性个人效率与内容聚合平台，集成 AI 驱动的洞察分析、多源信息流聚合和高级任务管理功能。
 
-## 🚀 Features
+## 🚀 核心功能
 
-### 📊 Timer System
-- Hierarchical task tracking with categories and subcategories
-- AI-powered task parsing from natural language
-- Instance tags for flexible task organization
-- Real-time timer with pause/resume functionality
-- Daily and weekly progress analytics
+### 📊 计时系统
+- 层级化任务追踪，支持分类和子分类
+- AI 驱动的自然语言任务解析
+- 灵活的实例标签组织系统
+- 实时计时器，支持暂停/恢复
+- 每日和每周进度分析
 
-### 🎨 Treasure Pavilion
-- Multi-format content collection (text, images, music)
-- AI-powered tag suggestions
-- Full-screen image lightbox with navigation
-- Theme-based organization
-- Rich text editing with TipTap
+### 🎨 藏宝阁
+- 多格式内容收藏（文本、图片、音乐）
+- AI 智能标签推荐
+- 全屏图片灯箱浏览与导航
+- 主题化内容组织
+- TipTap 富文本编辑器
 
-### 📰 Feed Aggregation
-- Multi-source content aggregation:
-  - Bilibili videos
-  - Reddit posts with comments
-  - LinuxDO forum discussions
-  - Heybox gaming community
-- Unified feed interface with filtering
-- Custom tagging and categorization
-- AI-powered content analysis
+### 📰 信息流聚合
+- 多源内容聚合：
+  - Bilibili 视频动态
+  - Reddit 帖子与评论
+  - LinuxDO 论坛讨论
+  - 小黑盒游戏社区
+- 统一的信息流界面与过滤
+- 自定义标签和分类
+- AI 驱动的内容分析
 
-### 📈 Progress Tracking
-- Daily progress analysis with AI insights
-- Skill profiling and growth tracking
-- Project timeline visualization
-- Weekly milestone reviews
-- Automated daily summaries
+### 📈 进度追踪
+- AI 洞察的每日进度分析
+- 技能档案与成长追踪
+- 项目时间线可视化
+- 每周里程碑回顾
+- 自动化每日总结
 
-### 📚 Additional Features
-- **WebRead**: EPUB reader with note-taking and AI analysis
-- **Russian Learning**: Flashcard system with FSRS algorithm
-- **Mind Maps**: Visual knowledge organization
-- **Collaborative Rooms**: Real-time collaboration with Liveblocks
-- **Notes**: Markdown-based note-taking
+### 📚 其他功能
+- **WebRead**：EPUB 阅读器，支持笔记和 AI 分析
+- **俄语学习**：基于 FSRS 算法的闪卡系统
+- **思维导图**：可视化知识组织
+- **协作房间**：基于 Liveblocks 的实时协作
+- **笔记**：Markdown 笔记系统
 
-## 🛠️ Tech Stack
+## 🛠️ 技术栈
 
-### Core
-- **Framework**: Next.js 15.4.8 (App Router)
-- **Runtime**: React 19.1.0
-- **Language**: TypeScript 5
-- **Styling**: Tailwind CSS 3.4
+### 核心技术
+- **框架**：Next.js 15.4.8（App Router）
+- **运行时**：React 19.1.0
+- **语言**：TypeScript 5
+- **样式**：Tailwind CSS 3.4
 
-### Backend
-- **Database**: PostgreSQL (Neon Serverless)
-- **ORM**: Prisma 6.16
-- **Authentication**: NextAuth.js v4
-- **File Storage**: Vercel Blob / Aliyun OSS
+### 后端
+- **数据库**：PostgreSQL（Neon Serverless）
+- **ORM**：Prisma 6.16
+- **认证**：NextAuth.js v4
+- **文件存储**：Vercel Blob / 阿里云 OSS
 
-### AI Integration
-- **Providers**: OpenAI, DeepSeek, Google Vertex AI
-- **SDK**: Vercel AI SDK
-- **Features**: Streaming, structured output, multi-provider support
+### AI 集成
+- **提供商**：OpenAI、DeepSeek、Google Vertex AI
+- **SDK**：Vercel AI SDK
+- **功能**：流式响应、结构化输出、多提供商支持
 
-### Testing
-- **Framework**: Vitest
-- **Property-Based**: fast-check
-- **E2E**: Playwright
+### 测试
+- **框架**：Vitest
+- **属性测试**：fast-check
+- **端到端**：Playwright
 
-### Development
-- **Package Manager**: pnpm >= 10.0.0
-- **Node Version**: >= 18.0.0
-- **Monorepo**: pnpm workspaces
+### 开发工具
+- **包管理器**：pnpm >= 10.0.0
+- **Node 版本**：>= 18.0.0
+- **Monorepo**：pnpm workspaces
 
-## 📦 Installation
+## 📦 安装
 
-### Prerequisites
+### 前置要求
 ```bash
-# Install Node.js >= 18
-# Install pnpm
+# 安装 Node.js >= 18
+# 安装 pnpm
 npm install -g pnpm
 ```
 
-### Setup
+### 设置步骤
 ```bash
-# Clone repository
+# 克隆仓库
 git clone https://github.com/unendev/dashboard.git
 cd dashboard/project-nexus
 
-# Install dependencies
+# 安装依赖
 pnpm install
 
-# Configure environment
+# 配置环境变量
 cp .env.example .env.local
-# Edit .env.local with your credentials
+# 编辑 .env.local 填入你的凭证
 
-# Setup database
+# 设置数据库
 pnpm db:push
 
-# Start development server
+# 启动开发服务器
 pnpm dev
 ```
 
-Visit http://localhost:3001
+访问 http://localhost:3001
 
-## 🔧 Configuration
+## 🔧 配置
 
-### Environment Variables
+### 环境变量
 
 ```bash
-# Database (Neon)
+# 数据库（Neon）
 POSTGRES_PRISMA_URL=postgresql://...?pgbouncer=true
 POSTGRES_URL_NON_POOLING=postgresql://...
 SHADOW_DATABASE_URL=postgresql://...
 
-# NextAuth
+# NextAuth 认证
 NEXTAUTH_URL=http://localhost:3001
-NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_SECRET=你的密钥
 
-# AI Providers (at least one required)
+# AI 提供商（至少配置一个）
 OPENAI_API_KEY=sk-...
 DEEPSEEK_API_KEY=...
 GOOGLE_VERTEX_PROJECT_ID=...
 GOOGLE_VERTEX_LOCATION=...
 
-# File Storage
+# 文件存储
 OSS_REGION=...
 OSS_ACCESS_KEY_ID=...
 OSS_ACCESS_KEY_SECRET=...
 OSS_BUCKET=...
 
-# Optional: External APIs
+# 可选：外部 API
 BILIBILI_SESSDATA=...
 ```
 
-## 📖 Documentation
+## 📖 文档
 
-### Steering Rules
-Comprehensive development guidelines in `.kiro/steering/`:
-- [Project Overview](/.kiro/steering/project-overview.md) - Architecture and features
-- [Code Standards](/.kiro/steering/code-standards.md) - Coding conventions
-- [Component Patterns](/.kiro/steering/component-patterns.md) - React best practices
-- [Database Patterns](/.kiro/steering/database-patterns.md) - Prisma guidelines
-- [AI Integration](/.kiro/steering/ai-integration.md) - AI implementation guide
-- [External APIs](/.kiro/steering/external-apis.md) - API integration patterns
-- [Authentication](/.kiro/steering/authentication.md) - Auth & authorization
-- [Testing Guide](/.kiro/steering/testing-guide.md) - Testing strategies
-- [Getting Started](/.kiro/steering/GETTING_STARTED.md) - Onboarding guide
+### 开发指南
+`.kiro/steering/` 目录下的完整开发规范：
+- [项目概览](project-nexus/.kiro/steering/project-overview.md) - 架构和功能
+- [代码规范](project-nexus/.kiro/steering/code-standards.md) - 编码约定
+- [组件模式](project-nexus/.kiro/steering/component-patterns.md) - React 最佳实践
+- [数据库模式](project-nexus/.kiro/steering/database-patterns.md) - Prisma 指南
+- [AI 集成](project-nexus/.kiro/steering/ai-integration.md) - AI 实现指南
+- [外部 API](project-nexus/.kiro/steering/external-apis.md) - API 集成模式
+- [身份认证](project-nexus/.kiro/steering/authentication.md) - 认证与授权
+- [测试指南](project-nexus/.kiro/steering/testing-guide.md) - 测试策略
+- [快速开始](project-nexus/.kiro/steering/GETTING_STARTED.md) - 新手指南
 
-### Feature Documentation
-- [Bilibili Integration](/doc/BILIBILI_INTEGRATION_SUMMARY.md)
-- [Timer Tag Recognition](/TIMER_TAG_RECOGNITION_IMPLEMENTATION.md)
-- [Treasure Pavilion Enhancements](/VERIFY_TREASURE_EXIT_FIX.md)
+### 功能文档
+- [Bilibili 集成](project-nexus/doc/BILIBILI_INTEGRATION_SUMMARY.md)
+- [计时器标签识别](project-nexus/TIMER_TAG_RECOGNITION_IMPLEMENTATION.md)
+- [藏宝阁增强功能](project-nexus/VERIFY_TREASURE_EXIT_FIX.md)
 
-## 🧪 Testing
+## 🧪 测试
 
 ```bash
-# Run all tests
+# 运行所有测试
 pnpm test
 
-# Watch mode
+# 监听模式
 pnpm test:watch
 
-# Run specific test file
+# 运行特定测试文件
 pnpm test path/to/test.ts
 ```
 
-## 📜 Scripts
+## 📜 脚本命令
 
 ```bash
-# Development
-pnpm dev              # Start dev server (port 3001)
-pnpm build            # Build for production
-pnpm start            # Start production server
+# 开发
+pnpm dev              # 启动开发服务器（端口 3001）
+pnpm build            # 构建生产版本
+pnpm start            # 启动生产服务器
 
-# Database
-pnpm db:push          # Push schema changes
-pnpm db:studio        # Open Prisma Studio
-pnpm db:migrate       # Run migrations
-pnpm db:wake          # Wake Neon database
+# 数据库
+pnpm db:push          # 推送 schema 变更
+pnpm db:studio        # 打开 Prisma Studio
+pnpm db:migrate       # 运行迁移
+pnpm db:wake          # 唤醒 Neon 数据库
 
-# Testing
-pnpm test             # Run tests once
-pnpm test:watch       # Run tests in watch mode
+# 测试
+pnpm test             # 运行测试一次
+pnpm test:watch       # 监听模式运行测试
 
-# AI Features
-pnpm ai-summary       # Generate daily AI summary
-pnpm ai-summary:test  # Test AI summary generation
+# AI 功能
+pnpm ai-summary       # 生成每日 AI 总结
+pnpm ai-summary:test  # 测试 AI 总结生成
 
-# Demo Data
-pnpm ensure-demo      # Create demo user
-pnpm seed-demo        # Seed demo data
-pnpm setup-demo       # Complete demo setup
+# 演示数据
+pnpm ensure-demo      # 创建演示用户
+pnpm seed-demo        # 填充演示数据
+pnpm setup-demo       # 完整演示设置
 ```
 
-## 🏗️ Project Structure
+## 🏗️ 项目结构
 
 ```
 project-nexus/
 ├── app/                      # Next.js App Router
-│   ├── api/                 # API routes
-│   │   ├── treasures/      # Treasure Pavilion API
-│   │   ├── timer-tasks/    # Timer system API
-│   │   ├── feeds/          # Feed aggregation API
+│   ├── api/                 # API 路由
+│   │   ├── treasures/      # 藏宝阁 API
+│   │   ├── timer-tasks/    # 计时系统 API
+│   │   ├── feeds/          # 信息流聚合 API
 │   │   └── ...
-│   ├── components/          # React components
-│   │   ├── features/       # Feature-specific components
-│   │   ├── shared/         # Reusable components
-│   │   └── ui/             # UI primitives (shadcn/ui)
-│   ├── features/           # Feature pages
-│   ├── hooks/              # Custom React hooks
-│   └── lib/                # Client-side utilities
-├── lib/                     # Server-side utilities
-│   ├── ai/                 # AI integration
-│   ├── auth-utils.ts       # Authentication helpers
-│   ├── prisma.ts           # Prisma client
+│   ├── components/          # React 组件
+│   │   ├── features/       # 功能特定组件
+│   │   ├── shared/         # 可复用组件
+│   │   └── ui/             # UI 基础组件（shadcn/ui）
+│   ├── features/           # 功能页面
+│   ├── hooks/              # 自定义 React Hooks
+│   └── lib/                # 客户端工具函数
+├── lib/                     # 服务端工具函数
+│   ├── ai/                 # AI 集成
+│   ├── auth-utils.ts       # 认证辅助函数
+│   ├── prisma.ts           # Prisma 客户端
 │   └── ...
-├── prisma/                  # Database schema
+├── prisma/                  # 数据库 schema
 │   └── schema.prisma
-├── scripts/                 # Automation scripts
-├── tests/                   # Test files
-│   ├── api/               # API tests
-│   ├── components/        # Component tests
-│   └── integration/       # Integration tests
-├── .kiro/                   # Kiro AI configuration
-│   └── steering/          # Development guidelines
-└── types/                   # TypeScript type definitions
+├── scripts/                 # 自动化脚本
+├── tests/                   # 测试文件
+│   ├── api/               # API 测试
+│   ├── components/        # 组件测试
+│   └── integration/       # 集成测试
+├── .kiro/                   # Kiro AI 配置
+│   └── steering/          # 开发指南
+└── types/                   # TypeScript 类型定义
 ```
 
-## 🔑 Key Features Deep Dive
+## 🔑 核心功能详解
 
-### AI-Powered Task Parsing
-Natural language input like "写代码 #前端 #React" is automatically parsed into:
-- Task name: "写代码"
-- Category: "工作/编程"
-- Tags: ["前端", "React"]
+### AI 驱动的任务解析
+自然语言输入如 "写代码 #前端 #React" 会自动解析为：
+- 任务名称："写代码"
+- 分类路径："工作/编程"
+- 标签：["前端", "React"]
 
-### Multi-Source Feed Aggregation
-Unified interface for content from:
-- **Bilibili**: Video feeds with rate limiting
-- **Reddit**: Posts with nested comments
-- **LinuxDO**: Forum discussions with AI analysis
-- **Heybox**: Gaming community content
+### 多源信息流聚合
+统一界面聚合来自以下平台的内容：
+- **Bilibili**：视频动态，带速率限制
+- **Reddit**：帖子与嵌套评论
+- **LinuxDO**：论坛讨论，带 AI 分析
+- **小黑盒**：游戏社区内容
 
-### Property-Based Testing
-Using fast-check for robust testing:
+### 基于属性的测试
+使用 fast-check 进行健壮测试：
 ```typescript
 fc.assert(
   fc.property(
@@ -256,32 +256,32 @@ fc.assert(
 )
 ```
 
-## 🤝 Contributing
+## 🤝 贡献
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Follow the [Code Standards](/.kiro/steering/code-standards.md)
-4. Write tests for new features
-5. Commit changes (`git commit -m 'feat: add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+1. Fork 本仓库
+2. 创建功能分支（`git checkout -b feature/amazing-feature`）
+3. 遵循[代码规范](project-nexus/.kiro/steering/code-standards.md)
+4. 为新功能编写测试
+5. 提交更改（`git commit -m 'feat: 添加某功能'`）
+6. 推送到分支（`git push origin feature/amazing-feature`）
+7. 开启 Pull Request
 
-## 📝 License
+## 📝 许可证
 
-This project is private and proprietary.
+本项目为私有项目。
 
-## 🙏 Acknowledgments
+## 🙏 致谢
 
-- Built with [Next.js](https://nextjs.org/)
-- UI components from [shadcn/ui](https://ui.shadcn.com/)
-- Icons from [Lucide](https://lucide.dev/)
-- AI powered by [Vercel AI SDK](https://sdk.vercel.ai/)
-- Database by [Neon](https://neon.tech/)
+- 基于 [Next.js](https://nextjs.org/) 构建
+- UI 组件来自 [shadcn/ui](https://ui.shadcn.com/)
+- 图标来自 [Lucide](https://lucide.dev/)
+- AI 功能由 [Vercel AI SDK](https://sdk.vercel.ai/) 驱动
+- 数据库由 [Neon](https://neon.tech/) 提供
 
-## 📧 Contact
+## 📧 联系方式
 
-For questions or support, please open an issue on GitHub.
+如有问题或需要支持，请在 GitHub 上提交 issue。
 
 ---
 
-**Note**: This is a personal productivity platform. For setup assistance, see [Getting Started Guide](/.kiro/steering/GETTING_STARTED.md).
+**注意**：这是一个个人效率平台。设置帮助请参阅[快速开始指南](project-nexus/.kiro/steering/GETTING_STARTED.md)。
