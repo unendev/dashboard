@@ -132,25 +132,6 @@ OSS_BUCKET=...
 BILIBILI_SESSDATA=...
 ```
 
-## 📖 文档
-
-### 开发指南
-`.kiro/steering/` 目录下的完整开发规范：
-- [项目概览](project-nexus/.kiro/steering/project-overview.md) - 架构和功能
-- [代码规范](project-nexus/.kiro/steering/code-standards.md) - 编码约定
-- [组件模式](project-nexus/.kiro/steering/component-patterns.md) - React 最佳实践
-- [数据库模式](project-nexus/.kiro/steering/database-patterns.md) - Prisma 指南
-- [AI 集成](project-nexus/.kiro/steering/ai-integration.md) - AI 实现指南
-- [外部 API](project-nexus/.kiro/steering/external-apis.md) - API 集成模式
-- [身份认证](project-nexus/.kiro/steering/authentication.md) - 认证与授权
-- [测试指南](project-nexus/.kiro/steering/testing-guide.md) - 测试策略
-- [快速开始](project-nexus/.kiro/steering/GETTING_STARTED.md) - 新手指南
-
-### 功能文档
-- [Bilibili 集成](project-nexus/doc/BILIBILI_INTEGRATION_SUMMARY.md)
-- [计时器标签识别](project-nexus/TIMER_TAG_RECOGNITION_IMPLEMENTATION.md)
-- [藏宝阁增强功能](project-nexus/VERIFY_TREASURE_EXIT_FIX.md)
-
 ## 🧪 测试
 
 ```bash
@@ -198,31 +179,14 @@ pnpm setup-demo       # 完整演示设置
 project-nexus/
 ├── app/                      # Next.js App Router
 │   ├── api/                 # API 路由
-│   │   ├── treasures/      # 藏宝阁 API
-│   │   ├── timer-tasks/    # 计时系统 API
-│   │   ├── feeds/          # 信息流聚合 API
-│   │   └── ...
 │   ├── components/          # React 组件
-│   │   ├── features/       # 功能特定组件
-│   │   ├── shared/         # 可复用组件
-│   │   └── ui/             # UI 基础组件（shadcn/ui）
 │   ├── features/           # 功能页面
 │   ├── hooks/              # 自定义 React Hooks
 │   └── lib/                # 客户端工具函数
 ├── lib/                     # 服务端工具函数
-│   ├── ai/                 # AI 集成
-│   ├── auth-utils.ts       # 认证辅助函数
-│   ├── prisma.ts           # Prisma 客户端
-│   └── ...
 ├── prisma/                  # 数据库 schema
-│   └── schema.prisma
 ├── scripts/                 # 自动化脚本
 ├── tests/                   # 测试文件
-│   ├── api/               # API 测试
-│   ├── components/        # 组件测试
-│   └── integration/       # 集成测试
-├── .kiro/                   # Kiro AI 配置
-│   └── steering/          # 开发指南
 └── types/                   # TypeScript 类型定义
 ```
 
@@ -260,7 +224,7 @@ fc.assert(
 
 1. Fork 本仓库
 2. 创建功能分支（`git checkout -b feature/amazing-feature`）
-3. 遵循[代码规范](project-nexus/.kiro/steering/code-standards.md)
+3. 遵循项目代码规范
 4. 为新功能编写测试
 5. 提交更改（`git commit -m 'feat: 添加某功能'`）
 6. 推送到分支（`git push origin feature/amazing-feature`）
@@ -284,4 +248,4 @@ fc.assert(
 
 ---
 
-**注意**：这是一个个人效率平台。设置帮助请参阅[快速开始指南](project-nexus/.kiro/steering/GETTING_STARTED.md)。
+**Project Nexus** - 个人效率与内容聚合平台

@@ -41,10 +41,19 @@ lerna-debug.log*
 package-lock.json
 yarn.lock
 
-# IDE
+# IDE and AI tools
 .cursor/
 .claude/
 .aider*
+.agent/
+.roo/
+.gemini/
+.kiro/specs/
+.kiro/STEERING_RULES_SUMMARY.md
+
+# Documentation (except README)
+*.md
+!README.md
 
 # Cache
 .next/
