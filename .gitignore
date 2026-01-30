@@ -44,3 +44,11 @@ pnpm-debug.log*
 *.swp
 *.swo
 *~
+
+# User specified ignores
+gemini-conversation-*.json
+.archive/
+.github/workflows/
+.playwright-mcp/
+.vercel/
+_deprecated_sources/
