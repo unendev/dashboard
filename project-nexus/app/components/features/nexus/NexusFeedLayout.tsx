@@ -12,8 +12,8 @@ export default function NexusFeedLayout() {
     const [selectedDate, setSelectedDate] = useState<string>(''); // YYYY-MM-DD
     // Fold/Unfold State for Parent Items
     const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({});
-    // Theme State: 'oled' (Pure Black), 'dim' (Zinc-900), 'light' (Zinc-50)
-    const [viewMode, setViewMode] = useState<'oled' | 'dim' | 'light'>('dim');
+    // Theme State: 'oled' (Pure Black), 'dim' (Zinc-900), 'light' (Zinc-50), 'treasure' (GitHub Dark)
+    const [viewMode, setViewMode] = useState<'oled' | 'dim' | 'light' | 'treasure'>('treasure');
     const [showSettings, setShowSettings] = useState(false);
 
     // Source Toggle State
@@ -81,8 +81,20 @@ export default function NexusFeedLayout() {
 
     // Compute Active Feeds
     const filteredItems = items.filter(item => {
-        const config = RSS_FEEDS.find(f => f.name === item.source);
-        if (config && !enabledSources[config.key]) return false;
+        // Fix: Check both name and key (to support 'bilibili_dynamic' from DB and 'Bilibili' from RSS)
+        // Also check if source contains key or name for partial matches (e.g., "QQ群: xxx" should match "qq_all")
+        const config = RSS_FEEDS.find(f =>
+            f.name === item.source ||
+            f.key === item.source ||
+            item.source.toLowerCase().includes('qq') && f.key === 'qq_all' ||
+            item.source.toLowerCase().includes('telegram') && f.key === 'telegram_main' ||
+            item.source.toLowerCase().includes('twitter') && f.key === 'x_twitter' ||
+            item.source.toLowerCase().includes('bilibili') && f.key === 'bilibili_dynamic'
+        );
+        // If no config found, filter out the item (unknown source)
+        if (!config) return false;
+        // If config found but source is disabled, filter out
+        if (!enabledSources[config.key]) return false;
 
         // Filter Logic
         let categoryMatch = true;
@@ -213,10 +225,21 @@ export default function NexusFeedLayout() {
             activeTab: 'bg-slate-100 text-slate-900',
             hoverTab: 'hover:text-slate-700 hover:bg-slate-50',
             dateHeader: 'bg-slate-50/90 text-slate-600 border-slate-200'
+        },
+        treasure: {
+            bg: 'bg-[#1c1917]', // Stone-900 (Warm Dark)
+            sidebar: 'bg-[#44403c] border-amber-900/30', // Stone-700 (Brighter)
+            header: 'bg-[#44403c]/90 border-amber-900/30',
+            text: 'text-amber-50',
+            subtext: 'text-amber-200/60',
+            card: 'bg-stone-800/40 backdrop-blur-sm border-amber-900/20 hover:border-amber-700/40 hover:bg-stone-800/60', // Semi-transparent warm
+            activeTab: 'bg-amber-900/30 text-amber-100 border border-amber-700/50',
+            hoverTab: 'hover:text-amber-50 hover:bg-amber-900/20',
+            dateHeader: 'bg-stone-900/80 text-amber-200/80 border-amber-900/20'
         }
     };
 
-    const currentTheme = themeConfig[viewMode === 'dim' ? 'navy' : viewMode];
+    const currentTheme = themeConfig[viewMode === 'dim' ? 'navy' : viewMode === 'treasure' ? 'treasure' : viewMode];
 
     // Group items by date string (YYYY-MM-DD)
     const groupedItems = filteredItems.reduce((acc, item) => {
@@ -241,7 +264,22 @@ export default function NexusFeedLayout() {
     };
 
     return (
-        <div className={`min-h-screen font-sans flex overflow-hidden duration-300 ${currentTheme.bg} ${currentTheme.text}`}>
+        <div className={`min-h-screen font-sans flex overflow-hidden duration-300 ${currentTheme.bg} ${currentTheme.text}`}
+            style={viewMode === 'treasure' ? {
+                background: `
+                    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+                    linear-gradient(135deg, 
+                        #1c1917 0%,
+                        #292524 20%,
+                        #44403c 40%,
+                        #78350f 60%,
+                        #451a03 80%,
+                        #1c1917 100%
+                    )
+                `,
+                backgroundAttachment: 'fixed'
+            } : undefined}
+        >
             {/* Sidebar ... */}
             <aside className={`w-64 border-r flex-shrink-0 flex flex-col h-screen transition-colors duration-300 ${currentTheme.sidebar}`}>
                 {/* ... (sidebar content) ... */}
@@ -324,6 +362,9 @@ export default function NexusFeedLayout() {
                                         </button>
                                         <button onClick={() => setViewMode('oled')} className={`w-full text-left px-3 py-2 rounded text-xs flex items-center gap-2 ${viewMode === 'oled' ? 'bg-zinc-100 dark:bg-zinc-800 font-medium' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>
                                             <div className="w-3 h-3 rounded-full bg-black border border-zinc-700"></div> Lights Out
+                                        </button>
+                                        <button onClick={() => setViewMode('treasure')} className={`w-full text-left px-3 py-2 rounded text-xs flex items-center gap-2 ${viewMode === 'treasure' ? 'bg-zinc-100 dark:bg-zinc-800 font-medium' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>
+                                            <div className="w-3 h-3 rounded-full bg-[#1c1917] border border-stone-600"></div> Treasure
                                         </button>
                                     </div>
                                 </div>

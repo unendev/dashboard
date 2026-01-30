@@ -36,8 +36,9 @@ PROXY_URL = os.getenv("PROXY_URL", "http://127.0.0.1:10809")  # 默认代理地�
 USE_PROXY = PROXY_URL and PROXY_URL.lower() != "none"  # 是否使用代理
 
 # API配置
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+GEMINI_API_KEY = os.getenv("GEMINI_PROXY_API_KEY") or os.getenv("GOOGLE_AI_STUDIO_API_KEY")
+GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://api.unendev.com")
+GEMINI_MODEL = "gemini-3-flash"
 
 # 数据库配置
 NEON_DB_URL = os.getenv("DATABASE_URL")
@@ -105,10 +106,12 @@ def check_environment():
         logger.info("✓ 代理模式: 禁用（直连）")
     
     # 检查API密钥
-    if not DEEPSEEK_API_KEY:
-        issues.append("❌ 未找到 DEEPSEEK_API_KEY 环境变量")
+    if not GEMINI_API_KEY:
+        issues.append("❌ 未找到 GEMINI_PROXY_API_KEY 或 GOOGLE_AI_STUDIO_API_KEY 环境变量")
     else:
-        logger.info(f"✓ DeepSeek API密钥: {DEEPSEEK_API_KEY[:8]}...")
+        logger.info(f"✓ Gemini API密钥: {GEMINI_API_KEY[:8]}...")
+    logger.info(f"✓ Gemini Base URL: {GEMINI_BASE_URL}")
+    logger.info(f"✓ Gemini Model: {GEMINI_MODEL}")
     
     # 检查数据库URL
     if not NEON_DB_URL:
@@ -278,8 +281,8 @@ def retry_on_failure(max_retries=3, delay=5):
 # AI分析函数
 # =============================================================================
 
-def analyze_single_post_with_deepseek(post):
-    """使用DeepSeek对单个帖子进行深度分析（包含真实评论）"""
+def analyze_single_post_with_gemini(post):
+    """使用Gemini 3 Flash对单个帖子进行深度分析（包含真实评论）"""
     try:
         # 清理楼主内容
         main_content = post.get('content', '')
@@ -357,14 +360,15 @@ def analyze_single_post_with_deepseek(post):
 }}
 """
         
-        # 调用DeepSeek API
+        # 调用Gemini API (OpenAI兼容格式)
+        api_url = f"{GEMINI_BASE_URL}/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Authorization": f"Bearer {GEMINI_API_KEY}",
             "Content-Type": "application/json"
         }
         
         data = {
-            "model": "deepseek-chat",
+            "model": GEMINI_MODEL,
             "messages": [
                 {"role": "user", "content": prompt}
             ],
@@ -375,7 +379,7 @@ def analyze_single_post_with_deepseek(post):
         proxies = {"http": PROXY_URL, "https": PROXY_URL} if USE_PROXY else None
         
         response = requests.post(
-            DEEPSEEK_API_URL,
+            api_url,
             headers=headers,
             json=data,
             proxies=proxies,
@@ -392,7 +396,7 @@ def analyze_single_post_with_deepseek(post):
             logger.info(f"✓ AI分析成功: {post['title'][:40]}...")
             return analysis_data
         else:
-            logger.error(f"❌ DeepSeek API调用失败: {response.status_code} - {response.text}")
+            logger.error(f"❌ Gemini API调用失败: {response.status_code} - {response.text}")
             return {
                 "error": f"API调用失败: {response.status_code}",
                 "core_issue": "API调用失败", 
@@ -415,7 +419,7 @@ def analyze_single_post_with_deepseek(post):
             "detailed_analysis": ""
         }
     except requests.exceptions.Timeout:
-        logger.error(f"❌ DeepSeek API请求超时")
+        logger.error(f"❌ Gemini API请求超时")
         return {
             "error": "API请求超时",
             "core_issue": "API超时", 
@@ -905,7 +909,7 @@ def generate_ai_analysis(posts_data):
         logger.info(f"  [{i+1}/{len(posts_data)}] 分析: {post['title'][:40]}...")
         
         try:
-            post['analysis'] = analyze_single_post_with_deepseek(post)
+            post['analysis'] = analyze_single_post_with_gemini(post)
             processed_posts.append(post)
             
             if i < len(posts_data) - 1:

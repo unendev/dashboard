@@ -1,45 +1,113 @@
 import { FeedItem, FeedConfig, RSS_FEEDS } from './rss-config';
+import Parser from 'rss-parser';
+
 export type { FeedItem, FeedConfig };
 export { RSS_FEEDS };
 
-// Simple regex-based RSS parser (Zero Dependency)
-async function parseRSS(url: string): Promise<FeedItem[]> {
-    if (!url) return []; // Handle virtual parents
-    try {
-        // Try to use a local proxy if available (for dev environment)
-        // Hardcoded generic proxy for local dev (Clash/v2ray default)
-        const proxyUrl = process.env.HTTPS_PROXY || 'http://127.0.0.1:7890';
-        let agent = undefined;
+// Helper to fetch with timeout and headers (Proxy aware)
+async function fetchWithTimeout(url: string, options: RequestInit = {}) {
+    const proxyUrl = process.env.HTTPS_PROXY || 'http://127.0.0.1:7890';
+    let agent = undefined;
 
-        try {
-            // Dynamic import to avoid build crashes if missing
+    try {
+        if (process.env.NODE_ENV !== 'production') {
             const { HttpsProxyAgent } = await import('https-proxy-agent');
             agent = new HttpsProxyAgent(proxyUrl);
-        } catch (e) {
-            // Ignore if agent cannot be loaded
         }
+    } catch (e) { /* Ignore */ }
 
-        const res = await fetch(url, {
-            // @ts-ignore - node-fetch supports agent, native fetch might vary but Next.js polyfills often support it or we need undici.
-            // Actually Next.js 13+ uses native fetch which extends undici. Undici supports 'dispatcher'.
-            // But let's try standard 'agent' property first which many polyfills respect, or 'dispatcher' for undici.
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    try {
+        const response = await fetch(url, {
+            ...options,
+            // @ts-ignore
             agent: agent,
+            signal: controller.signal,
             headers: {
-                // Reddit requires a specific User-Agent format: <platform>:<app ID>:<version string> (by /u/<reddit username>)
-                // Only specific UA for Reddit, generic for others to avoid tracking blocking
-                'User-Agent': url.includes('reddit.com')
-                    ? 'web:nexus-dashboard:v1.0.0 (by /u/dev)'
-                    : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/json',
-                'Accept-Language': 'en-US,en;q=0.9',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                ...options.headers
             },
             next: { revalidate: 300 }
         });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
+}
 
+// Helper to extract images from RSS items (Parser puts them in various places)
+function extractImage(item: any): string {
+    // 1. Enclosure
+    if (item.enclosure?.url && item.enclosure.type?.startsWith('image')) return item.enclosure.url;
+    // 2. Media Content/Thumbnail (YouTube/Gcores)
+    if (item['media:content']?.url) return item['media:content'].url;
+    if (item['media:content']?.['$']?.url) return item['media:content']['$'].url;
+    if (item['media:thumbnail']?.url) return item['media:thumbnail'].url;
+    if (item['media:thumbnail']?.['$']?.url) return item['media:thumbnail']['$'].url;
+    // 3. Custom fields like <thumb>
+    if (item.thumb) return item.thumb;
+    // 4. Fallback: regex on content (Parser doesn't scrape HTML)
+    const content = item['content:encoded'] || item.content || item.summary || '';
+    const imgMatch = content.match(/<img[^>]+src="([^">]+)"/i);
+    return imgMatch ? imgMatch[1] : '';
+}
+
+// RSS/Atom Parser using rss-parser lib
+async function parseRSS(url: string): Promise<FeedItem[]> {
+    if (!url) return [];
+
+    // Configure parser with custom fields
+    const parser = new Parser({
+        customFields: {
+            item: [
+                ['media:content', 'media:content'],
+                ['media:thumbnail', 'media:thumbnail'],
+                ['thumb', 'thumb'],         // Gcores
+                ['content:encoded', 'contentEncoded'],
+            ]
+        }
+    });
+
+    try {
+        // 1. Fetch raw XML string using our proxy-aware fetcher
+        const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const xml = await res.text();
 
-        // Handle JSON (Reddit)
-        if (url.endsWith('.json')) {
+        // 2. Parse string
+        const feed = await parser.parseString(xml);
+
+        // 3. Transform
+        return feed.items.map(item => ({
+            title: item.title || 'Untitled',
+            link: item.link || '#',
+            pubDate: item.pubDate || item.isoDate,
+            isoDate: item.isoDate || new Date().toISOString(),
+            content: item.contentEncoded || item.content || item.summary || '',
+            contentSnippet: item.contentSnippet || (item.content || '').slice(0, 150),
+            source: 'rss', // Will be overridden
+            imageUrl: extractImage(item),
+            categories: item.categories,
+            author: item.creator || item.author
+        }));
+    } catch (err) {
+        console.error(`RSS Parser Error for ${url}:`, err);
+        return [];
+    }
+}
+
+export async function fetchFeed(config: FeedConfig): Promise<FeedItem[]> {
+    if (!config.enabled || config.isParent) return [];
+    if (config.url === 'api_mode') return [];
+
+    try {
+        // Handle Reddit JSON API specially (RSS Handler is for XML)
+        if (config.url.endsWith('.json')) {
+            const res = await fetchWithTimeout(config.url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (!data.data?.children) return [];
 
@@ -56,93 +124,22 @@ async function parseRSS(url: string): Promise<FeedItem[]> {
                     content: item.selftext || item.title,
                     contentSnippet: item.selftext ? item.selftext.slice(0, 150) : item.title,
                     imageUrl: hasPreview || (hasImage ? item.thumbnail : ''),
-                    source: '', // Filled by fetchFeed
+                    source: config.name,
+                    sourceIcon: config.icon,
+                    author: item.author,
                     categories: [item.subreddit]
-                } as FeedItem;
+                };
             });
         }
 
-        // Handle XML (Standard RSS)
-        const xml = await res.text();
-
-        const items: FeedItem[] = [];
-        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-        let match;
-
-        while ((match = itemRegex.exec(xml)) !== null) {
-            const itemContent = match[1];
-
-            const getTag = (tag: string) => {
-                const regex = new RegExp(`<${tag}.*?>([\\s\\S]*?)<\\/${tag}>`, 'i');
-                const m = itemContent.match(regex);
-                return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
-            };
-
-            const title = getTag('title');
-            const link = getTag('link');
-            const pubDate = getTag('pubDate');
-            const content = getTag('description') || getTag('content:encoded');
-            const category = getTag('category');
-
-            // Image Extraction Strategy
-            let imageUrl = '';
-
-            // 1. Try <thumb> (Gcores specific)
-            const thumb = getTag('thumb');
-            if (thumb) imageUrl = thumb;
-
-            // 2. Try <media:content> or <media:thumbnail>
-            if (!imageUrl) {
-                const mediaRegex = /<media:(?:content|thumbnail)[^>]+url="([^"]+)"/i;
-                const mediaMatch = itemContent.match(mediaRegex);
-                if (mediaMatch) imageUrl = mediaMatch[1];
-            }
-
-            // 3. Try <enclosure>
-            if (!imageUrl) {
-                const enclosureRegex = /<enclosure[^>]+url="([^"]+)"[^>]*type="image/i;
-                const enclosureMatch = itemContent.match(enclosureRegex);
-                if (enclosureMatch) imageUrl = enclosureMatch[1];
-            }
-
-            // 4. Fallback: Try regex on content (img src)
-            if (!imageUrl && content) {
-                const imgRegex = /<img[^>]+src="([^">]+)"/i;
-                const imgMatch = content.match(imgRegex);
-                if (imgMatch) imageUrl = imgMatch[1];
-            }
-
-            if (title && link) {
-                items.push({
-                    title,
-                    link,
-                    pubDate,
-                    isoDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-                    content,
-                    contentSnippet: content.replace(/<[^>]+>/g, '').slice(0, 150),
-                    imageUrl,
-                    source: '',
-                    categories: category ? [category] : []
-                });
-            }
-        }
-        return items;
-    } catch (error) {
-        console.error(`Error parsing RSS from ${url}:`, error);
-        return [];
-    }
-}
-
-export async function fetchFeed(config: FeedConfig): Promise<FeedItem[]> {
-    if (!config.enabled || config.isParent) return []; // Skip parents
-
-    try {
+        // Standard RSS Flow
         const items = await parseRSS(config.url);
         return items.map(item => ({
             ...item,
-            source: config.name, // Use the child name (e.g., "Game Dev") or combine like "Reddit - Game Dev"
+            source: config.name,
             sourceIcon: config.icon
         }));
+
     } catch (error) {
         console.warn(`[RSS] Failed to fetch ${config.name}:`, error);
         return [];
@@ -150,14 +147,7 @@ export async function fetchFeed(config: FeedConfig): Promise<FeedItem[]> {
 }
 
 export async function fetchAllFeeds(): Promise<FeedItem[]> {
-    const promises = RSS_FEEDS.map(config => {
-        if (config.url === 'api_mode') return Promise.resolve([]); // API based sources are handled separately
-        return fetchFeed(config);
-    });
-
-    // We will let the API route handle the merging of Bilibili data
-    // because `lib/rss.ts` shouldn't depend on Next.js API route implementation details
-
+    const promises = RSS_FEEDS.map(config => fetchFeed(config));
     const results = await Promise.all(promises);
     const allItems = results.flat();
     return allItems.sort((a, b) => {

@@ -6,16 +6,16 @@ import { findSimilarTags } from '@/lib/tag-similarity';
 
 function buildTaggingPrompt(existingAiTags: string[] = [], userTags: string[] = []) {
   const poolHint = existingAiTags.length > 0
-    ? `已有 AI 标签池（优先复用，必要时才新增）：${existingAiTags.slice(0, 50).join(', ')}`
+    ? `已有 AI 标签池（优先复用，必要时才新增）：${existingAiTags.slice(0, 30).join(', ')}`
     : '当前无 AI 标签池。';
 
   return `你是一个专业的分类系统，负责为“藏宝阁”笔记进行精准的AI打标。
 你的任务是：基于内容提取客观的**实体**和**性质**。
 
-**严格限制（君主法则）**：
-1. **绝对禁止**输出 '#领域/...' 标签（这是人类的特权）。
-2. **绝对禁止**输出 '#概念/...' 标签（这是人类的特权）。
-3. 即使内容非常明显属于某个领域，你也不要输出。
+**规则与权限**：
+1. 核心任务是提取 **#实体** 和 **#性质**。
+2. **特殊授权**：如果用户在上下文中明确指示了分类（领域/概念），或者内容分类特征极强，**你被允许且应当输出 '#领域/...' 和 '#概念/...' 标签**。
+3. 但请注意，不要随意把弱相关的领域强加给用户，保持适度克制。
 
 
 **你的核心职责（书记官模式）**：
@@ -29,9 +29,8 @@ function buildTaggingPrompt(existingAiTags: string[] = [], userTags: string[] = 
 2. **性质轴 (Nature)**：
    - 作用：描述笔记的功能或形态（如 #性质/教程, #性质/灵感）。
 
-**严格限制**：
-- 仅禁止 \`#领域\` 和 \`#概念\`。
-- 其他所有实体，请放心输出。
+3. **领域/概念轴 (Domain/Concept)**：
+   - **仅在有明确依据时输出**。例如用户说“帮我归档到Rust”，则输出 '#领域/技术/Rust'。
 
 ${poolHint}
 
@@ -91,11 +90,9 @@ function normalizeAiTags(tags: string[], existingAiTags: string[]): string[] {
 
     const withPrefix = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
 
-    // [Updated] Only Allow Nature and Entity (Sovereign/Scribe Rule)
-    if (
-      !withPrefix.startsWith('#性质/') &&
-      !withPrefix.startsWith('#实体/')
-    ) {
+    // [Updated] Allow all tag types (Domain/Concept/Entity/Nature)
+    // The previous restriction is lifted to support "System 2" workflow where AI handles classification based on user context.
+    if (!withPrefix.startsWith('#')) {
       continue;
     }
 
@@ -146,14 +143,18 @@ function normalizeHumanTags(
 export async function generateAiTagsForTreasure(
   treasure: TreasureContent,
   existingAiTags: string[] = [],
-  userTags: string[] = [] // New Param
+  userTags: string[] = [], // New Param
+  auxiliaryContext?: string // 【新增】辅助上下文
 ): Promise<string[]> {
   // Combine treasure.tags if provided
   const finalUserTags = userTags.length > 0 ? userTags : (treasure.tags || []);
 
   const poolSample = existingAiTags.slice(0, 120);
   const systemPrompt = buildTaggingPrompt(poolSample, finalUserTags);
-  const userPrompt = `标题: ${treasure.title}\n\n内容:\n${treasure.content || ''}`;
+  const contextPart = auxiliaryContext ? `\n\n**用户补充上下文(High Priority)**:\n${auxiliaryContext}` : '';
+  const userPrompt = `标题: ${treasure.title}\n\n内容:\n${treasure.content || ''}${contextPart}`;
+
+  console.log('[AI Tagging Lib] Start. Context:', auxiliaryContext ? 'YES' : 'NO', auxiliaryContext);
 
   try {
     const { object } = await generateObject({
@@ -165,8 +166,12 @@ export async function generateAiTagsForTreasure(
       }),
     });
 
+    console.log('[AI Tagging Lib] AI Raw Output:', object?.tags);
+
     if (object && Array.isArray(object.tags)) {
-      return normalizeAiTags(object.tags as string[], existingAiTags);
+      const normalized = normalizeAiTags(object.tags as string[], existingAiTags);
+      console.log('[AI Tagging Lib] Normalized Output:', normalized);
+      return normalized;
     }
 
     return [];

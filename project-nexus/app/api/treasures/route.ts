@@ -113,7 +113,8 @@ export async function POST(request: NextRequest) {
     const userId = await getUserId(request);
     const body = await request.json();
     const validated = createTreasureSchema.parse(body);
-    const { images, tags, theme, ...rest } = validated;
+    const { images, tags, theme, auxiliaryContext, ...rest } = validated;
+    console.log('[Treasure API] Received Create Request. Context:', auxiliaryContext); // Log Context
     const normalizedTags = Array.isArray(tags) ? [...tags] : [];
 
     if (normalizedTags.length === 0) {
@@ -123,10 +124,6 @@ export async function POST(request: NextRequest) {
         .filter(Boolean)
         .map(tag => tag.charAt(0).toUpperCase() + tag.slice(1));
       normalizedTags.push(...(fallbackTags.length > 0 ? fallbackTags : ['未分类']));
-      console.warn('[Treasure Create] tags empty, fallback applied', {
-        userId,
-        tags: normalizedTags
-      });
     }
 
     const treasure = await prisma.treasure.create({
@@ -138,6 +135,45 @@ export async function POST(request: NextRequest) {
         images: { create: images }
       }
     });
+
+    // Sync AI Tagging (Ensures reliability even if user closes browser)
+    try {
+      // Find existing AI tags for context
+      const aiTagPool = await prisma.treasure.findMany({
+        where: { userId },
+        select: { aiTags: true },
+        take: 10, // Limit context size (Save Tokens)
+        orderBy: { createdAt: 'desc' }
+      });
+      const existingAiTags = Array.from(new Set(aiTagPool.flatMap(item => item.aiTags ?? [])));
+
+      // Import dynamically to avoid circular deps if any (though here it's fine)
+      const { generateAiTagsForTreasure } = await import('@/lib/ai/tagging');
+
+      const aiTags = await generateAiTagsForTreasure(
+        {
+          title: treasure.title,
+          content: treasure.content,
+          tags: treasure.tags
+        },
+        existingAiTags,
+        treasure.tags,
+        auxiliaryContext as string | undefined
+      );
+
+      console.log('[Treasure API] AI Tags Generated:', aiTags);
+
+      if (aiTags.length > 0) {
+        await prisma.treasure.update({
+          where: { id: treasure.id },
+          data: { aiTags }
+        });
+      }
+    } catch (error) {
+      console.error('[Treasure Create] Auto-tagging failed:', error);
+      // We don't fail the request, just log errors
+    }
+
     invalidateUserTagCache(userId);
     return NextResponse.json(treasure, { status: 201 });
   } catch (error) {

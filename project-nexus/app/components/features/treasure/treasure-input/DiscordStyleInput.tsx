@@ -38,6 +38,7 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
   const [isDragging, setIsDragging] = useState(false)
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [skipAiTagging, setSkipAiTagging] = useState(false)
+  const [auxiliaryContext, setAuxiliaryContext] = useState('') // New state for AI Context
 
   // 2. Logic Hooks
   const { upload } = useOssUpload()
@@ -142,6 +143,7 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
           height: img.height,
           size: img.size
         })),
+        auxiliaryContext: auxiliaryContext.trim() || undefined, // Send to backend
       }
 
       await onSubmit(data)
@@ -229,15 +231,27 @@ export function DiscordStyleInput({ onSubmit, onCancel, initialData, mode = 'cre
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSubmit(); }
-            if (e.key === 'Escape') {
-              handleCancel();
-            }
           }}
           placeholder="分享你的想法..."
           className="w-full resize-none border-0 rounded-lg bg-gray-800 focus:bg-gray-750 px-4 py-3 text-base leading-relaxed text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
           style={{ minHeight: '120px' }}
           maxLength={10000}
         />
+
+        {/* AI Auxiliary Context Input */}
+        <div className="px-4 pb-3">
+          <div className="relative">
+            <input
+              value={auxiliaryContext}
+              onChange={(e) => setAuxiliaryContext(e.target.value)}
+              placeholder="告诉 AI 更多上下文（例如：这是一篇关于 Rust 的文章...）"
+              className="w-full bg-gray-900/50 border border-gray-700/50 rounded-md px-3 py-2 text-sm text-gray-300 placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 focus:bg-gray-900 transition-colors"
+            />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-600 pointer-events-none">
+              仅 AI 可见
+            </div>
+          </div>
+        </div>
 
       </div>
 

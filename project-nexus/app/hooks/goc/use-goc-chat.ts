@@ -125,11 +125,14 @@ export function useGocChat() {
       const contentLength = content?.length || 0;
       const lastLength = lastSyncedLength.current.get(msg.id) || 0;
 
-      if (!content || contentLength === 0) return;
+      const attachments = (msg.attachments || msg.experimental_attachments) || [];
+      const hasContent = (content && contentLength > 0) || (attachments.length > 0);
+
+      if (!hasContent) return;
 
       const shouldSync = isStreaming
         ? contentLength > lastLength + 50
-        : !syncedMessageIds.current.has(msg.id) || contentLength > lastLength;
+        : !syncedMessageIds.current.has(msg.id) || (contentLength > lastLength) || (attachments.length > 0 && !syncedMessageIds.current.has(msg.id));
 
       if (shouldSync) {
         // Extract reasoning and tool calls
@@ -156,6 +159,7 @@ export function useGocChat() {
           userName: msg.role === 'user' ? (me?.info?.name || 'Operator') : 'NEXUS AI',
           createdAt: msg.createdAt instanceof Date ? msg.createdAt.getTime() : (msg.createdAt || Date.now()),
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          attachments: (msg.attachments || msg.experimental_attachments)?.map((a: any) => typeof a === 'string' ? a : a.url),
         });
 
         lastSyncedLength.current.set(msg.id, contentLength + (reasoning?.length || 0));
@@ -225,55 +229,44 @@ export function useGocChat() {
   }, [isAiConfigured]);
 
   // --- Send Message Handler ---
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const inputValue = inputRef.current?.value || '';
-    if (!inputValue.trim()) return;
+  const handleSendMessage = async (text: string, attachments: string[] = []) => {
+    if (!text.trim() && attachments.length === 0) return;
 
-    // --- Context Management Strategy ---
-    const MAX_MESSAGES_BEFORE_COMPRESSION = 20;
-    const RECENT_MESSAGES_TO_KEEP = 10;
+    // --- Context Management Strategy (CRITICAL FIX) ---
+    // Instead of using local 'messages' (which might be empty on refresh),
+    // we use 'displayMessages' which is the union of local and shared history.
+    // This ensures the AI sees the entire room's conversation and previous images.
+    const historyForAI = displayMessages.map((m: any) => {
+      const rawAttachments = m.attachments || m.experimental_attachments;
+      const msg: any = {
+        role: m.role,
+        content: m.content || "",
+      };
 
-    // Explicitly cast to any to bypass strict type checking for mixed message types during processing
-    // In a real scenario, we should normalize CoreMessage to UIMessage
-    let processedMessages: any[] = messages;
-
-    if (messages.length > MAX_MESSAGES_BEFORE_COMPRESSION) {
-      try {
-        setIsCompressing(true);
-        console.log(`[Chat Context] History too long (${messages.length}). Compressing...`);
-
-        const systemMessage = messages.find(m => m.role === 'system');
-        const messagesToSummarize = messages.slice(systemMessage ? 1 : 0, -RECENT_MESSAGES_TO_KEEP);
-        const recentMessages = messages.slice(-RECENT_MESSAGES_TO_KEEP);
-
-        // Generate summary from the middle part of the conversation
-        const summary = await generateContextSummary(messagesToSummarize);
-
-        const summaryMessage = {
-          id: `summary-${Date.now()}`,
-          role: 'system',
-          content: `[Archived Context Summary]:\n${summary}`,
-        };
-
-        // Reconstruct messages with summary
-        processedMessages = systemMessage
-          ? [systemMessage, summaryMessage, ...recentMessages]
-          : [summaryMessage, ...recentMessages];
-
-        console.log(`[Chat Context] Compression complete. New history length: ${processedMessages.length}`);
-      } catch (error) {
-        console.error("Context compression failed, falling back to truncation.", error);
-        // Fallback to simple truncation on error
-        const recentMessages = messages.slice(-RECENT_MESSAGES_TO_KEEP);
-        const systemMessage = messages.find(m => m.role === 'system');
-        processedMessages = systemMessage ? [systemMessage, ...recentMessages] : recentMessages;
-      } finally {
-        setIsCompressing(false);
+      if (rawAttachments && rawAttachments.length > 0) {
+        msg.experimental_attachments = rawAttachments.map((a: any) => {
+          const url = typeof a === 'string' ? a : a.url;
+          return {
+            url,
+            contentType: 'image/webp',
+            name: 'image.webp'
+          };
+        });
       }
+      return msg;
+    });
+
+    // Simple Truncation/Compression for Context
+    const MAX_CONTEXT = 30;
+    let finalHistory = historyForAI;
+    if (finalHistory.length > MAX_CONTEXT) {
+      finalHistory = [
+        { role: 'system', content: `[System]: Room history truncated.` },
+        ...finalHistory.slice(-15)
+      ];
     }
 
-    const trimmedInput = inputValue.trim();
+    const trimmedInput = text.trim();
     const hasAIPrefix = trimmedInput.startsWith('@AI') || trimmedInput.startsWith('@ai');
     const shouldSendToAI = (aiModeEnabled && isAiConfigured) || hasAIPrefix;
 
@@ -289,15 +282,14 @@ export function useGocChat() {
         content: trimmedInput,
         userName: me?.info?.name || 'Operator',
         createdAt: Date.now(),
+        attachments: attachments.length > 0 ? attachments : undefined,
       };
       syncPlayerMessage(playerMsg);
-      if (inputRef.current) inputRef.current.value = '';
       return;
     }
 
     const aiQuery = hasAIPrefix ? trimmedInput.replace(/^@ai\s*/i, '') : trimmedInput;
-    if (!aiQuery) {
-      if (inputRef.current) inputRef.current.value = '';
+    if (!aiQuery && attachments.length === 0) {
       return;
     }
 
@@ -330,12 +322,74 @@ export function useGocChat() {
     // The workaround is to pass the compressed history in the `data` payload and handle it on the server-side.
     // This avoids TypeScript errors and aligns with the intended use of the SDK.
 
-    // Let's add the compressed messages to the body.
-    body.messages = processedMessages;
+    // Construct newUserMsg using standard 'content' array format for better compatibility
+    let newUserMsg: any = {
+      role: 'user',
+      content: aiQuery,
+    };
 
-    sendMessage({ text: aiQuery }, { body });
+    if (attachments && attachments.length > 0) {
+      const contentParts: any[] = [
+        { type: 'text', text: aiQuery }
+      ];
 
-    if (inputRef.current) inputRef.current.value = '';
+      attachments.forEach(url => {
+        contentParts.push({
+          type: 'image',
+          image: new URL(url) // SDK expects URL object or string. URL object is safer to trigger 'image' type detection
+        });
+      });
+
+      newUserMsg.content = contentParts;
+
+      // Also keep experimental_attachments for legacy/fallback support if needed by other components
+      newUserMsg.experimental_attachments = attachments.map(url => ({
+        url,
+        contentType: 'image/webp',
+        name: 'image.webp'
+      }));
+    }
+
+    // --- CRITICAL FIX: Ensure user's own message (with images) is synced to Liveblocks ---
+    syncPlayerMessage({
+      id: `ai-input-${Date.now()}`,
+      role: 'user',
+      content: aiQuery,
+      userName: me?.info?.name || 'Operator',
+      createdAt: Date.now(),
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
+
+    body.messages = [...finalHistory, newUserMsg];
+
+    // We no longer need to pass attachments separately if we embedded them in the message
+    // body.attachments = attachments;
+
+    // AI SDK 5.x 标准多模态格式
+    // 参考: https://github.com/vercel/ai/blob/main/content/docs/02-foundations/03-prompts.mdx
+    const messagePayload: any = {
+      role: 'user',
+      content: aiQuery, // 默认纯文本
+    };
+
+    // 如果有图片，构造 content 数组
+    if (attachments && attachments.length > 0) {
+      const contentParts: any[] = [
+        { type: 'text', text: aiQuery }
+      ];
+
+      // 添加图片部分 - 直接使用 URL 字符串
+      attachments.forEach(url => {
+        contentParts.push({
+          type: 'image',
+          image: url  // SDK 5.x 支持直接用字符串 URL
+        });
+      });
+
+      messagePayload.content = contentParts;
+    }
+
+    sendMessage(messagePayload, { body });
   };
 
   return {

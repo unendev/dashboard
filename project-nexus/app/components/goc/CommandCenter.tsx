@@ -22,13 +22,13 @@ export default function CommandCenter() {
     inputRef,
     me,
     others,
-    
+
     // Config State
     aiConfig,
     updateAiConfig,
     aiModeEnabled,
     setAiModeEnabled,
-    
+
     // Actions
     handleSendMessage,
     getUIMessageContent,
@@ -53,7 +53,7 @@ export default function CommandCenter() {
 
       <ChatInput
         inputRef={inputRef}
-        onSubmit={handleSendMessage}
+        onSendMessage={handleSendMessage}
         isLoading={isLoading}
         aiModeEnabled={aiModeEnabled}
         setAiModeEnabled={setAiModeEnabled}

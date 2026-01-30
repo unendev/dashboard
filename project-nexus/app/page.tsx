@@ -1,5 +1,5 @@
-import ScrollableLayout from './components/layout/ScrollableLayout'
+import NexusFeedLayout from './components/features/nexus/NexusFeedLayout'
 
 export default function HomePage() {
-  return <ScrollableLayout />
+  return <NexusFeedLayout />
 }

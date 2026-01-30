@@ -155,20 +155,36 @@ async def init_browser_with_token(page: Page, token: str, max_retries: int = 3):
             logger.info("  ✓ 页面加载完成")
             
             # 注入token和user_pkey（确保所有存储位置都有）
+            # 注入token（使用原生API，比JS注入更可靠）
             user_pkey = HEYBOX_USER_PKEY if HEYBOX_USER_PKEY else ""
+            
+            cookies_to_add = [
+                {
+                    'name': 'x_xhh_tokenid',
+                    'value': token,
+                    'domain': '.xiaoheihe.cn',
+                    'path': '/'
+                }
+            ]
+            
+            if user_pkey:
+                cookies_to_add.append({
+                    'name': 'user_pkey',
+                    'value': user_pkey,
+                    'domain': '.xiaoheihe.cn',
+                    'path': '/'
+                })
+                
+            await page.context.add_cookies(cookies_to_add)
+            
+            # 同时注入localStorage (前端逻辑可能需要)
             await page.evaluate(f"""
                 () => {{
-                    const token = "{token}";
-                    const userPkey = "{user_pkey}";
-                    localStorage.setItem('x_xhh_tokenid', token);
-                    sessionStorage.setItem('x_xhh_tokenid', token);
-                    document.cookie = `x_xhh_tokenid=${{token}}; path=/; domain=.xiaoheihe.cn`;
-                    if (userPkey) {{
-                        document.cookie = `user_pkey=${{userPkey}}; path=/; domain=.xiaoheihe.cn`;
-                    }}
+                    localStorage.setItem('x_xhh_tokenid', "{token}");
+                    sessionStorage.setItem('x_xhh_tokenid', "{token}");
                 }}
             """)
-            logger.info("  ✓ Token注入成功")
+            logger.info("  ✓ Token注入成功 (Native Cookies + LocalStorage)")
             
             # 等待一下让页面反应
             await asyncio.sleep(2)
@@ -601,78 +617,93 @@ def analyze_with_ai(post: Dict, comments: List[Dict]) -> Dict:
 # ========== 数据库存储 ==========
 
 async def save_to_database(posts_with_analysis: List[Dict]):
-    """保存到PostgreSQL"""
-    logger.info(f"\n💾 保存数据到数据库...")
+    """
+    保存数据到Nexus (API Mode)
+    Original DB logic replaced with HTTP push to Nexus Ingest API
+    """
+    logger.info(f"\n� 推送数据到 Nexus API...")
     
-    if not DATABASE_URL:
-        logger.error("❌ 未配置DATABASE_URL")
+    # 从配置或环境变量获取 Nexus API 地址
+    # 默认尝试 localhost用于本地调试，但在Action中必须配置环境变量
+    nexus_api_url = os.getenv("NEXUS_API_URL", "http://localhost:10000/api/ingest")
+    nexus_key = os.getenv("NEXUS_INGEST_KEY", "dev-super-admin-2024")
+    
+    if not nexus_api_url:
+        logger.error("❌ 未配置 NEXUS_API_URL，无法推送数据")
         return False
+        
+    import requests
     
-    db_url = DATABASE_URL.split('?')[0] if '?' in DATABASE_URL else DATABASE_URL
+    success_count = 0
     
-    try:
-        conn = await asyncpg.connect(db_url)
-        logger.info("  ✓ 数据库连接成功")
-        
-        saved_posts = 0
-        saved_comments = 0
-        
-        for post in posts_with_analysis:
-            try:
-                await conn.execute('''
-                    INSERT INTO heybox_posts (
-                        id, title, title_cn, url, author, cover_image,
-                        content_summary, likes_count, comments_count,
-                        core_issue, key_info, post_type,
-                        value_assessment, detailed_analysis, timestamp
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                    ON CONFLICT (id) DO UPDATE SET
-                        title_cn = $3,
-                        likes_count = $8,
-                        comments_count = $9,
-                        timestamp = $15
-                ''', 
-                    post['id'], post['title'], post['analysis'].get('title_cn', post['title']),
-                    post['url'], post.get('author'), None,
-                    post.get('summary', '')[:1000], post['likes_count'],
-                    post['comments_count'],
-                    post['analysis']['core_issue'],
-                    json.dumps(post['analysis']['key_info']),
-                    post['analysis']['post_type'],
-                    post['analysis']['value_assessment'],
-                    post['analysis']['detailed_analysis'],
-                    datetime.fromtimestamp(post.get('created_time', time.time()))
-                )
-                saved_posts += 1
-                
-                # 保存评论
-                for comment in post.get('comments', []):
-                    try:
-                        await conn.execute('''
-                            INSERT INTO heybox_comments (
-                                id, post_id, author, content, likes_count,
-                                created_at, parent_id, depth
-                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                            ON CONFLICT (id) DO NOTHING
-                        ''',
-                            comment['id'], post['id'], comment.get('author', ''),
-                            comment.get('content', ''), comment.get('likes_count', 0),
-                            datetime.fromtimestamp(comment.get('created_time', time.time())),
-                            comment.get('parent_id'), comment.get('depth', 0)
-                        )
-                        saved_comments += 1
-                    except Exception as e:
-                        logger.warning(f"    保存评论失败: {e}")
-                        
-            except Exception as e:
-                logger.warning(f"    保存帖子失败 {post['id']}: {e}")
-        
-        await conn.close()
-        logger.info(f"✅ 数据保存完成: {saved_posts}个帖子, {saved_comments}条评论")
+    # 转换数据格式以适配 Nexus Ingest API
+    nexus_items = []
+    
+    for post in posts_with_analysis:
+        try:
+            # 构建 tags
+            tags = ['Heybox']
+            if post.get('game_tag'):
+                tags.append(post['game_tag'])
+            
+            # 提取 AI 分析结果作为摘要，避免 Nexus 端再次分析
+            ai_summary = ""
+            analysis = post.get('analysis', {})
+            if analysis:
+                ai_summary = f"{analysis.get('core_issue', '')}\n\n{analysis.get('detailed_analysis', '')[:300]}..."
+            else:
+                ai_summary = post.get('summary', '')
+
+            item = {
+                "source": "小黑盒 Heybox",  # Match rss-config.ts name exactly
+                "sourceType": "culture",
+                "title": post.get('title'),
+                "content": post.get('summary', '')[:5000], 
+                "summary": ai_summary,  # 关键：传入 summary 阻止 Nexus 端 AI 触发
+                "link": post.get('url'),
+                "externalId": str(post.get('id')),
+                "authorName": post.get('author'),
+                "publishedAt": datetime.fromtimestamp(post.get('created_time', time.time())).isoformat(),
+                "tags": tags,
+                "metadata": {
+                    "likes": post.get('likes_count'),
+                    "comments": post.get('comments_count'),
+                    "ai_analysis": post.get('analysis')
+                }
+            }
+            nexus_items.append(item)
+            
+        except Exception as e:
+            logger.warning(f"  ⚠ 数据转换失败: {e}")
+
+    if not nexus_items:
+        logger.warning("  ⚠ 没有有效数据需要推送")
         return True
+
+    # 批量推送 (Nexus Ingest API 支持数组)
+    try:
+        logger.info(f"  📡 正在发送 {len(nexus_items)} 条数据到 {nexus_api_url}...")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {nexus_key}"
+        }
         
+        response = requests.post(
+            nexus_api_url,
+            json=nexus_items,
+            headers=headers,
+            timeout=30
+        )
+        
+        if response.status_code in [200, 201]:
+            logger.info(f"  ✅ 推送成功! 响应: {response.text}")
+            return True
+        else:
+            logger.error(f"  ❌ 推送失败: HTTP {response.status_code} - {response.text}")
+            return False
+            
     except Exception as e:
-        logger.error(f"❌ 数据库操作失败: {e}")
+        logger.error(f"  ❌ 连接 API 失败: {e}")
         return False
 
 # ========== 主流程 ==========
@@ -714,18 +745,31 @@ async def main():
         browser = await p.chromium.launch(**launch_options)
         logger.info("✓ 浏览器启动成功")
         
-        # 创建上下文（反爬虫设置）
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            extra_http_headers={
+        # 创建上下文（尝试加载持久化登录状态）
+        auth_file = 'heybox_auth.json'
+        # 基础上下文配置
+        context_options = {
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "extra_http_headers": {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "zh-CN,zh;q=0.9",
-            }
-        )
+            },
+            "viewport": {"width": 1600, "height": 900}  # 使用宽屏分辨率
+        }
         
-        # 在访问页面前预先设置Cookie，确保首次请求即携带认证信息
+        has_auth_file = os.path.exists(auth_file)
+        if has_auth_file:
+            logger.info(f"📖 发现登录状态文件: {auth_file}")
+            context_options["storage_state"] = auth_file
+            context = await browser.new_context(**context_options)
+            logger.info("✓ 已加载持久化登录状态（跳过手动Token注入）")
+        else:
+            logger.info("ℹ 未找到登录状态文件，使用常规模式（准备手动注入Token）")
+            context = await browser.new_context(**context_options)
+        
+        # 在访问页面前预先设置Cookie（仅当没有加载auth文件时）
         cookies_to_add = []
-        if HEYBOX_TOKEN_ID:
+        if not has_auth_file and HEYBOX_TOKEN_ID:
             cookies_to_add.append({
                 'name': 'x_xhh_tokenid',
                 'value': HEYBOX_TOKEN_ID,

@@ -15,7 +15,7 @@ HEYBOX_USER_PKEY = os.getenv("HEYBOX_USER_PKEY", "")
 HEYBOX_HOME_URL = "https://www.xiaoheihe.cn/app/bbs/home"
 
 # ========== 爬取配置 ==========
-POST_LIMIT = int(os.getenv("HEYBOX_POST_LIMIT", "20"))
+POST_LIMIT = int(os.getenv("HEYBOX_POST_LIMIT", "5"))
 COMMENT_LIMIT = int(os.getenv("HEYBOX_COMMENT_LIMIT", "10"))  # 默认10条，避免抓取过多
 REQUEST_INTERVAL = 2  # 请求间隔（秒）
 MAX_RETRIES = 3

@@ -198,6 +198,27 @@ export const MessageList = ({
                 ? "bg-zinc-800/80 border-zinc-700 text-zinc-100 rounded-tr-none"
                 : "bg-zinc-900/80 border-zinc-600 text-zinc-200 rounded-tl-none"
             )}>
+              {/* Attachments */}
+              {(m.attachments || m.experimental_attachments) && (m.attachments || m.experimental_attachments).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(m.attachments || m.experimental_attachments).map((url: any, i: number) => {
+                    // AI SDK might use object instead of string for attachments, but we are using string URLs
+                    const src = typeof url === 'string' ? url : url.url;
+                    return (
+                      <div key={i} className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt="attachment"
+                          className="max-w-[200px] max-h-[200px] rounded-lg border border-zinc-700/50 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                          onClick={() => window.open(src, '_blank')}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {content && (
                 <div className="markdown-content">
                   <MarkdownView content={content} variant="goc" />

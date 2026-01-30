@@ -22,6 +22,7 @@ export interface TreasureData {
     height?: number
     size?: number
   }>
+  auxiliaryContext?: string // 【新增】辅助AI理解的上下文
 }
 
 interface TreasureInputModalProps {
@@ -101,6 +102,7 @@ export function TreasureInputModal({
         <DialogPrimitive.Content
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
           className={cn(
             "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]",
             "flex items-start gap-1", // 紧凑布局：微小间距

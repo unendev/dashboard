@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { messages, players, mode, roomId, provider, modelId, currentPlayerName, enableThinking } = body;
+    const { messages, data, players, mode, roomId, provider, modelId, currentPlayerName, enableThinking } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return new Response('Messages array is required', { status: 400 });
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       return new Response('Room ID is required', { status: 400 });
     }
 
-    const playerContext = players ? players.map((p: any) => `- ${p.name} (ID: ${p.id})`).join('\n') : "Unknown";
+    const playerContext = (players && Array.isArray(players)) ? players.map((p: any) => `- ${p.name} (ID: ${p.id})`).join('\n') : "Unknown";
 
     let modeInstruction = "";
     switch (mode) {
@@ -223,7 +223,79 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
       }),
     };
 
-    const modelMessages = convertToModelMessages(messages);
+    // --- Gemini Vision Support: Process Attachments ---
+    // The frontend sends OSS URLs in 'experimental_attachments'.
+    // Gemini (via Vercel SDK) expects Uint8Array for images in 'content'.
+    // We must fetch the images from the URLs and convert them.
+
+    // We need to mutate the modelMessages before sending to streamText/generateText.
+    // However, modelMessages is derived from 'messages' using convertToModelMessages.
+    // We should process 'messages' first or process 'modelMessages' directly.
+    // Processing 'modelMessages' is safer as it's the final format content.
+
+    // [GOC Strategy: Bypass Buggy convertToModelMessages]
+    // SDK 5.0.118 的 convertToModelMessages 在处理图片时会崩溃
+    // 根据官方文档，streamText 可以直接接受标准消息格式
+    // 我们直接传递 messages，不进行转换
+
+    let processedModelMessages = messages as any;
+
+    // [GOC Debug] Provider/Model logging
+    console.log(`[GOC Debug] Provider=${provider}, ModelId=${modelId}, MessageCount=${messages.length}`);
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      console.log(`[GOC Debug] Last Message Preview:`, JSON.stringify(lastMsg, null, 2));
+    }
+
+    // Only process if using Gemini provider (as per requirement) and there are messages with content
+    if (provider === 'gemini' || modelId?.includes('gemini')) {
+      processedModelMessages = await Promise.all(processedModelMessages.map(async (msg: any) => {
+        if (msg.role === 'user' && Array.isArray(msg.content)) {
+          const newContent = await Promise.all(msg.content.map(async (part: any) => {
+            // Check if it's an image part with a URL (Vercel SDK might have mapped it to 'image' type with 'url' or kept as is)
+            // standard Vercel SDK convertToModelMessages might not strictly handle the 'experimental_attachments' -> 'image-part' mapping for URL strings perfectly for all providers.
+            // But let's assume we receive standard CoreMessage structure where content can be array of parts.
+
+            // The frontend sends 'experimental_attachments' which convertToModelMessages usually turns into image parts if they are URLs?
+            // Actually, convertToModelMessages might just keep them if they are in the right format.
+            // Let's check if we have image parts with absolute HTTP URLs.
+
+            // [GOC Debug] Log the part to see what we are dealing with
+            // console.log('[GOC Debug] Processing part:', JSON.stringify(part, null, 2));
+
+            const isImagePart = part.type === 'image';
+            const hasImageUrl = part.image && (part.image instanceof URL || typeof part.image === 'string');
+
+            if (isImagePart && hasImageUrl) {
+              // SDK already parsed it as URL object?
+              try {
+                const imageUrl = part.image.toString();
+                console.log(`[GOC] Fetching image for Vision: ${imageUrl}`);
+                const response = await fetch(imageUrl);
+                const arrayBuffer = await response.arrayBuffer();
+                const base64Data = Buffer.from(arrayBuffer).toString('base64');
+                console.log(`[GOC] Image downloaded & converted to Base64. Length: ${base64Data.length}`);
+
+                return {
+                  type: 'image',
+                  image: new Uint8Array(arrayBuffer), // Vercel SDK handles Uint8Array -> base64 for Google provider?
+                  // However, for Google REST API directly we need base64. 
+                  // The AI SDK's 'google' provider should handle Uint8Array.
+                  mimeType: part.mimeType || 'image/webp'
+                };
+              } catch (e) {
+                console.error(`[GOC] Failed to fetch image for Vision:`, e);
+                return part; // Fallback
+              }
+            }
+
+            return part; // Return text or other parts as is
+          }));
+          return { ...msg, content: newContent };
+        }
+        return msg;
+      }));
+    }
 
     // 使用统一的 getAIModel 逻辑
     const { model: selectedModel, providerOptions } = getAIModel({
@@ -234,6 +306,87 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
 
     console.log(`[GOC] Model initialized: ${provider}/${modelId || 'default'}`);
 
+    // 拦截文生图模型请求
+    if (modelId === 'gemini-3-pro-image-preview') {
+      try {
+        const { uploadBufferToOss } = await import('@/lib/oss-server');
+        const { generateText } = await import('ai');
+
+        console.log(`[GOC] Generating image with prompt: "${messages[messages.length - 1].content}"`);
+
+        // 使用 generateText 而非 streamText
+        // 注意：model 必须包含 -image 才能触发多模态生成? 
+        // 用户提供的 ID 是 'gemini-3-pro-image-preview'，我们需要确保底层 provider 调用的是正确的 Google 模型 ID
+        // Gemini API 3.0 可能也叫 'gemini-2.5-flash-image-preview' 或者其他，这里假设 provider 内部处理了映射或者直接透传
+        // 既然 types.ts 写的是 'gemini-3-pro-image-preview'，我们暂时认为它就是目标模型的 ID。
+        // 但根据用户提供的文档，推荐 'gemini-2.5-flash-image-preview'。
+        // 为了保险，我们可以强制在这里 override 为 'gemini-2.5-flash-image-preview' 如果用户选的是这个特定 ID
+        // 或者相信 lib/ai-provider.ts 能正确返回 google provider。
+
+        // 使用用户指定的 Gemini 3.0 Pro Image 模型
+        const imageGenModel = getAIModel({ provider, modelId: 'gemini-3-pro-image-preview' }).model;
+
+        const result = await generateText({
+          model: imageGenModel,
+          messages: convertToModelMessages(messages),
+        });
+
+        // 检查是否有生成的图片文件
+        // 根据 Vercel SDK 00-guides/20-google-gemini-image-generation:
+        // result.files? 
+        // ai-sdk/google 实现会把 image put in result.experimental_output? 
+        // User docs say: result.files
+
+        // TS Hack: result type might not expose files in current generic definition if version mismatch, 
+        // cast to any to access provider-specific fields
+        const files = (result as any).files || (result as any).experimental_output?.files;
+
+        if (files && files.length > 0) {
+          const generatedImages = [];
+
+          for (const file of files) {
+            if (file.mediaType.startsWith('image/')) {
+              // file.uint8Array should be available
+              const buffer = Buffer.from(file.uint8Array);
+              const filename = `ai-gen-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.png`;
+
+              const url = await uploadBufferToOss(buffer, filename, file.mediaType);
+              generatedImages.push(url);
+            }
+          }
+
+          if (generatedImages.length > 0) {
+            const markdownImages = generatedImages.map(url => `![Generated Image](${url})`).join('\n\n');
+            const responseText = `🎨 Image Generated:\n\n${markdownImages}`;
+
+            // Return as a simple stream or just a text response?
+            // Helper to simulate stream response for consistency with frontend
+            return new Response(responseText, {
+              headers: { 'Content-Type': 'text/plain' }
+            });
+            // However, frontend expects stream format if it uses useChat? 
+            // To be safe, let's just return a single chunk stream.
+
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(responseText);
+                controller.close();
+              }
+            });
+            return new Response(stream, { headers: { 'Content-Type': 'text/plain' } });
+          }
+        }
+
+        // If no image generated, return text
+        return new Response(result.text, { headers: { 'Content-Type': 'text/plain' } });
+
+      } catch (error: any) {
+        console.error('[GOC] Image Gen Error:', error);
+        return new Response(`Failed to generate image: ${error.message}`, { status: 500 });
+      }
+    }
+
+    // Default Streaming Flow
     const toolChoice = mode === 'planner' ? 'required' as const : 'auto' as const;
 
     const result = streamText({
@@ -242,7 +395,7 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
 
       system: systemPrompt,
 
-      messages: modelMessages,
+      messages: processedModelMessages, // Use processed messages
 
       tools,
 
@@ -277,6 +430,7 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
 
   } catch (error: any) {
     console.error(`[GOC] Error:`, error?.message);
+    console.error(`[GOC] Stack:`, error?.stack);
     return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

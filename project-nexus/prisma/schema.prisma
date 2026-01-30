@@ -908,3 +908,36 @@ model GlobalConfig {
 
   @@map("global_config")
 }
+
+// --- Nexus v2 Core Models ---
+
+model NexusItem {
+  id          String   @id @default(cuid())
+  source      String   // linuxdo, reddit, bilibili, telegram_group, etc.
+  sourceType  String   // frontier, culture, wool
+  
+  title       String?  // Post title or message snippet
+  content     String?  @db.Text // Full content / message
+  summary     String?  @db.Text // AI generated summary
+  link        String?  // Original URL
+  
+  authorName  String?
+  authorAvatar String?
+  
+  publishedAt DateTime // Original creation time
+  crawledAt   DateTime @default(now())
+  
+  externalId  String?  // RSS GUID, Tweet ID, etc.
+
+  // Metadata for source-specific fields (e.g. reddit score, tweet media, telegram reply_to)
+  metadata    Json?    
+  
+  // Unified tagging
+  tags        String[] @default([])
+  
+  @@unique([source, externalId]) // Prevent duplicates from same source
+  @@index([source, publishedAt])
+  @@index([crawledAt])
+  @@index([sourceType])
+  @@map("nexus_items")
+}

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { FeedItem } from '@/lib/rss';
+import { MarkdownView } from '@/app/components/shared/MarkdownView';
 
 interface FeedCardProps {
     item: FeedItem;
@@ -16,9 +17,8 @@ export const FeedCard: React.FC<FeedCardProps> = ({ item, theme, textTheme, subT
     const textClass = textTheme || 'text-zinc-200';
     const subTextClass = subTextTheme || 'text-zinc-500';
 
-    const isCulture = item.categories?.some(c => ['机核', 'Gcores', 'Culture', 'Art'].includes(c)) || item.source.includes('机核');
+    const [showAnalysis, setShowAnalysis] = React.useState(false);
 
-    // Extract images
     // Extract images
     let heroImage = item.imageUrl || null;
 
@@ -33,7 +33,31 @@ export const FeedCard: React.FC<FeedCardProps> = ({ item, theme, textTheme, subT
     }
 
     return (
-        <div className={`group relative p-4 rounded-lg transition-colors duration-300 ${cardClass}`}>
+        <div
+            className={`group relative p-4 rounded-lg transition-all duration-300 ${cardClass} cursor-pointer ${showAnalysis ? 'ring-2 ring-emerald-500/50' : ''}`}
+            onClick={() => setShowAnalysis(!showAnalysis)}
+        >
+
+            {/* AI Summary Overlay (Click to Toggle) */}
+            {(item.summary || (item.metadata as any)?.aiAnalysis) && (
+                <div className={`absolute inset-0 bg-zinc-950/95 backdrop-blur-md p-5 transition-all duration-300 z-20 flex flex-col justify-center select-none ${showAnalysis ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-3 flex items-center justify-between flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            AI Analysis
+                        </div>
+                        <button className="text-zinc-500 hover:text-zinc-300" onClick={(e) => { e.stopPropagation(); setShowAnalysis(false); }}>✕</button>
+                    </div>
+                    {/* Markdown Content Container */}
+                    <div className="overflow-y-auto custom-scrollbar flex-1 -mr-2 pr-2">
+                        <MarkdownView
+                            content={item.summary || (item.metadata as any)?.aiAnalysis}
+                            variant="goc"
+                            className="text-sm text-zinc-200 leading-relaxed [&>p]:mb-2 [&>h2]:text-base [&>h2]:font-bold [&>h2]:text-emerald-400 [&>h2]:mt-2 [&>h2]:mb-1 [&>ul]:list-disc [&>ul]:pl-4"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Header: Source & Date */}
             <div className={`flex items-center gap-2 mb-3 text-[10px] font-medium ${subTextClass}`}>
@@ -66,13 +90,19 @@ export const FeedCard: React.FC<FeedCardProps> = ({ item, theme, textTheme, subT
             )}
 
             {/* Content */}
-            <h3 className={`text-sm font-medium mb-2 leading-relaxed transition-colors ${textClass} group-hover:opacity-80`}>
-                <a href={item.link} target="_blank" rel="noopener noreferrer" className="before:absolute before:inset-0 focus:outline-none">
+            <h3 className={`text-sm font-medium mb-2 leading-relaxed transition-colors ${textClass} relative z-10`}>
+                <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline focus:outline-none hover:text-emerald-400 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     {item.title}
                 </a>
             </h3>
 
-            <div className={`text-xs line-clamp-3 mb-3 font-normal leading-relaxed transition-colors ${subTextClass}`}>
+            <div className={`text-xs line-clamp-3 mb-3 font-normal leading-relaxed transition-colors ${subTextClass} relative z-10`}>
                 {item.contentSnippet
                     ? item.contentSnippet.replace(/&#8230;/g, '...').replace(/&nbsp;/g, ' ').slice(0, 140)
                     : item.content?.replace(/<[^>]+>/g, '').slice(0, 100) + '...'

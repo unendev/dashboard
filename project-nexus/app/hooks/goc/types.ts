@@ -13,6 +13,7 @@ export interface SharedMessage {
     state: string;
     toolCallId?: string;
   }>;
+  attachments?: string[];
 }
 
 export interface Todo {
@@ -44,6 +45,7 @@ export const MODEL_CONFIG: Record<AIProvider, { label: string; models: { id: str
       { id: 'gemini-2.5-flash', name: '2.5 Flash', desc: '官方稳定版', thinking: true },
       { id: 'gemini-3-flash', name: '3.0 Flash', desc: '第三方兼容', thinking: true },
       { id: 'gemini-3-pro-high', name: '3.0 Pro High', desc: '深度推理/高算力', thinking: true },
+      { id: 'gemini-3-pro-image-preview', name: '3.0 Pro Imagen', desc: '文生图/Image Gen', thinking: false },
     ]
   }
 };

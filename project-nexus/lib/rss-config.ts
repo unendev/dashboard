@@ -12,6 +12,8 @@ export interface FeedItem {
     author?: string;
     categories?: string[];
     isoDate?: string;
+    summary?: string;
+    metadata?: any;
 }
 
 export interface FeedConfig {
@@ -26,13 +28,29 @@ export interface FeedConfig {
 }
 
 export const RSS_FEEDS: FeedConfig[] = [
-    // --- Frontier (Tech/Dev) ---
+    // --- Frontier (Tech/Dev/News) ---
     {
         key: 'linuxdo',
         name: 'Linux.do',
         url: 'https://linux.do/latest.rss',
         type: 'frontier',
         icon: '🐧',
+        enabled: true
+    },
+    {
+        key: 'tech_weekly_ruanyifeng',
+        name: '阮一峰的网络日志',
+        url: 'http://www.ruanyifeng.com/blog/atom.xml',
+        type: 'frontier',
+        icon: '📖',
+        enabled: true
+    },
+    {
+        key: 'tech_weekly_hackernews',
+        name: 'Hacker News',
+        url: 'https://news.ycombinator.com/rss',
+        type: 'frontier',
+        icon: 'Y',
         enabled: true
     },
 
@@ -65,17 +83,16 @@ export const RSS_FEEDS: FeedConfig[] = [
         enabled: true,
         parentId: 'reddit_root'
     },
-    {
-        key: 'reddit_unity',
-        name: 'Unity 3D',
-        url: 'https://www.reddit.com/r/Unity3D/hot.json',
-        type: 'frontier',
-        icon: '🧊',
-        enabled: false,
-        parentId: 'reddit_root'
-    },
 
-    // --- Culture (Game/Art) ---
+    // --- Culture (Game/Art/Bilibili) ---
+    {
+        key: 'bilibili_dynamic',
+        name: 'Bilibili',
+        url: 'api_mode', // Handled by Zima/Edge or dedicated API
+        type: 'culture',
+        icon: '📺',
+        enabled: true
+    },
     {
         key: 'gcores',
         name: '机核 Gcores',
@@ -87,30 +104,44 @@ export const RSS_FEEDS: FeedConfig[] = [
     {
         key: 'heybox',
         name: '小黑盒 Heybox',
-        url: 'https://rsshub.app/heybox/news/2023',
+        url: 'api_mode', // Handled by Cloud Actions (prevent 403 from RSSHub)
         type: 'culture',
         icon: '📦',
-        enabled: false
+        enabled: true
     },
 
-    // --- Wool (Deals) ---
+    // --- Wool (Social/Signals/Deals) ---
     {
         key: 'sspai',
         name: 'Sspai 少数派',
         url: 'https://sspai.com/feed',
-        type: 'culture',
+        type: 'wool',
         icon: '⚡',
         enabled: true
     },
-
-
-    // --- Bilibili (Handled via API, but config is here for UI toggles) ---
     {
-        key: 'bilibili_dynamic',
-        name: 'Bilibili',
-        url: 'api_mode', // Marker to indicate this is not an RSS URL
-        type: 'culture',
-        icon: '📺',
+        key: 'telegram_main',
+        name: 'Telegram Groups',
+        url: 'api_mode', // Pushed by Zima Userbot
+        type: 'wool',
+        icon: '✈️',
         enabled: true
-    }
+    },
+    {
+        key: 'qq_all',
+        name: 'QQ Messages',
+        url: 'api_mode', // Pushed by Zima NapCat
+        type: 'wool',
+        icon: '🐧',
+        enabled: true
+    },
+    {
+        key: 'x_twitter',
+        name: 'X (Twitter)',
+        url: 'api_mode', // Pushed by Zima Nitter/RSSHub
+        type: 'wool',
+        icon: '✖️',
+        enabled: true
+    },
+    // Duplicate sspai removed
 ];

@@ -50,7 +50,8 @@ export async function getBiliUserVideos(users: BiliUser[]): Promise<FeedItem[]> 
     for (const user of activeUsers) {
         try {
             // Add significant jitter delay (Bilibili is strict)
-            await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+            // Increased to 5-8s to avoid -799 rate limit
+            await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
 
             // Using standard Bilibili API
             const apiUrl = `https://api.bilibili.com/x/space/arc/search?mid=${user.uid}&ps=5&tid=0&pn=1&keyword=&order=pubdate`;
