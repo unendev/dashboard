@@ -6,7 +6,7 @@ import { useOssUpload } from "@/app/hooks/useOssUpload";
 import { useState, useRef } from "react";
 
 interface ChatInputProps {
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
   onSendMessage: (text: string, attachments: string[]) => void;
   isLoading: boolean;
   aiModeEnabled: boolean;
@@ -19,7 +19,7 @@ export const ChatInput = ({
   aiModeEnabled,
   setAiModeEnabled
 }: ChatInputProps) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<string[]>([]);
   const { upload, isUploading } = useOssUpload();
@@ -94,16 +94,23 @@ export const ChatInput = ({
           {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
         </button>
 
-        <input
-          ref={inputRef}
+        <textarea
+          ref={inputRef as React.RefObject<HTMLTextAreaElement>}
           placeholder={aiModeEnabled ? "向 AI 发送指令..." : "群聊消息... (@AI 可触发 AI)"}
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-3 text-zinc-100 focus:outline-none focus:border-cyan-500 transition-colors placeholder:text-zinc-600"
+          className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-3 text-zinc-100 focus:outline-none focus:border-cyan-500 transition-colors placeholder:text-zinc-600 resize-none min-h-[46px] max-h-[200px] overflow-y-auto"
           disabled={isLoading}
+          rows={1}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               handleSubmit();
             }
+          }}
+          onInput={(e) => {
+            // 自适应高度
+            const target = e.target as HTMLTextAreaElement;
+            target.style.height = 'auto';
+            target.style.height = Math.min(target.scrollHeight, 200) + 'px';
           }}
           onPaste={async (e) => {
             const items = e.clipboardData?.items;
@@ -147,7 +154,7 @@ export const ChatInput = ({
           disabled={isLoading || isUploading}
           className="h-[46px] bg-cyan-900 hover:bg-cyan-800 text-cyan-100 px-6 rounded font-bold transition-colors border border-cyan-700 disabled:opacity-50 shrink-0"
         >
-          {isLoading ? '...' : 'SEND'}
+          {isLoading ? '发送中...' : '发送'}
         </button>
       </form>
     </div>

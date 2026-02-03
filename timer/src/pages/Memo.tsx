@@ -30,50 +30,31 @@ const MemoPage = () => {
 
     return (
         <div className="flex flex-col h-screen w-screen bg-zinc-900 text-zinc-300 font-sans overflow-hidden">
-            {taskId && (
-                <div
-                    className="h-9 flex items-center justify-between px-3 bg-[#1a1a1a] select-none border-b border-zinc-800 shrink-0"
-                    data-drag="true"
+            <div
+                className="flex items-center justify-between px-3 py-2 border-b border-zinc-700 bg-zinc-800 shrink-0"
+                data-drag="true"
+            >
+                <div className="flex items-center gap-2 min-w-0">
+                    <h2 className="text-xs font-medium text-zinc-300 truncate">
+                        {taskId ? (taskTitle || 'Task Memo') : '备忘录'}
+                    </h2>
+                </div>
+                <button
+                    onClick={handleClose}
+                    className="w-5 h-5 rounded flex items-center justify-center text-zinc-500 hover:text-white hover:bg-zinc-600 transition-colors"
+                    data-drag="false"
+                    title="Close"
                 >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <span className="text-xs font-medium text-zinc-300 truncate max-w-[200px]" title={taskTitle || ''}>
-                            {taskTitle}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                        <button
-                            onClick={handleClose}
-                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-600 hover:text-white hover:bg-red-500/20 transition-all"
-                            data-drag="false"
-                            title="Close"
-                        >
-                            <X size={14} />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {!taskId && (
-                <div className="flex-none bg-[#1a1a1a] border-b border-zinc-800">
-                     <div className="h-8 flex items-center justify-end px-3 select-none" data-drag="true">
-                        <button
-                            onClick={handleClose}
-                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-600 hover:text-white hover:bg-red-500/20 transition-all"
-                            data-drag="false"
-                            title="Close"
-                        >
-                            <X size={14} />
-                        </button>
-                     </div>
-                </div>
-            )}
+                    <X size={12} />
+                </button>
+            </div>
 
             <div className="flex-1 min-h-0 overflow-hidden relative">
                 <MemoBoard 
                     storageKeyPrefix={storageKeyPrefix} 
-                    title={taskId ? undefined : "CONSOLE :: CONFIG"} 
+                    title={undefined}
                     showVariables={!taskId}
+                    showHeader={false}
                 />
             </div>
         </div>

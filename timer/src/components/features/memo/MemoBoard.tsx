@@ -1,11 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, GripVertical } from 'lucide-react';
 import { MarkdownRenderer } from '@shared';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface EnvVariable {
     id: string;
     key: string;
     value: string;
+}
+
+interface SortableVariableItemProps {
+    variable: EnvVariable;
+    onUpdate: (id: string, field: 'key' | 'value', val: string) => void;
+    onRemove: (id: string) => void;
+}
+
+function SortableVariableItem({ variable, onUpdate, onRemove }: SortableVariableItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: variable.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="flex items-center gap-2 group"
+        >
+            {/* KEY */}
+            <div className="relative shrink-0 w-1/3 min-w-[100px]">
+                <span className="absolute left-2 top-1.5 text-zinc-600 text-[10px] font-mono select-none">$</span>
+                <input
+                    value={variable.key}
+                    onChange={(e) => onUpdate(variable.id, 'key', e.target.value)}
+                    className="w-full bg-[#0a0a0a] border border-zinc-800 rounded px-2 pl-5 py-1 text-xs font-mono text-purple-400 focus:border-zinc-600 focus:outline-none transition-colors uppercase placeholder-zinc-700"
+                    placeholder="KEY"
+                    spellCheck={false}
+                />
+            </div>
+
+            {/* EQUALS */}
+            <span
+                {...attributes}
+                {...listeners}
+                className="text-zinc-600 hover:text-zinc-400 font-mono text-xs cursor-grab active:cursor-grabbing select-none px-1"
+                title="Drag to reorder"
+            >
+                =
+            </span>
+
+            {/* VALUE */}
+            <div className="flex-1 relative">
+                <input
+                    value={variable.value}
+                    onChange={(e) => onUpdate(variable.id, 'value', e.target.value)}
+                    className="w-full bg-[#0a0a0a] border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:border-zinc-600 focus:outline-none transition-colors placeholder-zinc-700"
+                    placeholder="Value..."
+                />
+            </div>
+
+            {/* DELETE */}
+            <button
+                onClick={() => onRemove(variable.id)}
+                className="p-1 text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Delete"
+            >
+                <X size={12} />
+            </button>
+        </div>
+    );
 }
 
 interface MemoBoardProps {
@@ -81,72 +170,73 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
         saveVariables(newVars);
     };
 
+    // --- Drag and Drop ---
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = variables.findIndex((v) => v.id === active.id);
+            const newIndex = variables.findIndex((v) => v.id === over.id);
+            const newVars = arrayMove(variables, oldIndex, newIndex);
+            saveVariables(newVars);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full w-full bg-zinc-900 text-zinc-300 font-sans overflow-hidden">
             {/* --- HEADER --- */}
-            {showHeader && (
-                <div className="flex-none flex flex-col border-b border-zinc-800 bg-[#1a1a1a]">
-                    <div
-                        className="h-8 flex items-center justify-between px-3 select-none"
-                    >
-                        <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 tracking-widest uppercase">
-                            <span>{title || "CONSOLE :: CONFIG"}</span>
-                        </div>
+            {(showHeader || showVariables) && (
+                <div className={`flex-none flex flex-col ${showHeader ? 'border-b border-zinc-800 bg-[#1a1a1a]' : ''}`}>
+                    {showHeader && (
+                        <div className="h-8 flex items-center justify-between px-3 select-none">
+                            <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 tracking-widest uppercase">
+                                <span>{title || "CONSOLE :: CONFIG"}</span>
+                            </div>
 
-                        <div className="flex items-center gap-1">
-                            {showVariables && (
-                                <button
-                                    onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
-                                    className="w-6 h-6 rounded flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition-colors"
-                                    title={isHeaderExpanded ? "Collapse" : "Expand"}
-                                >
-                                    <span className="text-[10px] transform transition-transform duration-200" style={{ transform: isHeaderExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                                        ▴
-                                    </span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {showVariables && isHeaderExpanded && (
-                        <div className="p-3 space-y-2 overflow-y-auto max-h-[40vh] custom-scrollbar bg-[#161616] border-t border-zinc-800">
-                            {variables.map((v) => (
-                                <div key={v.id} className="flex items-center gap-2 group">
-                                    {/* KEY */}
-                                    <div className="relative shrink-0 w-1/3 min-w-[100px]">
-                                        <span className="absolute left-2 top-1.5 text-zinc-600 text-[10px] font-mono select-none">$</span>
-                                        <input
-                                            value={v.key}
-                                            onChange={(e) => updateVariable(v.id, 'key', e.target.value)}
-                                            className="w-full bg-[#0a0a0a] border border-zinc-800 rounded px-2 pl-5 py-1 text-xs font-mono text-purple-400 focus:border-zinc-600 focus:outline-none transition-colors uppercase placeholder-zinc-700"
-                                            placeholder="KEY"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-
-                                    {/* EQUALS */}
-                                    <span className="text-zinc-700 font-mono text-xs">=</span>
-
-                                    {/* VALUE */}
-                                    <div className="flex-1 relative">
-                                        <input
-                                            value={v.value}
-                                            onChange={(e) => updateVariable(v.id, 'value', e.target.value)}
-                                            className="w-full bg-[#0a0a0a] border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:border-zinc-600 focus:outline-none transition-colors placeholder-zinc-700"
-                                            placeholder="Value..."
-                                        />
-                                    </div>
-
-                                    {/* DELETE */}
+                            <div className="flex items-center gap-1">
+                                {showVariables && (
                                     <button
-                                        onClick={() => removeVariable(v.id)}
-                                        className="p-1 text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Delete"
+                                        onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
+                                        className="w-6 h-6 rounded flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition-colors"
+                                        title={isHeaderExpanded ? "Collapse" : "Expand"}
                                     >
-                                        <X size={12} />
+                                        <span className="text-[10px] transform transition-transform duration-200" style={{ transform: isHeaderExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                            ▴
+                                        </span>
                                     </button>
-                                </div>
-                            ))}
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {showVariables && (showHeader ? isHeaderExpanded : true) && (
+                        <div className={`p-3 space-y-2 overflow-y-auto max-h-[40vh] custom-scrollbar bg-[#161616] ${showHeader ? 'border-t border-zinc-800' : 'border-b border-zinc-800'}`}>
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={variables.map(v => v.id)}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {variables.map((v) => (
+                                        <SortableVariableItem
+                                            key={v.id}
+                                            variable={v}
+                                            onUpdate={updateVariable}
+                                            onRemove={removeVariable}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
 
                             {/* Add Button */}
                             <button

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useSWR, { mutate } from 'swr';
-import { Play, Pause, FileText, FolderOpen, Bot, BookText, GripVertical, Loader2 } from 'lucide-react';
+import { Play, Pause, FileText, FolderOpen, Bot, Loader2, Trash2 } from 'lucide-react';
 import { useTimerControl } from '@/hooks/useTimerControl';
 import { TimerTask, formatTime } from '@dashboard/shared';
 import { fetcher, getApiUrl } from '@/lib/api';
@@ -74,7 +74,8 @@ function useDoubleTap(callback: () => void, delay = 300) {
 export default function TimerPage() {
   const doubleTapCreate = useDoubleTap(openCreateWindow);
   const [isBlurred, setIsBlurred] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; name: string; hasLogs: boolean } | null>(null);
+  const [deleteLogsOption, setDeleteLogsOption] = useState(false);
 
   const user = getUser();
   const userId = user?.id;
@@ -358,26 +359,104 @@ export default function TimerPage() {
   }, []);
 
   // 右键菜单处理
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  const openChartWindow = useCallback((params: { mode: 'task' | 'tag' | 'category'; value: string; title: string; custom?: boolean }) => {
+    const query = new URLSearchParams({
+      mode: params.mode,
+      value: params.value,
+      title: params.title,
+      custom: params.custom ? '1' : '0'
+    }).toString();
 
-    // 如果在 Electron 环境，使用原生菜单
     if (window.electron) {
-      window.electron.send('show-toolbar-context-menu');
+      window.electron.send('open-chart-window', { query });
     } else {
-      // Web 环境使用自定义菜单，定位在工具栏左侧
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setContextMenu({ x: rect.right + 5, y: rect.top });
+      window.open(window.location.pathname + `#/chart?${query}`, '_blank');
     }
   }, []);
 
-  // 点击外部关闭菜单
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handleClick = () => setContextMenu(null);
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [contextMenu]);
+  const handleContextMenu = useCallback((task: TimerTask, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openChartWindow({ mode: 'task', value: task.id, title: task.name, custom: true });
+  }, [openChartWindow]);
+
+  const handleCategoryClick = useCallback((task: TimerTask) => {
+    const categoryPath = task.categoryPath || '';
+    if (categoryPath) {
+      openChartWindow({ mode: 'category', value: categoryPath, title: categoryPath, custom: false });
+    } else {
+      openChartWindow({ mode: 'task', value: task.id, title: task.name, custom: false });
+    }
+  }, [openChartWindow]);
+
+  // 删除任务处理
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (!taskToDelete) return;
+
+    console.log('[Timer] Attempting to delete task:', taskId);
+    console.log('[Timer] Task details:', taskToDelete);
+
+    try {
+      const deleteQuery = deleteLogsOption ? `&deleteLogs=true` : '';
+      const url = `${getApiUrl('/api/timer-tasks')}?id=${taskId}${deleteQuery}`;
+      console.log('[Timer] DELETE URL:', url);
+      
+      // 乐观更新：立即从 UI 移除
+      await mutateTasks((currentTasks) => {
+        if (!currentTasks) return currentTasks;
+        return currentTasks.filter(t => t.id !== taskId);
+      }, false);
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      console.log('[Timer] DELETE response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Timer] DELETE failed:', errorText);
+        throw new Error(`删除失败: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('[Timer] Task deleted successfully:', result);
+      
+      // 重新验证以确保数据一致性
+      await mutateTasks();
+      
+    } catch (error) {
+      console.error('[Timer] Delete task failed:', error);
+      alert(`删除任务失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      // 失败时重新加载数据
+      await mutateTasks();
+    } finally {
+      setTaskToDelete(null);
+      setDeleteLogsOption(false);
+    }
+  }, [taskToDelete, deleteLogsOption, mutateTasks]);
+
+  // 准备删除任务（显示确认对话框）
+  const prepareDeleteTask = useCallback((task: TimerTask, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // 检查是否是临时 ID（乐观更新创建的）
+    if (task.id.startsWith('temp-')) {
+      alert('任务正在同步中，请稍后再试');
+      return;
+    }
+    
+    // 检查是否有关联日志（简化版：假设有 elapsedTime > 0 就可能有日志）
+    const hasLogs = task.elapsedTime > 0;
+    
+    setTaskToDelete({
+      id: task.id,
+      name: task.name,
+      hasLogs,
+    });
+    setDeleteLogsOption(false);
+  }, []);
 
 
 
@@ -401,7 +480,12 @@ export default function TimerPage() {
       <div className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0">
         <button
           onClick={openMemoWindow}
-          onContextMenu={handleContextMenu}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (window.electron) {
+              window.electron.send('show-toolbar-context-menu');
+            }
+          }}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
           title="备忘录 (右键查看更多)"
         >
@@ -409,7 +493,12 @@ export default function TimerPage() {
         </button>
         <button
           onClick={openTodoWindow}
-          onContextMenu={handleContextMenu}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (window.electron) {
+              window.electron.send('show-toolbar-context-menu');
+            }
+          }}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
           title="项目 (右键查看更多)"
         >
@@ -417,7 +506,12 @@ export default function TimerPage() {
         </button>
         <button
           onClick={openAiWindow}
-          onContextMenu={handleContextMenu}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (window.electron) {
+              window.electron.send('show-toolbar-context-menu');
+            }
+          }}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
           title="AI 助手 (右键查看更多)"
         >
@@ -425,45 +519,39 @@ export default function TimerPage() {
         </button>
       </div>
 
-      {/* 右键上下文菜单 - 仅显示不常用功能 */}
-      {contextMenu && (
-        <div
-          className="fixed bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 z-50 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => { openPromptLibraryWindow(); setContextMenu(null); }}
-            className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors flex items-center gap-3"
-          >
-            <BookText size={16} />
-            <span>提示词库</span>
-          </button>
-        </div>
-      )}
-
       <div className="flex-1 h-full flex flex-col overflow-hidden relative">
-        <div className="shrink-0 p-3 pb-2 flex items-center gap-3">
+        <div className="shrink-0 p-3 pb-2 flex items-center gap-3" data-drag="true">
           {activeTask ? (
             <>
-              <button
-                onClick={(e) => { e.stopPropagation(); activeTask.isPaused ? startTimer(activeTask.id) : pauseTimer(activeTask.id); }}
-                onContextMenu={handleBackup}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ${activeTask.isPaused ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}
-                title={activeTask.isPaused ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
+              <div
+                className="shrink-0 w-12 h-12 flex items-center justify-center"
                 data-drag="false"
+                title="拖拽此圆形区域移动窗口"
               >
-                {activeTask.isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
-              </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); activeTask.isPaused ? startTimer(activeTask.id) : pauseTimer(activeTask.id); }}
+                  onContextMenu={handleBackup}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${activeTask.isPaused ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}
+                  title={activeTask.isPaused ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
+                  data-drag="false"
+                >
+                  {activeTask.isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                </button>
+              </div>
               <div
                 className={`flex-1 min-w-0 cursor-pointer transition-all ${activeTask.isPaused ? 'text-yellow-400' : 'text-emerald-400'}`}
-                onClick={() => setIsBlurred(!isBlurred)}
+                data-drag="true"
                 {...doubleTapCreate}
-                title="单击模糊 / 双击新建"
-                data-drag="false"
+                title="拖拽此区域移动窗口"
               >
-                <div className={`transition-all ${isBlurred ? 'blur-md' : ''}`}>
-                  <div className="font-mono text-2xl font-bold">{formatTime(displayTime)}</div>
+                <div
+                  onClick={() => setIsBlurred(!isBlurred)}
+                  data-drag="false"
+                  title="单击模糊 / 双击新建"
+                >
+                  <div className={`font-mono text-2xl font-bold transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                    {formatTime(displayTime)}
+                  </div>
                   <div className={`text-xs truncate ${activeTask.isPaused ? 'text-yellow-300/70' : 'text-emerald-300/70'}`} title={activeTask.categoryPath}>
                     {displayTaskName}
                   </div>
@@ -472,31 +560,39 @@ export default function TimerPage() {
             </>
           ) : (
             <>
-              <div 
-                className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 shrink-0 cursor-context-menu" 
+              <div
+                className="shrink-0 w-12 h-12 flex items-center justify-center"
                 data-drag="false"
-                onContextMenu={handleBackup}
-                title="右键备份数据"
+                title="拖拽此圆形区域移动窗口"
               >
-                <Play size={18} />
+                <div 
+                  className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-context-menu" 
+                  data-drag="false"
+                  onContextMenu={handleBackup}
+                  title="右键备份数据"
+                >
+                  <Play size={18} />
+                </div>
               </div>
               <div
                 className="flex-1 min-w-0 cursor-pointer"
-                onClick={() => setIsBlurred(!isBlurred)}
+                data-drag="true"
                 {...doubleTapCreate}
-                title="单击模糊 / 双击新建"
-                data-drag="false"
+                title="拖拽此区域移动窗口"
               >
-                <div className={`transition-all ${isBlurred ? 'blur-md' : ''}`}>
-                  <div className="font-mono text-2xl font-bold text-zinc-600">00:00:00</div>
+                <div
+                  onClick={() => setIsBlurred(!isBlurred)}
+                  data-drag="false"
+                  title="单击模糊 / 双击新建"
+                >
+                  <div className={`font-mono text-2xl font-bold text-zinc-600 transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                    00:00:00
+                  </div>
                   <div className="text-xs text-zinc-600">双击新建任务</div>
                 </div>
               </div>
             </>
           )}
-          <div className="shrink-0 w-6 h-10 flex items-center justify-center cursor-move text-zinc-700 hover:text-zinc-500 transition-colors" data-drag="true" title="拖拽">
-            <GripVertical size={16} />
-          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-3">
@@ -504,29 +600,49 @@ export default function TimerPage() {
             {recentTasks.map((task) => {
               const hasInstanceTag = !!(task.instanceTag && task.instanceTag.trim() !== '');
               return (
-                <button
+                <div
                   key={task.id}
-                  onClick={(e) => { e.stopPropagation(); startTimer(task.id); }}
-                  className={`flex items-center gap-2 p-2 rounded-lg transition-colors text-left group relative border
+                  className={`relative rounded-lg transition-colors group border
                     ${hasInstanceTag
                       ? 'bg-orange-950/30 border-orange-500/30 hover:bg-orange-900/40'
                       : 'bg-zinc-800/50 border-transparent hover:bg-zinc-700/50'
                     }`}
                   data-drag="false"
-                  title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}`}
                 >
-                  <Play size={12} className={`shrink-0 transition-colors ${hasInstanceTag ? 'text-orange-400 group-hover:text-orange-300' : 'text-zinc-500 group-hover:text-emerald-400'}`} fill="currentColor" />
-                  <div className={`flex flex-col min-w-0 transition-all ${isBlurred ? 'blur-sm' : ''}`}>
-                    <span className={`text-xs truncate ${hasInstanceTag ? 'text-orange-200 font-medium' : 'text-zinc-300'}`}>
-                      {removeEmojis(task.name)}
-                    </span>
-                    {hasInstanceTag && (
-                      <span className="text-[10px] text-orange-400/80 truncate opacity-0 group-hover:opacity-100 transition-opacity absolute top-[2px] right-2 bg-black/50 px-1 rounded">
-                        #{task.instanceTag}
+                  <div
+                    onClick={() => handleCategoryClick(task)}
+                    onContextMenu={(e) => handleContextMenu(task, e)}
+                    className="w-full flex items-center gap-2 p-2 text-left"
+                    title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); startTimer(task.id); }}
+                      className="shrink-0"
+                      title="开始计时"
+                    >
+                      <Play size={12} className={`transition-colors ${hasInstanceTag ? 'text-orange-400 group-hover:text-orange-300' : 'text-zinc-500 group-hover:text-emerald-400'}`} fill="currentColor" />
+                    </button>
+                    <div className={`flex flex-col min-w-0 transition-all ${isBlurred ? 'blur-sm' : ''}`}>
+                      <span className={`text-xs truncate ${hasInstanceTag ? 'text-orange-200 font-medium' : 'text-zinc-300'}`}>
+                        {removeEmojis(task.name)}
                       </span>
-                    )}
+                      {hasInstanceTag && (
+                        <span className="text-[10px] text-orange-400/80 truncate opacity-0 group-hover:opacity-100 transition-opacity absolute top-[2px] right-2 bg-black/50 px-1 rounded">
+                          #{task.instanceTag}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </button>
+                  {/* 删除按钮 */}
+                  <button
+                    onClick={(e) => prepareDeleteTask(task, e)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded flex items-center justify-center bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-all z-10"
+                    title="删除任务"
+                    data-drag="false"
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -535,6 +651,57 @@ export default function TimerPage() {
           )}
         </div>
       </div>
+
+      {/* 删除确认对话框 */}
+      {taskToDelete && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setTaskToDelete(null)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-white mb-1">删除任务</h3>
+                <p className="text-sm text-zinc-400">
+                  确定要删除 <span className="text-white font-medium">"{taskToDelete.name}"</span> 吗？
+                </p>
+              </div>
+            </div>
+
+            {taskToDelete.hasLogs && (
+              <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={deleteLogsOption}
+                    onChange={(e) => setDeleteLogsOption(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-yellow-500/50 bg-yellow-500/10 text-yellow-500 focus:ring-yellow-500/50"
+                  />
+                  <span className="text-xs text-yellow-200">
+                    同时删除关联的日志记录
+                  </span>
+                </label>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTaskToDelete(null)}
+                className="flex-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleDeleteTask(taskToDelete.id)}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

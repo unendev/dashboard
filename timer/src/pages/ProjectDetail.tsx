@@ -10,7 +10,8 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    DragEndEvent
+    DragEndEvent,
+    DragOverEvent
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -21,28 +22,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// --- Helper: Find Todo in Tree ---
-const findTodoInTree = (todos: TodoItem[], id: string): { item: TodoItem, parent: TodoItem | null, list: TodoItem[], index: number } | null => {
-    for (let i = 0; i < todos.length; i++) {
-        if (todos[i].id === id) {
-            return { item: todos[i], parent: null, list: todos, index: i };
-        }
-        if (todos[i].children) {
-            const found = findTodoInTree(todos[i].children!, id);
-            if (found) {
-                return { ...found, parent: found.parent || todos[i] };
-            }
-        }
-    }
-    return null;
-};
-
 // --- Sortable Todo Item Component ---
-function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
+function SortableTodoItem({ todo, toggleTodo, deleteTodo }: {
     todo: TodoItem,
     toggleTodo: (id: string) => void,
-    deleteTodo: (id: string) => void,
-    openMemo: (id: string, text: string) => void
+    deleteTodo: (id: string) => void
 }) {
     const {
         attributes,
@@ -51,7 +35,13 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
         transform,
         transition,
         isDragging
-    } = useSortable({ id: todo.id });
+    } = useSortable({
+        id: todo.id,
+        data: {
+            type: 'todo',
+            group: todo.group || 'Ungrouped'
+        }
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -69,6 +59,11 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
                     ? 'bg-[#252a32] shadow-xl opacity-90 border-[#4a5260] scale-[1.02]'
                     : 'bg-[#1f222a] border-[#3a3f4a] hover:border-[#4c5564] hover:bg-[#232731]'
                     }`}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    // @ts-ignore
+                    window.electron?.send('open-task-memo-window', { taskId: todo.id, taskName: todo.text });
+                }}
             >
                 <button
                     onClick={() => toggleTodo(todo.id)}
@@ -79,7 +74,6 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
                 </button>
                 <span
                     className="flex-1 text-sm text-zinc-100 group-hover:text-white break-all leading-relaxed cursor-text"
-                    onDoubleClick={() => openMemo(todo.id, todo.text)}
                 >
                     {todo.text}
                 </span>
@@ -104,7 +98,6 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
                                 todo={child}
                                 toggleTodo={toggleTodo}
                                 deleteTodo={deleteTodo}
-                                openMemo={openMemo}
                             />
                         ))}
                     </SortableContext>
@@ -115,12 +108,11 @@ function SortableTodoItem({ todo, toggleTodo, deleteTodo, openMemo }: {
 }
 
 // --- Sortable Todo Group Component ---
-function SortableTodoGroup({ group, todos, toggleTodo, deleteTodo, openMemo }: {
+function SortableTodoGroup({ group, todos, toggleTodo, deleteTodo }: {
     group: string,
     todos: TodoItem[],
     toggleTodo: (id: string) => void,
-    deleteTodo: (id: string) => void,
-    openMemo: (id: string, text: string) => void
+    deleteTodo: (id: string) => void
 }) {
     const {
         attributes,
@@ -129,7 +121,10 @@ function SortableTodoGroup({ group, todos, toggleTodo, deleteTodo, openMemo }: {
         transform,
         transition,
         isDragging
-    } = useSortable({ id: group, data: { type: 'group' } });
+    } = useSortable({
+        id: group,
+        data: { type: 'group', group }
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -163,7 +158,6 @@ function SortableTodoGroup({ group, todos, toggleTodo, deleteTodo, openMemo }: {
                         todo={todo}
                         toggleTodo={toggleTodo}
                         deleteTodo={deleteTodo}
-                        openMemo={openMemo}
                     />
                 ))}
             </SortableContext>
@@ -290,57 +284,69 @@ export default function ProjectDetail() {
         })
     );
 
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+        if (!over || !project) return;
+        if (active.id === over.id) return;
+
+        const activeData = active.data.current;
+        const overData = over.data.current;
+
+        if (!activeData || activeData.type !== 'todo') return;
+
+        let newGroup: string | undefined;
+        if (overData?.type === 'group') {
+            newGroup = overData.group;
+        } else if (overData?.type === 'todo') {
+            newGroup = overData.group;
+        }
+
+        if (newGroup === 'Ungrouped') newGroup = undefined;
+
+        const todoId = active.id as string;
+        const todo = project.todos.find(t => t.id === todoId);
+        if (todo && todo.group !== newGroup) {
+            const updatedTodos = project.todos.map(t =>
+                t.id === todoId ? { ...t, group: newGroup } : t
+            );
+            saveProject({ todos: updatedTodos });
+        }
+    };
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!over || !project) return;
 
-        // Handle Group DnD
-        if (active.data.current?.type === 'group') {
-            const activeId = active.id as string;
-            const overId = over.id as string;
-            if (activeId !== overId) {
-                const groupedTodos = project.todos.filter(t => !t.completed).reduce((acc, todo) => {
-                    const group = todo.group || 'Ungrouped';
-                    if (!acc[group]) acc[group] = [];
-                    acc[group].push(todo);
-                    return acc;
-                }, {} as Record<string, TodoItem[]>);
+        const activeData = active.data.current;
+        const overData = over.data.current;
 
-                const currentOrder = Array.from(new Set([...(project.groupOrder || []), ...Object.keys(groupedTodos)]));
-                const oldIndex = currentOrder.indexOf(activeId);
-                const newIndex = currentOrder.indexOf(overId);
+        // Handle Group Reordering
+        if (activeData?.type === 'group' && overData?.type === 'group') {
+            const groupedTodos = project.todos.filter(t => !t.completed).reduce((acc, todo) => {
+                const group = todo.group || 'Ungrouped';
+                if (!acc[group]) acc[group] = [];
+                acc[group].push(todo);
+                return acc;
+            }, {} as Record<string, TodoItem[]>);
 
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
-                    saveProject({ groupOrder: newOrder });
-                }
+            const currentOrder = Array.from(new Set([...(project.groupOrder || []), ...Object.keys(groupedTodos)]));
+            const oldIndex = currentOrder.indexOf(active.id as string);
+            const newIndex = currentOrder.indexOf(over.id as string);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+                saveProject({ groupOrder: newOrder });
             }
             return;
         }
 
         if (active.id === over.id) return;
+        if (activeData?.type !== 'todo' || overData?.type !== 'todo') return;
 
-        const source = findTodoInTree(project.todos, active.id as string);
-        const dest = findTodoInTree(project.todos, over.id as string);
-
-        if (!source || !dest) return;
-
-        if (source.list === dest.list) {
-            const newList = arrayMove(source.list, source.index, dest.index);
-            const updateListInTree = (list: TodoItem[]): TodoItem[] => {
-                if (list === source.list) return newList;
-                return list.map(t => {
-                    if (t.children) return { ...t, children: updateListInTree(t.children) };
-                    return t;
-                });
-            };
-            saveProject({ todos: updateListInTree(project.todos) });
-        }
-    };
-
-    const openMemoWindow = (taskId: string, taskName: string) => {
-        // @ts-ignore
-        window.electron?.send('open-task-memo-window', { taskId, taskName });
+        const oldIndex = project.todos.findIndex(t => t.id === active.id);
+        const newIndex = project.todos.findIndex(t => t.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+        const newTodos = arrayMove(project.todos, oldIndex, newIndex);
+        saveProject({ todos: newTodos });
     };
 
     const activeTodos = useMemo(() => project?.todos.filter(t => !t.completed) || [], [project]);
@@ -437,6 +443,7 @@ export default function ProjectDetail() {
                                         <DndContext
                                             sensors={sensors}
                                             collisionDetection={closestCenter}
+                                            onDragOver={handleDragOver}
                                             onDragEnd={handleDragEnd}
                                         >
                                             <SortableContext items={sortedGroups} strategy={verticalListSortingStrategy}>
@@ -447,7 +454,6 @@ export default function ProjectDetail() {
                                                         todos={groupedTodos[group]}
                                                         toggleTodo={toggleTodo}
                                                         deleteTodo={deleteTodo}
-                                                        openMemo={openMemoWindow}
                                                     />
                                                 ))}
                                             </SortableContext>

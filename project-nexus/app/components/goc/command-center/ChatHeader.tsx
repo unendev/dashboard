@@ -23,7 +23,7 @@ export const ChatHeader = ({
   // Fallback in case aiConfig is not yet initialized
   if (!aiConfig) {
     return (
-      <div className="absolute top-0 left-0 w-full p-2 border-b border-zinc-800 z-10 bg-[#0a0a0a]/90 backdrop-blur flex items-center justify-center h-24">
+      <div className="w-full p-2 border-b border-zinc-800 bg-[#0a0a0a]/90 backdrop-blur flex items-center justify-center h-24">
         <span className="text-zinc-500 text-xs">Initializing AI Configuration...</span>
       </div>
     );
@@ -32,32 +32,32 @@ export const ChatHeader = ({
   const { provider, modelId, aiMode, thinkingEnabled } = aiConfig;
 
   return (
-    <div className="absolute top-0 left-0 w-full p-2 border-b border-zinc-800 z-10 bg-[#0a0a0a]/90 backdrop-blur flex flex-col gap-2">
+    <div className="w-full p-2 border-b border-zinc-800 bg-[#0a0a0a]/90 backdrop-blur flex flex-col gap-2">
       <div className="flex items-center justify-between px-4">
         <div className="flex-1" />
-        <h2 className="text-xl font-bold text-center text-cyan-400 tracking-widest pl-12">COMMAND CENTER</h2>
+        <h2 className="text-xl font-bold text-center text-cyan-400 tracking-widest pl-12">指挥中心</h2>
         <div className="flex-1 flex justify-end">
           {/* 实时人数 */}
           <div className="relative group cursor-default">
             <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono border border-zinc-800 px-2 py-1 rounded-md bg-zinc-900/50 hover:border-zinc-700 transition-colors">
               <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{others.length + 1} ONLINE</span>
+              <span>{others.length + 1} 在线</span>
             </div>
             {/* 玩家列表浮窗 */}
             <div className="absolute top-full right-0 mt-2 p-3 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 min-w-[150px]">
               <div className="text-[10px] uppercase text-zinc-500 font-bold mb-2 border-b border-zinc-800 pb-1 flex justify-between">
-                <span>Operators</span>
-                <span className="text-emerald-500">Active</span>
+                <span>操作员</span>
+                <span className="text-emerald-500">活跃</span>
               </div>
               <div className="space-y-1.5">
                 <div className="text-xs text-cyan-400 flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-cyan-400" />
-                  {me?.info?.name || "Me"} (You)
+                  {me?.info?.name || "我"} (你)
                 </div>
                 {others.map((u) => (
                   <div key={u.connectionId} className="text-xs text-zinc-300 flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-zinc-600" />
-                    {u.info?.name || "Unknown"}
+                    {u.info?.name || "未知"}
                   </div>
                 ))}
               </div>
@@ -123,7 +123,7 @@ export const ChatHeader = ({
               title={thinkingEnabled ? "思考模式开启" : "思考模式关闭"}
             >
               <Brain className="w-3 h-3" />
-              <span>{thinkingEnabled ? 'ON' : 'OFF'}</span>
+              <span>{thinkingEnabled ? '开启' : '关闭'}</span>
             </button>
           </>
         )}

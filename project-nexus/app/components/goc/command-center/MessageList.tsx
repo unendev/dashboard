@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect } from "react";
-import { Bot } from "lucide-react";
+import { useRef, useEffect, useState, forwardRef } from "react";
+import { Bot, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownView } from "@/app/components/shared/MarkdownView";
 import { ReasoningBlock } from "@/app/components/shared/ReasoningBlock";
@@ -13,23 +13,30 @@ interface MessageListProps {
   me: any;
   others: readonly any[];
   getUIMessageContent: (msg: any) => string;
+  onDeleteMessage?: (messageId: string) => void;
+  sharedMessages?: any[];
 }
 
-export const MessageList = ({
+export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
   messages,
   status,
   me,
   others,
-  getUIMessageContent
-}: MessageListProps) => {
+  getUIMessageContent,
+  onDeleteMessage,
+  sharedMessages = []
+}, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottom = useRef(true);
+  const [longPressMessageId, setLongPressMessageId] = useState<string | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   // 智能滚动逻辑
   const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const container = ref && 'current' in ref ? ref.current : null;
+    if (container) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
       // 增加一个阈值，比如 50px，避免过于敏感
       isNearBottom.current = scrollHeight - scrollTop - clientHeight < 150;
     }
@@ -63,11 +70,32 @@ export const MessageList = ({
     return (other?.info as any)?.picture || (other?.info as any)?.avatar || null;
   };
 
+  // 长按处理（移动端）
+  const handleTouchStart = (messageId: string) => {
+    longPressTimer.current = setTimeout(() => {
+      setLongPressMessageId(messageId);
+    }, 500); // 500ms 长按
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDeleteClick = (messageId: string) => {
+    if (confirm('确定要删除这条消息吗？所有人都将看不到这条消息。')) {
+      onDeleteMessage?.(messageId);
+      setLongPressMessageId(null);
+    }
+  };
+
   return (
     <div
-      ref={messagesContainerRef}
+      ref={ref}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-4 pt-32 space-y-4 custom-scrollbar"
+      className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
     >
       {messages.map((m: any) => {
         if (m.role === 'system' || m.role === 'tool') return null;
@@ -88,7 +116,7 @@ export const MessageList = ({
               <div className="flex items-center gap-2 mb-2">
                 <Bot className="w-4 h-4 text-cyan-400" />
                 <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 opacity-70">
-                  {displayName}
+                  NEXUS AI
                 </span>
               </div>
               {/* AI Bubble */}
@@ -177,8 +205,8 @@ export const MessageList = ({
 
         // 用户消息
         return (
-          <div key={m.id} className={cn("flex gap-3", isMine ? "flex-row-reverse" : "flex-row")}>
-            <div className="flex-shrink-0 relative group">
+          <div key={m.id} className={cn("flex gap-3 group relative", isMine ? "flex-row-reverse" : "flex-row")}>
+            <div className="flex-shrink-0 relative group/avatar">
               {avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={avatar} alt="" className="w-8 h-8 rounded-full" />
@@ -187,17 +215,38 @@ export const MessageList = ({
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-zinc-800 text-zinc-300 text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-zinc-800 text-zinc-300 text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/avatar:opacity-100 transition-opacity whitespace-nowrap z-10">
                 {displayName}
               </span>
             </div>
 
-            <div className={cn(
-              "relative max-w-[75%] p-3 rounded-xl text-sm border shadow-lg backdrop-blur-sm",
-              isMine
-                ? "bg-zinc-800/80 border-zinc-700 text-zinc-100 rounded-tr-none"
-                : "bg-zinc-900/80 border-zinc-600 text-zinc-200 rounded-tl-none"
-            )}>
+            <div 
+              className={cn(
+                "relative max-w-[75%] p-3 rounded-xl text-sm border shadow-lg backdrop-blur-sm",
+                isMine
+                  ? "bg-zinc-800/80 border-zinc-700 text-zinc-100 rounded-tr-none"
+                  : "bg-zinc-900/80 border-zinc-600 text-zinc-200 rounded-tl-none"
+              )}
+              onTouchStart={() => handleTouchStart(m.id)}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+            >
+              {/* 删除按钮 - 桌面端 hover 显示 */}
+              {onDeleteMessage && (
+                <button
+                  onClick={() => handleDeleteClick(m.id)}
+                  className={cn(
+                    "absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all",
+                    "opacity-0 group-hover:opacity-100",
+                    // 移动端长按显示
+                    longPressMessageId === m.id && "opacity-100"
+                  )}
+                  title="删除消息"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+
               {/* Attachments */}
               {(m.attachments || m.experimental_attachments) && (m.attachments || m.experimental_attachments).length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -205,7 +254,7 @@ export const MessageList = ({
                     // AI SDK might use object instead of string for attachments, but we are using string URLs
                     const src = typeof url === 'string' ? url : url.url;
                     return (
-                      <div key={i} className="relative group">
+                      <div key={i} className="relative group/img">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={src}
@@ -231,4 +280,6 @@ export const MessageList = ({
       <div ref={messagesEndRef} />
     </div>
   );
-};
+});
+
+MessageList.displayName = 'MessageList';

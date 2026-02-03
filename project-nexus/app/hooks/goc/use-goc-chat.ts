@@ -46,7 +46,7 @@ export function useGocChat() {
 
   // --- Local State ---
   const [lastSentNotes, setLastSentNotes] = useState<string>("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Local Message Timestamps mapping for stability
   const localMessageTimes = useRef<Map<string, number>>(new Map());
@@ -78,6 +78,20 @@ export function useGocChat() {
         storage.set("messages", messages);
       }
       (messages as any).push(message);
+    },
+    []
+  );
+
+  const deleteMessage = useMutation(
+    ({ storage }, messageId: string) => {
+      const messages = storage.get("messages");
+      if (!messages) return;
+      
+      const arr = (messages as any).toArray();
+      const index = arr.findIndex((m: any) => m.id === messageId);
+      if (index !== -1) {
+        (messages as any).delete(index);
+      }
     },
     []
   );
@@ -392,6 +406,10 @@ export function useGocChat() {
     sendMessage(messagePayload, { body });
   };
 
+  const handleDeleteMessage = (messageId: string) => {
+    deleteMessage(messageId);
+  };
+
   return {
     // State
     displayMessages,
@@ -401,6 +419,7 @@ export function useGocChat() {
     inputRef,
     me,
     others,
+    sharedMessages,
 
     // Unified AI Config from Liveblocks
     aiConfig,
@@ -410,6 +429,7 @@ export function useGocChat() {
 
     // Actions
     handleSendMessage,
+    handleDeleteMessage,
     getUIMessageContent,
   };
 }

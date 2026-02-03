@@ -3,6 +3,7 @@ import Fuse from 'fuse.js';
 import type { Prompt, PromptCategory } from '@/lib/types/prompt';
 
 const STORAGE_KEY = 'widget-prompts-library-v1';
+const CATEGORY_KEY = 'widget-prompts-library-selected-category';
 
 export function usePromptLibrary() {
     const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -21,7 +22,20 @@ export function usePromptLibrary() {
                 setPrompts([]);
             }
         }
+
+        const storedCategory = localStorage.getItem(CATEGORY_KEY);
+        if (storedCategory) {
+            setSelectedCategory(storedCategory);
+        }
     }, []);
+
+    useEffect(() => {
+        if (selectedCategory) {
+            localStorage.setItem(CATEGORY_KEY, selectedCategory);
+        } else {
+            localStorage.removeItem(CATEGORY_KEY);
+        }
+    }, [selectedCategory]);
 
     // 持久化：保存到 LocalStorage
     const savePrompts = (newPrompts: Prompt[]) => {

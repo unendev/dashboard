@@ -230,6 +230,7 @@ let aiWindow;
 let settingsWindow;
 let promptLibraryWindow;
 let linkStationWindow;
+let chartWindow;
 let tray = null;
 let isQuitting = false;
 
@@ -568,6 +569,53 @@ function openLinkStationWindow() {
   linkStationWindow.on('closed', () => { linkStationWindow = null; });
 }
 
+function openChartWindow(query) {
+  if (chartWindow && !chartWindow.isDestroyed()) {
+    chartWindow.focus();
+    loadWindow(chartWindow, `/chart?${query || ''}`);
+    return;
+  }
+
+  const ses = session.fromPartition('persist:timer-widget');
+  chartWindow = new BrowserWindow({
+    width: 720,
+    height: 560,
+    title: '统计',
+    frame: false,
+    transparent: false,
+    backgroundColor: '#1a1a1a',
+    alwaysOnTop: false,
+    resizable: true,
+    maximizable: false,
+    minWidth: 360,
+    minHeight: 300,
+    skipTaskbar: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      session: ses,
+      preload: path.join(__dirname, 'preload.cjs'),
+      webSecurity: false,
+    },
+  });
+
+  chartWindow.setMenu(null);
+  if (isDev) chartWindow.webContents.openDevTools({ mode: 'detach' });
+
+  loadWindow(chartWindow, `/chart?${query || ''}`);
+
+  chartWindow.webContents.on('did-finish-load', () => {
+    chartWindow.webContents.insertCSS(`
+      * { scrollbar-width: none !important; }
+      *::-webkit-scrollbar { display: none !important; }
+      [data-drag="true"] { -webkit-app-region: drag; }
+      [data-drag="false"] { -webkit-app-region: no-drag; }
+    `);
+  });
+
+  chartWindow.on('closed', () => { chartWindow = null; });
+}
+
 ipcMain.on('open-create-window', () => openCreateWindow());
 // ipcMain.on('open-create-window', () => openCreateWindow()); // Duplicate removed
 ipcMain.on('open-memo-window', () => openMemoWindow());
@@ -577,6 +625,7 @@ ipcMain.on('open-ai-window', () => openAiWindow());
 ipcMain.on('open-settings-window', () => openSettingsWindow());
 ipcMain.on('open-prompt-library-window', () => openPromptLibraryWindow());
 ipcMain.on('open-link-station-window', () => openLinkStationWindow());
+ipcMain.on('open-chart-window', (event, { query }) => openChartWindow(query));
 ipcMain.on('open-external-link', async (event, url) => {
   try {
     await shell.openExternal(url);

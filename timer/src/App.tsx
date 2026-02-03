@@ -10,6 +10,7 @@ import CreatePage from './pages/Create';
 import LoginPage from './pages/Login';
 import PromptLibraryPage from './pages/PromptLibrary';
 import LinkStationPage from './pages/LinkStation';
+import ChartPage from './pages/Chart';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { API_BASE_URL } from './lib/api';
 import { validateTokenOrigin } from './lib/auth-token';
@@ -33,6 +34,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/prompt-library" element={<PromptLibraryPage />} />
           <Route path="/link-station" element={<LinkStationPage />} />
+          <Route path="/chart" element={<ChartPage />} />
           <Route path="/" element={<Navigate to="/timer" replace />} />
         </Routes>
       </Router>
