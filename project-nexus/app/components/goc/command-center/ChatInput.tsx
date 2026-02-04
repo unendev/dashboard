@@ -88,7 +88,7 @@ export const ChatInput = ({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading || isUploading}
+          disabled={(aiModeEnabled && isLoading) || isUploading}
           className="p-3 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-50"
         >
           {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
@@ -97,8 +97,8 @@ export const ChatInput = ({
         <textarea
           ref={inputRef as React.RefObject<HTMLTextAreaElement>}
           placeholder={aiModeEnabled ? "向 AI 发送指令..." : "群聊消息... (@AI 可触发 AI)"}
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-3 text-zinc-100 focus:outline-none focus:border-cyan-500 transition-colors placeholder:text-zinc-600 resize-none min-h-[46px] max-h-[200px] overflow-y-auto"
-          disabled={isLoading}
+          className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-3 text-zinc-100 focus:outline-none focus:border-cyan-500 transition-colors placeholder:text-zinc-600 resize-none min-h-[46px] max-h-[200px] overflow-y-auto scrollbar-hide"
+          disabled={aiModeEnabled && isLoading}
           rows={1}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -151,10 +151,10 @@ export const ChatInput = ({
 
         <button
           type="submit"
-          disabled={isLoading || isUploading}
+          disabled={(aiModeEnabled && isLoading) || isUploading}
           className="h-[46px] bg-cyan-900 hover:bg-cyan-800 text-cyan-100 px-6 rounded font-bold transition-colors border border-cyan-700 disabled:opacity-50 shrink-0"
         >
-          {isLoading ? '发送中...' : '发送'}
+          {(aiModeEnabled && isLoading) ? '发送中...' : '发送'}
         </button>
       </form>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, HelpCircle, ClipboardList, Brain, FileText } from "lucide-react";
+import { Gamepad2, MessageCircle, BookOpen, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MODEL_CONFIG, AIProvider, AIMode } from "@/app/hooks/goc/types";
 
@@ -24,7 +24,7 @@ export const ChatHeader = ({
   if (!aiConfig) {
     return (
       <div className="w-full p-2 border-b border-zinc-800 bg-[#0a0a0a]/90 backdrop-blur flex items-center justify-center h-24">
-        <span className="text-zinc-500 text-xs">Initializing AI Configuration...</span>
+        <span className="text-zinc-500 text-xs">正在初始化配置...</span>
       </div>
     );
   }
@@ -35,7 +35,7 @@ export const ChatHeader = ({
     <div className="w-full p-2 border-b border-zinc-800 bg-[#0a0a0a]/90 backdrop-blur flex flex-col gap-2">
       <div className="flex items-center justify-between px-4">
         <div className="flex-1" />
-        <h2 className="text-xl font-bold text-center text-cyan-400 tracking-widest pl-12">指挥中心</h2>
+        <h2 className="text-xl font-bold text-center text-cyan-400 tracking-widest pl-12">交互台</h2>
         <div className="flex-1 flex justify-end">
           {/* 实时人数 */}
           <div className="relative group cursor-default">
@@ -137,37 +137,28 @@ export const ChatHeader = ({
             mode="encyclopedia" 
             current={aiMode} 
             setMode={(m: AIMode) => updateAiConfig({ aiMode: m })} 
-            icon={<FileText className="w-4 h-4" />}
-            title="Encyclopedia" 
-            desc="百科模式，深度讨论社科人文话题" 
+            icon={<BookOpen className="w-4 h-4" />}
+            title="百科" 
+            desc="知识整理、概念解释与结构化输出" 
             colorClass="blue"
           />
           <ModeButton 
-            mode="advisor" 
+            mode="game" 
             current={aiMode} 
             setMode={(m: AIMode) => updateAiConfig({ aiMode: m })} 
-            icon={<Shield className="w-4 h-4" />}
-            title="Advisor" 
-            desc="战术顾问，提供实时决策支持" 
+            icon={<Gamepad2 className="w-4 h-4" />}
+            title="游戏" 
+            desc="游戏相关策略、内容与陪玩" 
             colorClass="cyan"
           />
           <ModeButton 
-            mode="interrogator" 
+            mode="casual" 
             current={aiMode} 
             setMode={(m: AIMode) => updateAiConfig({ aiMode: m })} 
-            icon={<HelpCircle className="w-4 h-4" />}
-            title="Interrogator" 
-            desc="情报收集，主动提问获取信息" 
+            icon={<MessageCircle className="w-4 h-4" />}
+            title="疑难/闲聊" 
+            desc="疑难杂症解答与日常闲聊" 
             colorClass="amber"
-          />
-          <ModeButton 
-            mode="planner" 
-            current={aiMode} 
-            setMode={(m: AIMode) => updateAiConfig({ aiMode: m })} 
-            icon={<ClipboardList className="w-4 h-4" />}
-            title="Planner" 
-            desc="任务规划，创建结构化计划" 
-            colorClass="emerald"
           />
         </div>
       </div>

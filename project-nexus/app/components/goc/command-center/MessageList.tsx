@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, forwardRef } from "react";
-import { Bot, Trash2 } from "lucide-react";
+import { Bot, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownView } from "@/app/components/shared/MarkdownView";
 import { ReasoningBlock } from "@/app/components/shared/ReasoningBlock";
@@ -15,6 +15,7 @@ interface MessageListProps {
   getUIMessageContent: (msg: any) => string;
   onDeleteMessage?: (messageId: string) => void;
   sharedMessages?: any[];
+  aiPending?: boolean;
 }
 
 export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
@@ -24,7 +25,8 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
   others,
   getUIMessageContent,
   onDeleteMessage,
-  sharedMessages = []
+  sharedMessages = [],
+  aiPending = false
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -56,8 +58,8 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
   };
 
   const getDisplayName = (m: any) => {
-    if (m.role === 'user') return m.userName || me?.info?.name || "Operator";
-    return "NEXUS AI";
+    if (m.role === 'user') return m.userName || me?.info?.name || "用户";
+    return "中枢";
   };
 
   const getUserAvatar = (m: any): string | null => {
@@ -116,7 +118,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
               <div className="flex items-center gap-2 mb-2">
                 <Bot className="w-4 h-4 text-cyan-400" />
                 <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 opacity-70">
-                  NEXUS AI
+                  中枢
                 </span>
               </div>
               {/* AI Bubble */}
@@ -258,7 +260,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={src}
-                          alt="attachment"
+                          alt="附件"
                           className="max-w-[200px] max-h-[200px] rounded-lg border border-zinc-700/50 cursor-pointer hover:border-cyan-500/50 transition-colors"
                           onClick={() => window.open(src, '_blank')}
                         />
@@ -277,6 +279,20 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
           </div>
         );
       })}
+      {aiPending && (
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-2 mb-2">
+            <Bot className="w-4 h-4 text-cyan-400" />
+            <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 opacity-70">
+              中枢
+            </span>
+          </div>
+          <div className="relative max-w-[90%] p-3 rounded-xl text-sm border shadow-lg backdrop-blur-sm bg-black/40 border-cyan-500/30 text-cyan-100 shadow-[0_0_15px_rgba(6,182,212,0.1)] flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>处理中...</span>
+          </div>
+        </div>
+      )}
       <div ref={messagesEndRef} />
     </div>
   );

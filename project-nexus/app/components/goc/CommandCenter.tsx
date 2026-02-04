@@ -1,5 +1,5 @@
 /**
- * GOC Command Center - AI 聊天界面 (Refactored)
+ * GOC 交互台 - AI 聊天界面 (Refactored)
  * 
  * 架构说明：
  * - 逻辑层：useGocChat Hook (封装了 Liveblocks, AI SDK, 同步逻辑)
@@ -24,6 +24,7 @@ export default function CommandCenter() {
     me,
     others,
     sharedMessages,
+    aiPending,
 
     // Config State
     aiConfig,
@@ -113,6 +114,7 @@ export default function CommandCenter() {
         getUIMessageContent={getUIMessageContent}
         onDeleteMessage={handleDeleteMessage}
         sharedMessages={sharedMessages || []}
+        aiPending={aiPending}
       />
 
       <div

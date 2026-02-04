@@ -44,13 +44,13 @@ export const NotesSection = ({
     <div className="h-1/2 flex flex-col border-t border-zinc-800 bg-zinc-950/50">
       <div className="flex items-center justify-between p-2 bg-zinc-900">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          <TabButton id="shared" label="Shared" active={activeTab} onClick={setActiveTab} color="purple" />
-          <TabButton id="my" label="My Notes" active={activeTab} onClick={setActiveTab} color="cyan" />
+          <TabButton id="shared" label="共享" active={activeTab} onClick={setActiveTab} color="purple" />
+          <TabButton id="my" label="我的笔记" active={activeTab} onClick={setActiveTab} color="cyan" />
           
           {playerNotes && Array.from(playerNotes.keys()).map((userId: any) => {
              if (userId === meId) return null;
              const noteData = getNoteData(userId);
-             let label = noteData.name || others.find(u => u.id === userId)?.info?.name || `User ${userId.slice(-4)}`;
+             let label = noteData.name || others.find(u => u.id === userId)?.info?.name || `用户 ${userId.slice(-4)}`;
              return <TabButton key={userId} id={userId} label={label} active={activeTab} onClick={setActiveTab} color="zinc" />;
           })}
         </div>
@@ -72,14 +72,14 @@ export const NotesSection = ({
               value={tabContent}
               onChange={(e) => handleNoteChange(e.target.value)}
               onBlur={() => setEditingNoteId(null)}
-              placeholder="Type details here..."
+              placeholder="在此输入内容..."
             />
           ) : (
             <div className="w-full h-full bg-zinc-950 p-4 overflow-y-auto custom-scrollbar">
               <MarkdownView content={tabContent} variant="goc" />
               {!isEditableTab && (
                 <div className="absolute top-2 right-2 px-2 py-1 bg-zinc-800/80 text-zinc-400 text-[10px] rounded pointer-events-none z-10">
-                  READ ONLY
+                  只读
                 </div>
               )}
             </div>

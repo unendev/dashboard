@@ -135,13 +135,13 @@ export default function Viewport() {
       updateIntel({
         imageUrl: signedUrl,
         uploaderId: me?.id || 'anonymous',
-        uploaderName: me?.info?.name || 'Unknown Agent',
+        uploaderName: me?.info?.name || '未知用户',
         timestamp: Date.now()
       });
 
     } catch (error) {
       console.error("Broadcast failed:", error);
-      alert("Transmission Failed. Check console.");
+      alert("传输失败，请查看控制台。");
     } finally {
       setUploading(false);
     }
@@ -153,14 +153,14 @@ export default function Viewport() {
       <div className="flex items-center justify-between mb-4">
          <h2 className="text-xl font-bold text-emerald-400 flex items-center gap-2">
            <Radio className={cn("w-5 h-5", mode === 'live' && isCapturing && "animate-pulse text-red-500")} />
-           VISUAL UPLINK
+           视觉接入
          </h2>
          <div className="flex gap-2">
            {isCapturing ? (
              <button 
                 onClick={stopCapture}
                 className="p-1.5 bg-red-900/50 text-red-400 rounded hover:bg-red-900 transition-colors"
-                title="Terminate Uplink"
+                title="结束连接"
              >
                <StopCircle className="w-4 h-4" />
              </button>
@@ -168,7 +168,7 @@ export default function Viewport() {
              <button 
                 onClick={startCapture}
                 className="p-1.5 bg-emerald-900/50 text-emerald-400 rounded hover:bg-emerald-900 transition-colors"
-                title="Initialize Uplink"
+                title="建立连接"
              >
                <Video className="w-4 h-4" />
              </button>
@@ -201,28 +201,28 @@ export default function Viewport() {
           {latestIntel ? (
              <>
                {/* eslint-disable-next-line @next/next/no-img-element */}
-               <img src={latestIntel.imageUrl} alt="Tactical Intel" className="max-w-full max-h-full object-contain" />
+               <img src={latestIntel.imageUrl} alt="情报画面" className="max-w-full max-h-full object-contain" />
                <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur text-zinc-300 text-xs p-2 flex justify-between items-center z-20">
-                 <span className="font-mono text-emerald-500">SRC: {latestIntel.uploaderName}</span>
+                 <span className="font-mono text-emerald-500">来源：{latestIntel.uploaderName}</span>
                  <span className="font-mono opacity-50">{new Date(latestIntel.timestamp).toLocaleTimeString()}</span>
                </div>
              </>
           ) : (
             <div className="text-zinc-600 text-center p-8">
               <Radio className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="font-bold tracking-widest text-sm">NO SIGNAL</p>
-              <p className="text-[10px] mt-2">Waiting for visual transmission...</p>
+              <p className="font-bold tracking-widest text-sm">无信号</p>
+              <p className="text-[10px] mt-2">等待画面传输...</p>
             </div>
           )}
         </div>
 
         {/* Mode Indicator Tag */}
         <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/80 border border-zinc-700 rounded text-[10px] font-mono tracking-wider z-20">
-          {mode === 'live' ? <span className="text-red-500 flex items-center gap-1">● LIVE FEED</span> : <span className="text-cyan-500">INTEL CHANNEL</span>}
+          {mode === 'live' ? <span className="text-red-500 flex items-center gap-1">● 实时画面</span> : <span className="text-cyan-500">情报频道</span>}
         </div>
       </div>
 
-      {/* Control Deck */}
+      {/* 控制台 */}
       <div className="mt-4 grid grid-cols-2 gap-2">
         {mode === 'live' && isCapturing ? (
           <button 
@@ -235,7 +235,7 @@ export default function Viewport() {
             ) : (
               <UploadCloud className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
             )}
-            <span className="font-bold tracking-wider text-sm">{uploading ? 'TRANSMITTING...' : 'BROADCAST INTEL'}</span>
+            <span className="font-bold tracking-wider text-sm">{uploading ? '传输中...' : '广播画面'}</span>
           </button>
         ) : (
           latestIntel && (
@@ -244,7 +244,7 @@ export default function Viewport() {
               className="col-span-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3 rounded transition-colors flex items-center justify-center gap-2"
             >
               <Maximize2 className="w-4 h-4" />
-              <span className="text-sm">EXPAND INTEL</span>
+              <span className="text-sm">放大查看</span>
             </button>
           )
         )}
@@ -275,15 +275,15 @@ export default function Viewport() {
              {/* eslint-disable-next-line @next/next/no-img-element */}
              <img 
                src={latestIntel.imageUrl} 
-               alt="Full Resolution Intel" 
+               alt="高分辨率画面" 
                className="max-w-full max-h-[90vh] object-contain"
              />
              
              {/* Bottom Info Bar */}
              <div className="bg-zinc-900/90 border-t border-zinc-800 p-4 flex justify-between items-center">
                 <div className="flex flex-col">
-                  <span className="text-emerald-400 font-bold text-sm tracking-widest uppercase">High-Resolution Tactical Feed</span>
-                  <span className="text-zinc-500 text-[10px] font-mono">ENCRYPTED UPLINK // {latestIntel.uploaderName.toUpperCase()}</span>
+                  <span className="text-emerald-400 font-bold text-sm tracking-widest uppercase">高分辨率画面</span>
+                  <span className="text-zinc-500 text-[10px] font-mono">加密链路 // {latestIntel.uploaderName.toUpperCase()}</span>
                 </div>
                 <div className="text-right">
                   <span className="text-zinc-400 text-xs font-mono">{new Date(latestIntel.timestamp).toLocaleString()}</span>

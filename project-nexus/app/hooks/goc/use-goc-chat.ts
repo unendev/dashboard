@@ -17,6 +17,8 @@ export function useGocChat() {
   const roomId = room.id;
   const notes = useStorage((root) => root.notes);
   const sharedMessages = useStorage((root) => root.messages) as SharedMessage[] | null;
+  const aiPending = useStorage((root) => (root as any).aiPending) as boolean | undefined;
+  const aiPendingAt = useStorage((root) => (root as any).aiPendingAt) as number | null | undefined;
   const aiConfig = useStorage((root) => root.aiConfig);
   const me = useSelf();
   const others = useOthers();
@@ -42,6 +44,13 @@ export function useGocChat() {
       });
     }
   }, [me, aiConfig?.controllerId, updateAiConfig]);
+
+  useEffect(() => {
+    const validModes = new Set<AIMode>(['encyclopedia', 'game', 'casual']);
+    if (aiConfig?.aiMode && !validModes.has(aiConfig.aiMode)) {
+      updateAiConfig({ aiMode: 'encyclopedia' });
+    }
+  }, [aiConfig?.aiMode, updateAiConfig]);
 
 
   // --- Local State ---
@@ -95,6 +104,16 @@ export function useGocChat() {
     },
     []
   );
+
+  const setAiPending = useMutation(({ storage }, pending: boolean, timestamp?: number | null) => {
+    const current = (storage as any).get("aiPending");
+    if (current !== pending) {
+      (storage as any).set("aiPending", pending);
+    }
+    if (typeof timestamp !== 'undefined') {
+      (storage as any).set("aiPendingAt", timestamp);
+    }
+  }, []);
 
   // --- AI SDK Setup ---
   const chatTransport = useMemo(() => new DefaultChatTransport({
@@ -165,12 +184,14 @@ export function useGocChat() {
             toolCallId: p.toolCallId,
           })) || [];
 
+        const clientMsgId = (msg as any).clientMsgId || (msg as any).id;
         syncMessageToLiveblocks({
           id: msg.id,
+          clientMsgId,
           role: msg.role as 'user' | 'assistant',
           content,
           reasoning: reasoning || undefined,
-          userName: msg.role === 'user' ? (me?.info?.name || 'Operator') : 'NEXUS AI',
+          userName: msg.role === 'user' ? (me?.info?.name || '用户') : '中枢',
           createdAt: msg.createdAt instanceof Date ? msg.createdAt.getTime() : (msg.createdAt || Date.now()),
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           attachments: (msg.attachments || msg.experimental_attachments)?.map((a: any) => typeof a === 'string' ? a : a.url),
@@ -210,17 +231,12 @@ export function useGocChat() {
       })),
     ];
 
-    // Aggressive deduplication by ID to prevent React key errors
+    // 去重优先：clientMsgId > id
     const uniqueMessages = new Map<string, any>();
     allMessages.forEach((m: any) => {
-      // If duplicates exist, prefer the one that is already in the map (or unexpected update strategy)
-      // Actually, standard behavior: last one wins or first one wins? 
-      // Usually we want the 'latest' version if they differ, but here they assume same ID = same msg.
-      // We'll just use the first occurrence or overwrite. 
-      // Given the order: local first, then shared. 
-      // If we have local, we likely prefer local (optimistic update state).
-      if (!uniqueMessages.has(m.id)) {
-        uniqueMessages.set(m.id, m);
+      const key = m.clientMsgId || m.id;
+      if (!uniqueMessages.has(key)) {
+        uniqueMessages.set(key, m);
       }
     });
 
@@ -241,6 +257,60 @@ export function useGocChat() {
       setAiModeEnabled(false);
     }
   }, [isAiConfigured]);
+
+  useEffect(() => {
+    if (aiPending && status !== 'streaming' && status !== 'submitted') {
+      setAiPending(false, null);
+    }
+  }, [aiPending, status, setAiPending]);
+
+  useEffect(() => {
+    if (!aiPending || !aiPendingAt) return;
+
+    const getTime = (t: any) => {
+      if (!t) return 0;
+      if (t instanceof Date) return t.getTime();
+      if (typeof t === 'number') return t;
+      return 0;
+    };
+
+    const sharedLatest = (sharedMessages || [])
+      .filter((m: any) => m.role === 'assistant')
+      .reduce((max, m: any) => Math.max(max, getTime(m.createdAt)), 0);
+
+    const localLatest = messages
+      .filter((m: any) => m.role === 'assistant')
+      .reduce((max, m: any) => Math.max(max, getTime(m.createdAt)), 0);
+
+    const latest = Math.max(sharedLatest, localLatest);
+    if (latest >= aiPendingAt) {
+      setAiPending(false, null);
+    }
+  }, [aiPending, aiPendingAt, sharedMessages, messages, setAiPending]);
+
+  useEffect(() => {
+    if (!aiPending) return;
+    if (status !== 'streaming') return;
+
+    const hasStreamingAssistant = messages.some((m: any) => {
+      if (m.role !== 'assistant') return false;
+      if (typeof m.content === 'string' && m.content.length > 0) return true;
+      if (Array.isArray(m.parts)) {
+        return m.parts.some((p: any) => p?.type === 'text' && typeof p?.text === 'string' && p.text.length > 0);
+      }
+      return false;
+    });
+
+    if (hasStreamingAssistant) {
+      setAiPending(false, null);
+    }
+  }, [aiPending, status, messages, setAiPending]);
+
+  useEffect(() => {
+    if (aiPending && status !== 'streaming' && status !== 'submitted') {
+      setAiPending(false);
+    }
+  }, [aiPending, status, setAiPending]);
 
   // --- Send Message Handler ---
   const handleSendMessage = async (text: string, attachments: string[] = []) => {
@@ -289,12 +359,15 @@ export function useGocChat() {
       return;
     }
 
+    const clientMsgId = `client-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     if (!shouldSendToAI) {
       const playerMsg: SharedMessage = {
         id: `player-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        clientMsgId,
         role: 'user',
         content: trimmedInput,
-        userName: me?.info?.name || 'Operator',
+        userName: me?.info?.name || '用户',
         createdAt: Date.now(),
         attachments: attachments.length > 0 ? attachments : undefined,
       };
@@ -320,7 +393,7 @@ export function useGocChat() {
       provider: aiConfig?.provider,
       modelId: aiConfig?.modelId,
       roomId: roomId,
-      currentPlayerName: me?.info?.name || 'Unknown',
+      currentPlayerName: me?.info?.name || '未知',
       enableThinking: aiConfig?.thinkingEnabled,
     };
 
@@ -328,6 +401,8 @@ export function useGocChat() {
       body.notes = notes;
       setLastSentNotes(notes as string);
     }
+
+    setAiPending(true, Date.now());
 
     // Per Vercel AI SDK Docs, the 'messages' option should be part of the initial `useChat` call,
     // not `sendMessage`. `sendMessage`'s second argument is for `data`.
@@ -338,6 +413,8 @@ export function useGocChat() {
 
     // Construct newUserMsg using standard 'content' array format for better compatibility
     let newUserMsg: any = {
+      id: clientMsgId,
+      clientMsgId,
       role: 'user',
       content: aiQuery,
     };
@@ -367,9 +444,10 @@ export function useGocChat() {
     // --- CRITICAL FIX: Ensure user's own message (with images) is synced to Liveblocks ---
     syncPlayerMessage({
       id: `ai-input-${Date.now()}`,
+      clientMsgId,
       role: 'user',
       content: aiQuery,
-      userName: me?.info?.name || 'Operator',
+      userName: me?.info?.name || '用户',
       createdAt: Date.now(),
       attachments: attachments.length > 0 ? attachments : undefined,
     });
@@ -382,6 +460,7 @@ export function useGocChat() {
     // AI SDK 5.x 标准多模态格式
     // 参考: https://github.com/vercel/ai/blob/main/content/docs/02-foundations/03-prompts.mdx
     const messagePayload: any = {
+      id: clientMsgId,
       role: 'user',
       content: aiQuery, // 默认纯文本
     };
@@ -420,6 +499,7 @@ export function useGocChat() {
     me,
     others,
     sharedMessages,
+    aiPending: !!aiPending,
 
     // Unified AI Config from Liveblocks
     aiConfig,

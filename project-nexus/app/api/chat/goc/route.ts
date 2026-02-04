@@ -60,24 +60,25 @@ export async function POST(req: Request) {
 
     let modeInstruction = "";
     switch (mode) {
-      case 'interrogator':
-        modeInstruction = `**Current Mode: Interrogator** - Actively gather intelligence. Ask sharp questions.`;
-        break;
-      case 'planner':
-        modeInstruction = `**Current Mode: Planner** - Create structured plans. Use tools to update notes and add todos.`;
-        break;
       case 'encyclopedia':
-        modeInstruction = `**Current Mode: Encyclopedia** - Provide deep insights into complex topics (social sciences, history, etc.). Encourage structured discussion and critical thinking.`;
+        modeInstruction = `**Current Mode: 百科模式** - 知识整理、概念解释与结构化输出。`;
+        break;
+      case 'game':
+        modeInstruction = `**Current Mode: 游戏模式** - 围绕游戏内容给出策略、技巧与陪伴式回应。`;
+        break;
+      case 'casual':
+        modeInstruction = `**Current Mode: 疑难/闲聊模式** - 处理疑难杂症式问题，并进行日常闲聊。`;
         break;
       default:
-        modeInstruction = `**Current Mode: Tactical Advisor** - Provide real-time decision support.`;
+        modeInstruction = `**Current Mode: 百科模式** - 知识整理、概念解释与结构化输出。`;
         break;
     }
 
-    const systemPrompt = `You are an elite Game Operations Center (GOC) AI Tactical Advisor and Knowledge Curator (Nexus AI).
-Your goal is to assist players with games or complex discussions. You have access to tools to read and update shared "Field Notes" and manage todos.
+    const systemPrompt = `你是一个多模式助手，不是指挥官，也不使用“指挥官”身份。
+你会根据用户场景在不同模式间切换（百科/游戏/疑难与闲聊），提供清晰、可执行的回应。
+你可以使用工具读取与更新共享笔记（Field Notes）和管理待办。
 
-**Current Speaker:** ${currentPlayerName || 'Unknown'}
+**Current Speaker:** ${currentPlayerName || '未知'}
 (When the user asks for "my" personal notes/todos, use this name)
 
 **Online Players:**
@@ -238,7 +239,45 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
     // 根据官方文档，streamText 可以直接接受标准消息格式
     // 我们直接传递 messages，不进行转换
 
-    let processedModelMessages = messages as any;
+    const normalizeMessages = (rawMessages: any[]) => {
+      return (rawMessages || []).map((msg: any) => {
+        const role = msg?.role;
+        let content: any = msg?.content;
+
+        const parts = Array.isArray(msg?.parts) ? msg.parts : null;
+        if (parts) {
+          const textParts = parts.filter((p: any) => p?.type === 'text' && typeof p?.text === 'string');
+          const imageParts = parts.filter((p: any) => p?.type === 'image' && p?.image);
+
+          if (role === 'assistant') {
+            content = textParts.map((p: any) => p.text).join('\n\n');
+          } else {
+            const rebuilt: any[] = [];
+            textParts.forEach((p: any) => rebuilt.push({ type: 'text', text: p.text }));
+            imageParts.forEach((p: any) => rebuilt.push({ type: 'image', image: p.image, mimeType: p.mimeType }));
+            content = rebuilt.length > 0 ? rebuilt : (typeof content === 'string' ? content : '');
+          }
+        }
+
+        const attachments = msg?.experimental_attachments || msg?.attachments;
+        if (role === 'user' && Array.isArray(attachments) && attachments.length > 0) {
+          const rebuilt = Array.isArray(content) ? content.slice() : [{ type: 'text', text: typeof content === 'string' ? content : '' }];
+          attachments.forEach((a: any) => {
+            const url = typeof a === 'string' ? a : a?.url;
+            if (url) rebuilt.push({ type: 'image', image: url });
+          });
+          content = rebuilt;
+        }
+
+        if (typeof content === 'undefined' || content === null) {
+          content = '';
+        }
+
+        return { role, content };
+      });
+    };
+
+    let processedModelMessages = normalizeMessages(messages);
 
     // [GOC Debug] Provider/Model logging
     console.log(`[GOC Debug] Provider=${provider}, ModelId=${modelId}, MessageCount=${messages.length}`);
@@ -328,7 +367,7 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
 
         const result = await generateText({
           model: imageGenModel,
-          messages: convertToModelMessages(messages),
+          messages: normalizeMessages(messages),
         });
 
         // 检查是否有生成的图片文件
@@ -387,7 +426,7 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
     }
 
     // Default Streaming Flow
-    const toolChoice = mode === 'planner' ? 'required' as const : 'auto' as const;
+    const toolChoice = 'auto' as const;
 
     const result = streamText({
 

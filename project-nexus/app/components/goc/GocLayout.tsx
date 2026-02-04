@@ -131,21 +131,21 @@ export default function GocLayout({ left, middle, right }: GocLayoutProps) {
             className={cn("flex flex-col items-center gap-1 p-2 transition-colors", mobileActiveTab === 'left' ? "text-cyan-400" : "text-zinc-500")}
           >
             <ChevronLeft className="w-5 h-5" />
-            <span className="text-[10px] font-bold">BOARD</span>
+            <span className="text-[10px] font-bold">面板</span>
           </button>
           <button 
             onClick={() => setMobileActiveTab('middle')}
             className={cn("flex flex-col items-center gap-1 p-2 transition-colors", mobileActiveTab === 'middle' ? "text-cyan-400" : "text-zinc-500")}
           >
             <Layout className="w-5 h-5" />
-            <span className="text-[10px] font-bold">HUB</span>
+            <span className="text-[10px] font-bold">中枢</span>
           </button>
           <button 
             onClick={() => setMobileActiveTab('right')}
             className={cn("flex flex-col items-center gap-1 p-2 transition-colors", mobileActiveTab === 'right' ? "text-cyan-400" : "text-zinc-500")}
           >
             <ChevronRight className="w-5 h-5" />
-            <span className="text-[10px] font-bold">VIEW</span>
+            <span className="text-[10px] font-bold">视图</span>
           </button>
         </div>
       </div>

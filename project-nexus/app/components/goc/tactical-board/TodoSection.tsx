@@ -68,7 +68,7 @@ export const TodoSection = ({
             todoFilter === 'shared' ? "bg-[#D583F0] text-black" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
           )}
         >
-          Team
+          团队
         </button>
         <button
           onClick={() => setTodoFilter('my')}
@@ -77,7 +77,7 @@ export const TodoSection = ({
             todoFilter === 'my' ? "bg-cyan-600 text-white" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
           )}
         >
-          My Tasks
+          我的任务
         </button>
       </div>
       
@@ -140,7 +140,7 @@ export const TodoSection = ({
                     );
                   })}
                   {groupTodos.active.length === 0 && group === 'default' && (
-                    <div className="text-zinc-600 text-sm italic py-2 text-center">No active objectives.</div>
+                    <div className="text-zinc-600 text-sm italic py-2 text-center">暂无进行中的目标。</div>
                   )}
                 </div>
               )}
@@ -151,7 +151,7 @@ export const TodoSection = ({
         <div className="flex gap-2 mb-4">
           <input
             type="text"
-            placeholder={todoFilter === 'my' ? "+ Add personal task" : "+ Add objective"}
+            placeholder={todoFilter === 'my' ? "+ 添加个人任务" : "+ 添加目标"}
             className="flex-1 bg-zinc-900 border border-dashed border-zinc-800 rounded p-2 text-sm text-zinc-300 focus:outline-none focus:border-[#D583F0] transition-all placeholder:text-zinc-600"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -165,7 +165,7 @@ export const TodoSection = ({
           />
           <input
             type="text"
-            placeholder="Group"
+            placeholder="分组"
             value={newTodoGroup}
             onChange={(e) => setNewTodoGroup(e.target.value)}
             className="w-20 bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-400 focus:outline-none focus:border-zinc-600 placeholder:text-zinc-600"
@@ -179,7 +179,7 @@ export const TodoSection = ({
               className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-600 hover:text-zinc-400 mb-2"
             >
               {showCompleted ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              Completed ({completedTodos.length})
+              已完成 ({completedTodos.length})
             </button>
             {showCompleted && (
               <div className="space-y-1 pl-2 border-l-2 border-zinc-800 ml-1.5">

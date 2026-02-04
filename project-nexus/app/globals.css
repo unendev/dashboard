@@ -173,3 +173,14 @@ iframe {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(161, 161, 170, 0.5); /* zinc-400/50 */
 }
+
+/* 隐藏滚动条但保留滚动 */
+.scrollbar-hide::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide,
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}

@@ -44,7 +44,7 @@ export function RoomEntry({ roomId, initialUserName, children }: RoomEntryProps)
   }
 
   if (isChecking) {
-    return <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center text-zinc-500 font-mono">INITIALIZING...</div>;
+    return <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center text-zinc-500 font-mono">初始化中...</div>;
   }
 
   return (
@@ -60,21 +60,21 @@ export function RoomEntry({ roomId, initialUserName, children }: RoomEntryProps)
           <div className="inline-block p-3 rounded-full bg-zinc-800 mb-4 border border-zinc-700">
             <User className="w-8 h-8 text-[#D583F0]" />
           </div>
-          <h1 className="text-2xl font-bold tracking-widest mb-2">IDENTITY CHECK</h1>
-          <p className="text-zinc-500 text-sm">Game Operations Center // Nexus AI</p>
+          <h1 className="text-2xl font-bold tracking-widest mb-2">身份校验</h1>
+          <p className="text-zinc-500 text-sm">Nexus 交互台</p>
         </div>
 
         <form onSubmit={handleEnter} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="codename" className="text-xs uppercase tracking-wider text-zinc-400 font-semibold ml-1">
-              Enter Codename
+              输入代号
             </label>
             <input
               id="codename"
               type="text"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              placeholder="e.g. Commander Shepard"
+              placeholder="e.g. Alex"
               className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-zinc-100 focus:outline-none focus:border-[#D583F0] focus:ring-1 focus:ring-[#D583F0] transition-all placeholder:text-zinc-700"
               autoFocus
             />
@@ -85,14 +85,14 @@ export function RoomEntry({ roomId, initialUserName, children }: RoomEntryProps)
             disabled={!userName.trim()}
             className="w-full bg-[#D583F0] hover:bg-[#c06ce0] text-black font-bold py-3 rounded transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-6 group"
           >
-            INITIALIZE UPLINK
+            建立连接
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </form>
 
         <div className="mt-6 text-center">
            <p className="text-[10px] text-zinc-600 uppercase tracking-widest">
-             Secure Connection • E2E Encrypted • Low Latency
+             安全连接 • 端到端加密 • 低延迟
            </p>
         </div>
       </div>

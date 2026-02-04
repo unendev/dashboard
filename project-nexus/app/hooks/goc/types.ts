@@ -1,8 +1,9 @@
-export type AIMode = 'advisor' | 'interrogator' | 'planner' | 'encyclopedia';
+export type AIMode = 'encyclopedia' | 'game' | 'casual';
 export type AIProvider = 'deepseek' | 'gemini';
 
 export interface SharedMessage {
   id: string;
+  clientMsgId?: string;
   role: 'user' | 'assistant';
   content: string;
   userName?: string;
