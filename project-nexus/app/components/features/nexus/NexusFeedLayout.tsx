@@ -327,7 +327,7 @@ export default function NexusFeedLayout() {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col h-screen relative">
+            <div className="flex-1 min-w-0 flex flex-col h-screen relative">
                 {/* Header */}
                 <header className={`h-16 backdrop-blur border-b flex items-center justify-between px-8 z-20 flex-shrink-0 transition-colors duration-300 ${currentTheme.header}`}>
                     <div className="flex items-center gap-4">
@@ -390,7 +390,7 @@ export default function NexusFeedLayout() {
                                         <div className={`h-px flex-1 opacity-50 ${viewMode === 'light' ? 'bg-zinc-200' : 'bg-zinc-800'}`} />
                                     </div>
 
-                                    <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 gap-4 space-y-4">
+                                    <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 gap-4 space-y-4 w-full">
                                         {groupedItems[date].map((item, idx) => (
                                             <div key={item.link + idx} className="break-inside-avoid">
                                                 <FeedCard item={item} theme={currentTheme.card} textTheme={currentTheme.text} subTextTheme={currentTheme.subtext} />

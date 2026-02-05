@@ -90,7 +90,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ item, theme, textTheme, subT
             )}
 
             {/* Content */}
-            <h3 className={`text-sm font-medium mb-2 leading-relaxed transition-colors ${textClass} relative z-10`}>
+            <h3 className={`text-sm font-medium mb-2 leading-relaxed break-words transition-colors ${textClass} relative z-10`}>
                 <a
                     href={item.link}
                     target="_blank"
@@ -102,7 +102,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({ item, theme, textTheme, subT
                 </a>
             </h3>
 
-            <div className={`text-xs line-clamp-3 mb-3 font-normal leading-relaxed transition-colors ${subTextClass} relative z-10`}>
+            <div className={`text-xs line-clamp-3 mb-3 font-normal leading-relaxed break-words transition-colors ${subTextClass} relative z-10`}>
                 {item.contentSnippet
                     ? item.contentSnippet.replace(/&#8230;/g, '...').replace(/&nbsp;/g, ' ').slice(0, 140)
                     : item.content?.replace(/<[^>]+>/g, '').slice(0, 100) + '...'
