@@ -495,8 +495,9 @@ export default function TaskChartDialog({
 
               {/* 图表 */}
               <div className="bg-zinc-800/30 rounded-lg p-3 border border-zinc-700/30">
-                <ReactECharts 
-                  option={chartOption} 
+                {/* @ts-ignore - ECharts-for-React type incompatibility in some environments */}
+                <ReactECharts
+                  option={chartOption}
                   style={{ height: '280px' }}
                   opts={{ renderer: 'canvas' }}
                 />

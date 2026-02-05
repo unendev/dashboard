@@ -345,7 +345,9 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
                         <span className="text-zinc-700">|</span>
                         <span>{viewMode === 'edit' ? 'EDITABLE' : 'READONLY'}</span>
                     </div>
-                    <span>GLOBAL</span>
+                    <span className="uppercase tracking-widest opacity-50">
+                        {storageKeyPrefix === 'manifesto-global' ? 'Global Console' : storageKeyPrefix.replace('task-memo-', 'Task: ')}
+                    </span>
                 </div>
             </main>
 

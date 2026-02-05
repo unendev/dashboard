@@ -609,11 +609,11 @@ export default function TimerPage() {
                     }`}
                   data-drag="false"
                 >
-                  <div className="w-full flex items-center">
-                    {/* 左侧开始按钮区域 - 按钮本身的上下与左侧都是点击范围 */}
+                  <div className="w-full flex items-stretch">
+                    {/* 左侧开始按钮区域 - 彻底占据左侧热区 */}
                     <div
                       onClick={() => startTimer(task.id)}
-                      className="shrink-0 py-3 pl-3 pr-2 cursor-pointer group/play"
+                      className="shrink-0 w-10 flex items-center justify-center cursor-pointer group/play hover:bg-white/5 transition-colors rounded-l-lg"
                       title="开始计时"
                     >
                       <Play
