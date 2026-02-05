@@ -37,6 +37,7 @@ pnpm-debug.log*
 *.txt
 !README.md
 !**/README.md
+!PROJECT_PROGRESS/**/*.md
 
 # Temp files
 *.tmp
