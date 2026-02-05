@@ -80,7 +80,7 @@ export function Room({ children, roomId, userName }: { children: ReactNode; room
           streamingResponse: null,
           currentUrl: null,
           latestIntel: null,
-        }}
+        } as any}
       >
         <ClientSideSuspense fallback={
           <div className="h-full flex items-center justify-center bg-[#0a0a0a]">

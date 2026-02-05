@@ -3,7 +3,7 @@
 /**
  * TacticalBoard V2 - 改进的三分布局
  * 左上：ToDo 列表
- * 中间：AI 交互台（CommandCenter）
+ * 中间：AI 对话区（CommandCenter）
  * 右侧：MD 编辑区 + 大纲
  */
 
@@ -59,11 +59,6 @@ export default function TacticalBoardV2() {
 
   return (
     <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-mono">
-      {/* Header */}
-      <div className="p-3 border-b border-zinc-800 bg-zinc-900">
-        <h2 className="text-lg font-bold text-[#D583F0] tracking-wider">战术面板</h2>
-      </div>
-
       {/* 三分布局 */}
       <div className="flex-1 flex gap-2 p-2 overflow-hidden">
         
@@ -84,9 +79,7 @@ export default function TacticalBoardV2() {
 
         {/* ===== 中间：AI 主控 ===== */}
         <div className="w-1/2 flex flex-col border border-zinc-800 rounded bg-zinc-950/50 overflow-hidden">
-          <div className="p-2 border-b border-zinc-800 bg-zinc-900/50">
-            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">AI 交互台</h3>
-          </div>
+          <div className="p-2 border-b border-zinc-800 bg-zinc-900/50" />
           
           <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
             {/* AI 主控内容 */}

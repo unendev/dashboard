@@ -35,7 +35,7 @@ export const ChatHeader = ({
     <div className="w-full p-2 border-b border-zinc-800 bg-[#0a0a0a]/90 backdrop-blur flex flex-col gap-2">
       <div className="flex items-center justify-between px-4">
         <div className="flex-1" />
-        <h2 className="text-xl font-bold text-center text-cyan-400 tracking-widest pl-12">交互台</h2>
+        <div className="flex-1" />
         <div className="flex-1 flex justify-end">
           {/* 实时人数 */}
           <div className="relative group cursor-default">

@@ -88,7 +88,7 @@ async function queryMultipleTags(tagNames: string[], userId: string) {
     const sortedTasks = [...uniqueTasks].sort((a, b) => a.date.localeCompare(b.date));
     sortedTasks.forEach(task => {
         const hours = (task.elapsedTime / 3600).toFixed(2);
-        const tags = task.instanceTags.map(t => t.instanceTag.name).join(', ');
+        const tags = task.instanceTags.map((t: any) => t.instanceTag.name).join(', ');
         console.log(`   ${task.date} | ${hours}h | ${task.name || task.categoryPath} [${tags}]`);
     });
 

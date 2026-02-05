@@ -609,28 +609,36 @@ export default function TimerPage() {
                     }`}
                   data-drag="false"
                 >
-                  <div
-                    onClick={() => handleCategoryClick(task)}
-                    onContextMenu={(e) => handleContextMenu(task, e)}
-                    className="w-full flex items-center gap-2 p-2 text-left"
-                    title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startTimer(task.id); }}
-                      className="shrink-0"
+                  <div className="w-full flex items-center">
+                    {/* 左侧开始按钮区域 - 按钮本身的上下与左侧都是点击范围 */}
+                    <div
+                      onClick={() => startTimer(task.id)}
+                      className="shrink-0 py-3 pl-3 pr-2 cursor-pointer group/play"
                       title="开始计时"
                     >
-                      <Play size={12} className={`transition-colors ${hasInstanceTag ? 'text-orange-400 group-hover:text-orange-300' : 'text-zinc-500 group-hover:text-emerald-400'}`} fill="currentColor" />
-                    </button>
-                    <div className={`flex flex-col min-w-0 transition-all ${isBlurred ? 'blur-sm' : ''}`}>
-                      <span className={`text-xs truncate ${hasInstanceTag ? 'text-orange-200 font-medium' : 'text-zinc-300'}`}>
-                        {removeEmojis(task.name)}
-                      </span>
-                      {hasInstanceTag && (
-                        <span className="text-[10px] text-orange-400/80 truncate opacity-0 group-hover:opacity-100 transition-opacity absolute top-[2px] right-2 bg-black/50 px-1 rounded">
-                          #{task.instanceTag}
+                      <Play
+                        size={12}
+                        className={`transition-colors ${hasInstanceTag ? 'text-orange-400 group-hover/play:text-orange-300' : 'text-zinc-500 group-hover/play:text-emerald-400'}`}
+                        fill="currentColor"
+                      />
+                    </div>
+                    {/* 右侧信息区域 - 点击打开图表 */}
+                    <div
+                      onClick={() => handleCategoryClick(task)}
+                      onContextMenu={(e) => handleContextMenu(task, e)}
+                      className={`flex-1 min-w-0 py-3 pr-3 cursor-pointer transition-all ${isBlurred ? 'blur-sm' : ''}`}
+                      title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className={`text-xs truncate ${hasInstanceTag ? 'text-orange-200 font-medium' : 'text-zinc-300'}`}>
+                          {removeEmojis(task.name)}
                         </span>
-                      )}
+                        {hasInstanceTag && (
+                          <span className="text-[10px] text-orange-400/80 truncate opacity-0 group-hover:opacity-100 transition-opacity absolute top-[2px] right-2 bg-black/50 px-1 rounded">
+                            #{task.instanceTag}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {/* 删除按钮 */}

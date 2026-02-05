@@ -1,5 +1,5 @@
 /**
- * GOC 交互台 - AI 聊天界面 (Refactored)
+ * GOC 聊天界面 (Refactored)
  * 
  * 架构说明：
  * - 逻辑层：useGocChat Hook (封装了 Liveblocks, AI SDK, 同步逻辑)
@@ -25,6 +25,7 @@ export default function CommandCenter() {
     others,
     sharedMessages,
     aiPending,
+    aiPendingAt,
 
     // Config State
     aiConfig,
@@ -37,6 +38,7 @@ export default function CommandCenter() {
     handleDeleteMessage,
     getUIMessageContent,
   } = useGocChat();
+
 
   // 自动隐藏刘海逻辑（仅移动端）
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -67,13 +69,13 @@ export default function CommandCenter() {
       const scrollingDown = currentScrollY > lastScrollY.current;
       const scrollingUp = currentScrollY < lastScrollY.current;
 
-      // 向上滑动（scrollingUp）：隐藏刘海
-      if (scrollingUp && currentScrollY > 50) {
+      // 向下滑动（scrollingDown）：隐藏刘海
+      if (scrollingDown && currentScrollY > 50) {
         setIsHeaderVisible(false);
         setIsInputVisible(false);
       }
-      // 向下滑动（scrollingDown）：显示刘海
-      else if (scrollingDown) {
+      // 向上滑动（scrollingUp）：显示刘海
+      else if (scrollingUp) {
         setIsHeaderVisible(true);
         setIsInputVisible(true);
       }
@@ -115,6 +117,7 @@ export default function CommandCenter() {
         onDeleteMessage={handleDeleteMessage}
         sharedMessages={sharedMessages || []}
         aiPending={aiPending}
+        aiPendingAt={aiPendingAt}
       />
 
       <div

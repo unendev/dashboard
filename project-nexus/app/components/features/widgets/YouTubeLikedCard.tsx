@@ -195,7 +195,7 @@ const YouTubeLikedCard: React.FC = () => {
                   height={80}
                   className="w-32 h-20 object-cover"
                   loading="lazy"
-                  onError={(e) => {
+                  onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                     // 图片加载失败时使用默认图片
                     const target = e.target as HTMLImageElement;
                     target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTI4IDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iODAiIGZpbGw9IiMzMzMzMzMiLz48dGV4dCB4PSI2NCIgeT0iNDAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+WW91VHViZTwvdGV4dD48L3N2Zz4=';

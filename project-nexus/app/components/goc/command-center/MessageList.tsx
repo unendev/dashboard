@@ -16,6 +16,7 @@ interface MessageListProps {
   onDeleteMessage?: (messageId: string) => void;
   sharedMessages?: any[];
   aiPending?: boolean;
+  aiPendingAt?: number | null;
 }
 
 export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
@@ -26,7 +27,8 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
   getUIMessageContent,
   onDeleteMessage,
   sharedMessages = [],
-  aiPending = false
+  aiPending = false,
+  aiPendingAt = null
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -49,7 +51,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
     if (isNearBottom.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages[messages.length - 1]?.content, messages[messages.length - 1]?.parts?.length]); // 依赖最后一条消息的内容或parts长度
+  }, [messages[messages.length - 1]?.content, messages[messages.length - 1]?.parts?.length, aiPending]); // 依赖最后一条消息的内容或parts长度
 
   // Helpers
   const isMyOwnMessage = (m: any) => {
@@ -92,6 +94,25 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
       setLongPressMessageId(null);
     }
   };
+
+  const getTime = (t: any) => {
+    if (!t) return 0;
+    if (t instanceof Date) return t.getTime();
+    if (typeof t === 'number') return t;
+    return 0;
+  };
+
+  const hasContent = (m: any) => {
+    if (typeof m?.content === 'string' && m.content.length > 0) return true;
+    if (Array.isArray(m?.parts)) {
+      return m.parts.some((p: any) => p?.type === 'text' && typeof p?.text === 'string' && p.text.length > 0);
+    }
+    return false;
+  };
+
+  const hasAssistantForPending = aiPending && aiPendingAt
+    ? messages.some((m: any) => m.role === 'assistant' && hasContent(m) && getTime(m.createdAt) > aiPendingAt)
+    : false;
 
   return (
     <div
@@ -279,7 +300,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
           </div>
         );
       })}
-      {aiPending && (
+      {aiPending && !hasAssistantForPending && (
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 mb-2">
             <Bot className="w-4 h-4 text-cyan-400" />

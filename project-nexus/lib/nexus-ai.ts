@@ -54,7 +54,7 @@ Task:
         });
 
         // Vercel AI SDK 3.x+ returns structured data
-        return result.object;
+        return result.object as NexusAnalysisResult;
 
     } catch (error) {
         console.error('[Nexus AI] Analysis Failed:', error);

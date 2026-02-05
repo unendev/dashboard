@@ -177,6 +177,7 @@ const InstanceTagStatsChart: React.FC<InstanceTagStatsChartProps> = ({ tasks, to
         </div>
         <div className="text-sm text-gray-500">总计：{formatTime(totalSecondsAllUsed)}</div>
       </div>
+      {/* @ts-ignore */}
       <ReactECharts
         option={option}
         style={{ height: Math.max(260, names.length * 28 + 80) + 'px', width: '100%' }}

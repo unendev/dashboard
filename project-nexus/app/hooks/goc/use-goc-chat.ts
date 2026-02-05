@@ -46,8 +46,8 @@ export function useGocChat() {
   }, [me, aiConfig?.controllerId, updateAiConfig]);
 
   useEffect(() => {
-    const validModes = new Set<AIMode>(['encyclopedia', 'game', 'casual']);
-    if (aiConfig?.aiMode && !validModes.has(aiConfig.aiMode)) {
+    const validModes = new Set<string>(['encyclopedia', 'game', 'casual']);
+    if (aiConfig?.aiMode && !validModes.has(aiConfig.aiMode as string)) {
       updateAiConfig({ aiMode: 'encyclopedia' });
     }
   }, [aiConfig?.aiMode, updateAiConfig]);
@@ -55,6 +55,8 @@ export function useGocChat() {
 
   // --- Local State ---
   const [lastSentNotes, setLastSentNotes] = useState<string>("");
+  const [localPending, setLocalPending] = useState(false);
+  const [localPendingAt, setLocalPendingAt] = useState<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Local Message Timestamps mapping for stability
@@ -259,58 +261,42 @@ export function useGocChat() {
   }, [isAiConfigured]);
 
   useEffect(() => {
-    if (aiPending && status !== 'streaming' && status !== 'submitted') {
-      setAiPending(false, null);
-    }
-  }, [aiPending, status, setAiPending]);
-
-  useEffect(() => {
     if (!aiPending || !aiPendingAt) return;
-
     const getTime = (t: any) => {
       if (!t) return 0;
       if (t instanceof Date) return t.getTime();
       if (typeof t === 'number') return t;
       return 0;
     };
-
-    const sharedLatest = (sharedMessages || [])
-      .filter((m: any) => m.role === 'assistant')
-      .reduce((max, m: any) => Math.max(max, getTime(m.createdAt)), 0);
-
-    const localLatest = messages
-      .filter((m: any) => m.role === 'assistant')
-      .reduce((max, m: any) => Math.max(max, getTime(m.createdAt)), 0);
-
-    const latest = Math.max(sharedLatest, localLatest);
-    if (latest >= aiPendingAt) {
-      setAiPending(false, null);
-    }
-  }, [aiPending, aiPendingAt, sharedMessages, messages, setAiPending]);
-
-  useEffect(() => {
-    if (!aiPending) return;
-    if (status !== 'streaming') return;
-
-    const hasStreamingAssistant = messages.some((m: any) => {
-      if (m.role !== 'assistant') return false;
-      if (typeof m.content === 'string' && m.content.length > 0) return true;
-      if (Array.isArray(m.parts)) {
+    const hasContent = (m: any) => {
+      if (typeof m?.content === 'string' && m.content.length > 0) return true;
+      if (Array.isArray(m?.parts)) {
         return m.parts.some((p: any) => p?.type === 'text' && typeof p?.text === 'string' && p.text.length > 0);
       }
       return false;
+    };
+    const hasNewAssistant = messages.some((m: any) => {
+      if (m.role !== 'assistant') return false;
+      if (!hasContent(m)) return false;
+      return getTime(m.createdAt) > aiPendingAt;
     });
-
-    if (hasStreamingAssistant) {
+    if (hasNewAssistant) {
       setAiPending(false, null);
+      setLocalPending(false);
+      setLocalPendingAt(null);
     }
-  }, [aiPending, status, messages, setAiPending]);
+  }, [aiPending, aiPendingAt, messages, setAiPending]);
 
   useEffect(() => {
-    if (aiPending && status !== 'streaming' && status !== 'submitted') {
-      setAiPending(false);
-    }
-  }, [aiPending, status, setAiPending]);
+    if (!aiPending) return;
+    const timer = setTimeout(() => {
+      setAiPending(false, null);
+      setLocalPending(false);
+      setLocalPendingAt(null);
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [aiPending, setAiPending]);
+
 
   // --- Send Message Handler ---
   const handleSendMessage = async (text: string, attachments: string[] = []) => {
@@ -354,10 +340,7 @@ export function useGocChat() {
     const hasAIPrefix = trimmedInput.startsWith('@AI') || trimmedInput.startsWith('@ai');
     const shouldSendToAI = (aiModeEnabled && isAiConfigured) || hasAIPrefix;
 
-    // 如果要发给 AI，但 AI 正在处理中，则阻止发送
-    if (shouldSendToAI && isLoading) {
-      return;
-    }
+    // 允许在 AI 处理中继续发送（避免界面阻塞）
 
     const clientMsgId = `client-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -403,6 +386,8 @@ export function useGocChat() {
     }
 
     setAiPending(true, Date.now());
+    setLocalPending(true);
+    setLocalPendingAt(Date.now());
 
     // Per Vercel AI SDK Docs, the 'messages' option should be part of the initial `useChat` call,
     // not `sendMessage`. `sendMessage`'s second argument is for `data`.
@@ -499,7 +484,8 @@ export function useGocChat() {
     me,
     others,
     sharedMessages,
-    aiPending: !!aiPending,
+    aiPending: !!aiPending || localPending,
+    aiPendingAt: aiPendingAt ?? localPendingAt,
 
     // Unified AI Config from Liveblocks
     aiConfig,

@@ -91,7 +91,7 @@ async function parseRSS(url: string): Promise<FeedItem[]> {
             source: 'rss', // Will be overridden
             imageUrl: extractImage(item),
             categories: item.categories,
-            author: item.creator || item.author
+            author: item.creator || (item as any).author
         }));
     } catch (err) {
         console.error(`RSS Parser Error for ${url}:`, err);

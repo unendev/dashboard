@@ -19,8 +19,15 @@ function getLiveblocks() {
 export const maxDuration = 60;
 
 // 记录工具调用到 Liveblocks
+function truncateLog(value: string, max = 2000) {
+  if (!value) return value;
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}…(truncated)`;
+}
+
 async function logToolCall(roomId: string, toolName: string, args: any, result: string) {
   try {
+    const safeResult = truncateLog(result);
     await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
       let toolLogs = root.get('toolLogs');
       if (!toolLogs) {
@@ -31,7 +38,7 @@ async function logToolCall(roomId: string, toolName: string, args: any, result: 
         id: crypto.randomUUID(),
         toolName,
         args,
-        result,
+        result: safeResult,
         timestamp: Date.now(),
       });
     });
@@ -91,7 +98,7 @@ ${modeInstruction}
 2. Be a calm, professional co-pilot.
 3. For simple questions or greetings, respond directly without using tools.
 4. Use getNotes tool when you need context about the current situation (shared or personal notes).
-5. Only use updateNote or addTodo when explicitly requested or creating action items.
+5. Only use updateNote / getTodosText / updateTodosText when explicitly requested or creating action items.
 6. When user asks for personal items (my notes, my todos), use the current speaker's name.
 `;
 
@@ -173,52 +180,112 @@ ${playerNotesSummary || 'No individual player notes available.'}`;
           }
         },
       }),
-      addTodo: tool({
-        description: 'Add a new task to the to-do list. Can be shared or personal, and can be grouped.',
-        inputSchema: z.object({
-          task: z.string().describe('A concise description of the task.'),
-          group: z.string().optional().describe('Optional group name for organizing tasks (e.g., "Day 1", "Resources", "Combat").'),
-          isPersonal: z.boolean().optional().describe('If true, this is a personal task visible only to the requesting player.'),
-          playerName: z.string().optional().describe('Player name for personal tasks.'),
-        }),
-        execute: async ({ task, group, isPersonal, playerName }) => {
+      getTodosText: tool({
+        description: 'Read current todos as a markdown list (note-style).',
+        inputSchema: z.object({}),
+        execute: async () => {
           try {
-            let ownerId = null;
-            let ownerName = null;
-            if (isPersonal && playerName && players) {
-              const player = players.find((p: any) =>
-                p.name?.toLowerCase() === playerName.toLowerCase()
-              );
-              if (player) {
-                ownerId = player.id;
-                ownerName = player.name;
-              }
-            }
-
+            let todos: any[] = [];
             await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
-              let todos = root.get('todos');
-              if (!todos) {
-                todos = new LiveList([]);
-                root.set('todos', todos);
+              const list = root.get('todos');
+              if (list) {
+                todos = (list as any).toArray();
               }
-              todos.push({
-                id: crypto.randomUUID(),
-                text: task,
-                completed: false,
-                group: group || 'default',
+            });
+            const byGroup = new Map<string, any[]>();
+            todos.forEach((t: any) => {
+              const group = t.group || 'default';
+              if (!byGroup.has(group)) byGroup.set(group, []);
+              byGroup.get(group)!.push(t);
+            });
+            const lines: string[] = [];
+            for (const [group, items] of byGroup.entries()) {
+              lines.push(`## ${group}`);
+              items.forEach((t: any) => {
+                const status = t.completed ? 'x' : ' ';
+                const meta: string[] = [`id:${t.id}`];
+                if (t.ownerName) meta.push(`owner:@${t.ownerName}`);
+                lines.push(`- [${status}] ${t.text} (${meta.join(', ')})`);
+              });
+              lines.push('');
+            }
+            const result = lines.join('\n').trim();
+            await logToolCall(roomId, 'getTodosText', {}, result);
+            return result;
+          } catch (error) {
+            console.error('❌ Failed to read todos:', error);
+            return '[]';
+          }
+        },
+      }),
+      updateTodosText: tool({
+        description: 'Replace todos by editing a markdown list (note-style).',
+        inputSchema: z.object({
+          content: z.string().describe('Markdown list of todos. Use "## group" headings and "- [ ]" items with optional meta like "(id:xxx, owner:@name)".'),
+        }),
+        execute: async ({ content }) => {
+          try {
+            const lines = content.split(/\r?\n/);
+            let currentGroup = 'default';
+            const items: any[] = [];
+            const parseMeta = (text: string) => {
+              const metaMatch = text.match(/\(([^)]+)\)\s*$/);
+              if (!metaMatch) return { text: text.trim() };
+              const metaText = metaMatch[1];
+              let baseText = text.replace(/\(([^)]+)\)\s*$/, '').trim();
+              const meta: Record<string, string> = {};
+              metaText.split(',').forEach((part) => {
+                const [k, v] = part.split(':').map(s => s.trim());
+                if (k && v) meta[k] = v;
+              });
+              return { text: baseText, meta };
+            };
+
+            for (const raw of lines) {
+              const line = raw.trim();
+              if (!line) continue;
+              const groupMatch = line.match(/^#{1,6}\s+(.+)$/);
+              if (groupMatch) {
+                currentGroup = groupMatch[1].trim() || 'default';
+                continue;
+              }
+              const itemMatch = line.match(/^- \[( |x|X)\]\s+(.+)$/);
+              if (!itemMatch) continue;
+              const completed = itemMatch[1].toLowerCase() === 'x';
+              const parsed = parseMeta(itemMatch[2]);
+              const meta = (parsed as any).meta || {};
+              let id = meta.id || crypto.randomUUID();
+              let ownerId = null;
+              let ownerName = null;
+              if (meta.owner && players) {
+                const ownerKey = String(meta.owner).replace(/^@/, '').toLowerCase();
+                const player = players.find((p: any) => p.name?.toLowerCase() === ownerKey || p.id === ownerKey);
+                if (player) {
+                  ownerId = player.id;
+                  ownerName = player.name;
+                }
+              }
+              items.push({
+                id,
+                text: (parsed as any).text,
+                completed,
+                group: meta.group || currentGroup || 'default',
                 parentId: null,
                 ownerId,
                 ownerName,
               });
+            }
+
+            await getLiveblocks().mutateStorage(roomId, ({ root }: any) => {
+              const list = new LiveList(items);
+              root.set('todos', list);
             });
-            const result = isPersonal
-              ? `Personal todo added for ${ownerName || playerName}: ${task}`
-              : `Todo added${group ? ` to group "${group}"` : ''}: ${task}`;
-            await logToolCall(roomId, 'addTodo', { task, group, isPersonal, playerName }, result);
+            const result = `Todos replaced: ${items.length}`;
+            await logToolCall(roomId, 'updateTodosText', { count: items.length }, result);
             return result;
           } catch (error) {
-            console.error('❌ Failed to add todo:', error);
-            throw new Error(`Failed to add todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('❌ Failed to update todos text:', error);
+            throw new Error(`Failed to update todos text: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         },
       }),

@@ -140,7 +140,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   return (
     <>
-      <style jsx global>
+      {/* @ts-ignore */}
+      <style jsx="true" global="true">
         {editorStyles}
       </style>
       <EditorContent editor={editor} />

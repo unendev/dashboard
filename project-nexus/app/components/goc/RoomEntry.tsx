@@ -61,7 +61,6 @@ export function RoomEntry({ roomId, initialUserName, children }: RoomEntryProps)
             <User className="w-8 h-8 text-[#D583F0]" />
           </div>
           <h1 className="text-2xl font-bold tracking-widest mb-2">身份校验</h1>
-          <p className="text-zinc-500 text-sm">Nexus 交互台</p>
         </div>
 
         <form onSubmit={handleEnter} className="space-y-4">

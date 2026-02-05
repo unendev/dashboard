@@ -264,21 +264,21 @@ function BookCard({
       <Link 
         href={`/webread/read/${encodeURIComponent(book.id)}`}
         className="aspect-[2/3] rounded-lg shadow-lg shadow-black/30 group-hover:shadow-xl group-hover:shadow-amber-500/10 transition-all duration-300 relative overflow-hidden block"
-        onMouseDown={(e) => handleLongPressStart(e.clientX, e.clientY)}
+        onMouseDown={(e: React.MouseEvent) => handleLongPressStart(e.clientX, e.clientY)}
         onMouseUp={handleLongPressEnd}
         onMouseLeave={handleLongPressEnd}
-        onTouchStart={(e) => {
+        onTouchStart={(e: React.TouchEvent) => {
           const touch = e.touches[0];
           handleLongPressStart(touch.clientX, touch.clientY);
         }}
         onTouchEnd={handleLongPressEnd}
         onTouchMove={handleTouchMove}
-        onContextMenu={(e) => {
+        onContextMenu={(e: React.MouseEvent) => {
           e.preventDefault();
           setMenuPosition({ x: e.clientX, y: e.clientY });
           setMenuOpen(true);
         }}
-        onClick={(e) => {
+        onClick={(e: React.MouseEvent) => {
           if (menuOpen) {
             e.preventDefault();
           }

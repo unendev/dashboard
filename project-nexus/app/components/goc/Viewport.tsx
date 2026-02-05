@@ -149,13 +149,8 @@ export default function Viewport() {
 
   return (
     <div className="h-full flex flex-col bg-zinc-900 border-l border-zinc-800 p-4 relative">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-         <h2 className="text-xl font-bold text-emerald-400 flex items-center gap-2">
-           <Radio className={cn("w-5 h-5", mode === 'live' && isCapturing && "animate-pulse text-red-500")} />
-           视觉接入
-         </h2>
-         <div className="flex gap-2">
+      {/* Header Actions */}
+      <div className="flex items-center justify-end mb-2">
            {isCapturing ? (
              <button 
                 onClick={stopCapture}
@@ -173,7 +168,6 @@ export default function Viewport() {
                <Video className="w-4 h-4" />
              </button>
            )}
-         </div>
       </div>
 
       {/* Main Viewport Area */}

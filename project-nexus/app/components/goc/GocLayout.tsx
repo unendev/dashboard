@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Layout } from "lucide-react";
 
 interface GocLayoutProps {
   left: React.ReactNode;
@@ -21,6 +20,7 @@ export default function GocLayout({ left, middle, right }: GocLayoutProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizingLeft = useRef(false);
   const isResizingRight = useRef(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // 开始调整左侧
   const startResizingLeft = useCallback(() => {
@@ -72,6 +72,8 @@ export default function GocLayout({ left, middle, right }: GocLayoutProps) {
     };
   }, [onMouseMove, stopResizing]);
 
+  // 移动端显示/隐藏仅由手势方向控制
+
   return (
     <div ref={containerRef} className="flex h-screen w-full overflow-hidden bg-[#0a0a0a] relative">
       
@@ -112,7 +114,33 @@ export default function GocLayout({ left, middle, right }: GocLayoutProps) {
       {/* --- 移动端布局 --- */}
       <div className="flex md:hidden flex-col w-full h-full relative">
         {/* 内容区 - 使用 CSS 隐藏保留状态 */}
-        <div className="flex-1 relative overflow-hidden">
+        <div
+          className="flex-1 relative overflow-hidden"
+          onTouchStart={(e) => {
+            if (e.touches.length !== 1) return;
+            const t = e.touches[0];
+            touchStartRef.current = { x: t.clientX, y: t.clientY };
+          }}
+          onTouchMove={() => {}}
+          onTouchEnd={(e) => {
+            const start = touchStartRef.current;
+            if (!start) return;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - start.x;
+            const dy = t.clientY - start.y;
+            touchStartRef.current = null;
+
+            if (Math.abs(dx) < 40 || Math.abs(dx) <= Math.abs(dy)) return;
+
+            const order: Array<'left' | 'middle' | 'right'> = ['left', 'middle', 'right'];
+            const idx = order.indexOf(mobileActiveTab);
+            if (dx < 0 && idx < order.length - 1) {
+              setMobileActiveTab(order[idx + 1]);
+            } else if (dx > 0 && idx > 0) {
+              setMobileActiveTab(order[idx - 1]);
+            }
+          }}
+        >
           <div className={cn("absolute inset-0 overflow-hidden transition-opacity duration-300", mobileActiveTab === 'left' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
             {left}
           </div>
@@ -122,31 +150,8 @@ export default function GocLayout({ left, middle, right }: GocLayoutProps) {
           <div className={cn("absolute inset-0 overflow-hidden transition-opacity duration-300", mobileActiveTab === 'right' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
             {right}
           </div>
-        </div>
 
-        {/* 底部导航切换 (仅移动端显示) */}
-        <div className="h-14 border-t border-zinc-800 bg-zinc-950 flex items-center justify-around px-4">
-          <button 
-            onClick={() => setMobileActiveTab('left')}
-            className={cn("flex flex-col items-center gap-1 p-2 transition-colors", mobileActiveTab === 'left' ? "text-cyan-400" : "text-zinc-500")}
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="text-[10px] font-bold">面板</span>
-          </button>
-          <button 
-            onClick={() => setMobileActiveTab('middle')}
-            className={cn("flex flex-col items-center gap-1 p-2 transition-colors", mobileActiveTab === 'middle' ? "text-cyan-400" : "text-zinc-500")}
-          >
-            <Layout className="w-5 h-5" />
-            <span className="text-[10px] font-bold">中枢</span>
-          </button>
-          <button 
-            onClick={() => setMobileActiveTab('right')}
-            className={cn("flex flex-col items-center gap-1 p-2 transition-colors", mobileActiveTab === 'right' ? "text-cyan-400" : "text-zinc-500")}
-          >
-            <ChevronRight className="w-5 h-5" />
-            <span className="text-[10px] font-bold">视图</span>
-          </button>
+          {/* 手势切换：左右滑动 */}
         </div>
       </div>
     </div>

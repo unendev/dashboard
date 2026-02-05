@@ -140,7 +140,8 @@ export function TiptapEditor({
 
   return (
     <>
-      <style jsx global>{`
+      {/* @ts-ignore */}
+      <style jsx="true" global="true">{`
         /* TipTap Styles */
         .ProseMirror { outline: none; padding: 1rem; color: #e5e7eb; }
         .ProseMirror ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }

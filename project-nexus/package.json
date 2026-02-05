@@ -27,12 +27,12 @@
     "setup-demo": "node scripts/ensure-demo-user.mjs && node scripts/seed-demo-data.mjs"
   },
   "dependencies": {
-    "@dashboard/shared": "workspace:*",
     "@ai-sdk/deepseek": "^1.0.32",
     "@ai-sdk/google": "^2.0.46",
     "@ai-sdk/openai": "^2.0.86",
     "@ai-sdk/react": "^2.0.115",
     "@auth/prisma-adapter": "^2.10.0",
+    "@dashboard/shared": "workspace:*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -99,6 +99,7 @@
     "rss-parser": "^3.13.0",
     "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
+    "tslib": "^2.8.1",
     "webdav": "^5.4.0",
     "zod": "^4.1.13",
     "zustand": "^4.5.5"

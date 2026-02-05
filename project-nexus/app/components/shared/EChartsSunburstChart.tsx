@@ -409,8 +409,9 @@ const EChartsSunburstChart: React.FC<EChartsSunburstChartProps> = ({
       {viewMode === 'instance' && instanceError && (
         <div className="text-center text-sm text-red-500 mb-2">{instanceError}</div>
       )}
+      {/* @ts-ignore */}
       <ReactECharts
-        ref={(e) => {
+        ref={(e: any) => {
           if (e) {
             const chartInstance = e.getEchartsInstance();
             // 保存实例用于后续操作

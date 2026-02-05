@@ -40,11 +40,6 @@ export default function TacticalBoard() {
 
   return (
     <div className="h-full flex flex-col bg-zinc-950 border-r border-zinc-800 text-zinc-100 font-mono">
-      {/* Header */}
-      <div className="p-4 border-b border-zinc-900">
-        <h2 className="text-xl font-bold text-[#D583F0] tracking-wider">战术面板</h2>
-      </div>
-      
       {/* To-Do Section */}
       <TodoSection
         todos={todos}

@@ -5,3 +5,4 @@ release/
 .DS_Store
 .env.local
 .env.*.local
+timer/release-tmp/  
