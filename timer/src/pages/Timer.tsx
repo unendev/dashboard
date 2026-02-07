@@ -595,50 +595,43 @@ export default function TimerPage() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 pb-3">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="flex-1 overflow-y-auto px-1 pb-3">
+          <div className="grid grid-cols-2 border-l border-t border-zinc-700/40">
             {recentTasks.map((task) => {
               const hasInstanceTag = !!(task.instanceTag && task.instanceTag.trim() !== '');
               return (
                 <div
                   key={task.id}
-                  className={`relative rounded-lg transition-colors group border
+                  className={`relative transition-colors group border-r border-b border-zinc-700/40
                     ${hasInstanceTag
-                      ? 'bg-orange-950/30 border-orange-500/30 hover:bg-orange-900/40'
-                      : 'bg-zinc-800/50 border-transparent hover:bg-zinc-700/50'
+                      ? 'bg-[#2a1d10] hover:bg-[#332414]'
+                      : 'bg-zinc-800/60 hover:bg-zinc-700/60'
                     }`}
                   data-drag="false"
                 >
-                  <div className="w-full flex items-stretch">
-                    {/* 左侧开始按钮区域 - 彻底占据左侧热区 */}
+                  <div className="w-full flex items-stretch h-7">
+                    {/* 左侧开始按钮区域 - 极致压缩 */}
                     <div
                       onClick={() => startTimer(task.id)}
-                      className="shrink-0 w-10 flex items-center justify-center cursor-pointer group/play hover:bg-white/5 transition-colors rounded-l-lg"
+                      className="shrink-0 w-7 flex items-center justify-center cursor-pointer group/play hover:bg-emerald-500/20 transition-colors"
                       title="开始计时"
                     >
                       <Play
-                        size={12}
-                        className={`transition-colors ${hasInstanceTag ? 'text-orange-400 group-hover/play:text-orange-300' : 'text-zinc-500 group-hover/play:text-emerald-400'}`}
+                        size={9}
+                        className={`transition-colors ${hasInstanceTag ? 'text-amber-500 group-hover/play:text-amber-400' : 'text-zinc-500 group-hover/play:text-zinc-300'}`}
                         fill="currentColor"
                       />
                     </div>
-                    {/* 右侧信息区域 - 点击打开图表 */}
+                    {/* 右侧信息区域 - 纯净表格行 */}
                     <div
                       onClick={() => handleCategoryClick(task)}
                       onContextMenu={(e) => handleContextMenu(task, e)}
-                      className={`flex-1 min-w-0 py-3 pr-3 cursor-pointer transition-all ${isBlurred ? 'blur-sm' : ''}`}
+                      className={`flex-1 min-w-0 pr-2 flex items-center cursor-pointer transition-all ${isBlurred ? 'blur-sm' : ''}`}
                       title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
                     >
-                      <div className="flex flex-col min-w-0">
-                        <span className={`text-xs truncate ${hasInstanceTag ? 'text-orange-200 font-medium' : 'text-zinc-300'}`}>
-                          {removeEmojis(task.name)}
-                        </span>
-                        {hasInstanceTag && (
-                          <span className="text-[10px] text-orange-400/80 truncate opacity-0 group-hover:opacity-100 transition-opacity absolute top-[2px] right-2 bg-black/50 px-1 rounded">
-                            #{task.instanceTag}
-                          </span>
-                        )}
-                      </div>
+                      <span className={`text-[11px] truncate leading-none ${hasInstanceTag ? 'text-amber-100' : 'text-zinc-200'}`}>
+                        {removeEmojis(task.name)}
+                      </span>
                     </div>
                   </div>
                   {/* 删除按钮 */}
