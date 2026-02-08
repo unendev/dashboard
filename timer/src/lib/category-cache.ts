@@ -11,7 +11,8 @@ type CachePayload = {
   data: CategoryNode[];
 };
 
-const STORAGE_KEY = 'category-cache-v2';
+// bump key to force refresh when switching taxonomy source
+const STORAGE_KEY = 'category-cache-v3';
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 let categoriesCache: CategoryNode[] = [];
@@ -56,7 +57,8 @@ const clearStorage = () => {
 };
 
 const fetchCategories = (): Promise<CategoryNode[]> =>
-  fetch(getApiUrl('/api/log-categories'), { credentials: 'include' })
+  // Timer 表单分类改为三轴固定字典，不再复用 /api/log-categories
+  fetch(getApiUrl('/api/timer-categories'), { credentials: 'include' })
     .then(res => res.json())
     .then((data: CategoryNode[]) => {
       categoriesCache = data;

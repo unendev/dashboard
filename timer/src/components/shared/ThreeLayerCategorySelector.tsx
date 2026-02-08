@@ -18,6 +18,9 @@ export function ThreeLayerCategorySelector({
   onChange,
   className = ''
 }: ThreeLayerCategorySelectorProps) {
+  // 三轴客观分类为固定字典：不允许在表单里新增/删除分类
+  const ENABLE_CATEGORY_EDITING = false;
+
   const [allCategories, setAllCategories] = useState<CategoryNode[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -98,6 +101,7 @@ export function ThreeLayerCategorySelector({
   }
 
   const handleAdd = async () => {
+    if (!ENABLE_CATEGORY_EDITING) return;
     if (!newCatName.trim() || !showAddDialog) return
 
     let payload: any = { type: showAddDialog, name: newCatName.trim() }
@@ -131,9 +135,11 @@ export function ThreeLayerCategorySelector({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-tight">顶层分类</span>
-            <button onClick={() => setShowAddDialog('top')} className="text-[10px] text-zinc-600 hover:text-emerald-500 flex items-center">
-              <Plus size={10} className="mr-0.5" /> 新增
-            </button>
+            {ENABLE_CATEGORY_EDITING && (
+              <button onClick={() => setShowAddDialog('top')} className="text-[10px] text-zinc-600 hover:text-emerald-500 flex items-center">
+                <Plus size={10} className="mr-0.5" /> 新增
+              </button>
+            )}
           </div>
           <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
             {topCategories.map(cat => (
@@ -175,9 +181,11 @@ export function ThreeLayerCategorySelector({
                   {cat.name}
                 </button>
               ))}
-              <button onClick={() => setShowAddDialog('mid')} className="p-2 text-[10px] text-zinc-600 hover:text-emerald-500 flex items-center justify-center border border-dashed border-zinc-800 rounded-md">
-                <Plus size={10} className="mr-1" /> 添加
-              </button>
+              {ENABLE_CATEGORY_EDITING && (
+                <button onClick={() => setShowAddDialog('mid')} className="p-2 text-[10px] text-zinc-600 hover:text-emerald-500 flex items-center justify-center border border-dashed border-zinc-800 rounded-md">
+                  <Plus size={10} className="mr-1" /> 添加
+                </button>
+              )}
             </div>
           ) : (
             <div className="text-[10px] text-zinc-700 italic py-4">请先选择顶层分类</div>
@@ -206,9 +214,11 @@ export function ThreeLayerCategorySelector({
                   {cat.name}
                 </button>
               ))}
-              <button onClick={() => setShowAddDialog('sub')} className="p-2 text-[10px] text-zinc-600 hover:text-emerald-500 flex items-center justify-center border border-dashed border-zinc-800 rounded-md">
-                <Plus size={10} className="mr-1" /> 添加
-              </button>
+              {ENABLE_CATEGORY_EDITING && (
+                <button onClick={() => setShowAddDialog('sub')} className="p-2 text-[10px] text-zinc-600 hover:text-emerald-500 flex items-center justify-center border border-dashed border-zinc-800 rounded-md">
+                  <Plus size={10} className="mr-1" /> 添加
+                </button>
+              )}
             </div>
           ) : (
             <div className="text-[10px] text-zinc-700 italic py-4">请选择中层分类</div>
@@ -216,22 +226,24 @@ export function ThreeLayerCategorySelector({
         </div>
       </div>
 
-      <Dialog open={!!showAddDialog} onOpenChange={(o) => !o && setShowAddDialog(false)}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
-          <DialogHeader>
-            <DialogTitle className="text-sm">添加新分类 ({showAddDialog})</DialogTitle>
-          </DialogHeader>
-          <div className="flex gap-2">
-            <Input
-              value={newCatName}
-              onChange={e => setNewCatName(e.target.value)}
-              placeholder="输入分类名称..."
-              className="bg-zinc-800 border-zinc-700"
-            />
-            <Button onClick={handleAdd} className="bg-emerald-600 hover:bg-emerald-500">添加</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {ENABLE_CATEGORY_EDITING && (
+        <Dialog open={!!showAddDialog} onOpenChange={(o) => !o && setShowAddDialog(false)}>
+          <DialogContent className="bg-zinc-900 border-zinc-800">
+            <DialogHeader>
+              <DialogTitle className="text-sm">添加新分类 ({showAddDialog})</DialogTitle>
+            </DialogHeader>
+            <div className="flex gap-2">
+              <Input
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                placeholder="输入分类名称..."
+                className="bg-zinc-800 border-zinc-700"
+              />
+              <Button onClick={handleAdd} className="bg-emerald-600 hover:bg-emerald-500">添加</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

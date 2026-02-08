@@ -8,9 +8,13 @@ const MemoPage = () => {
     const [storageKeyPrefix, setStorageKeyPrefix] = useState('manifesto-global');
 
     useEffect(() => {
-        const hash = window.location.hash;
-        const queryPart = hash.split('?')[1];
-        const params = new URLSearchParams(queryPart);
+        // HashRouter: query 常在 hash 里（#/memo?type=task&id=...）
+        // 但为了兼容其它打开方式，也支持 window.location.search
+        const hash = window.location.hash || '';
+        const hashQueryPart = hash.includes('?') ? hash.split('?')[1] : '';
+        const searchQueryPart = window.location.search ? window.location.search.replace(/^\?/, '') : '';
+        const params = new URLSearchParams(hashQueryPart || searchQueryPart);
+
         const id = params.get('id');
         const type = params.get('type');
         const title = params.get('title');
