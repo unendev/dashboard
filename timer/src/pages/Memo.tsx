@@ -8,24 +8,37 @@ const MemoPage = () => {
     const [storageKeyPrefix, setStorageKeyPrefix] = useState('manifesto-global');
 
     useEffect(() => {
-        // HashRouter: query 常在 hash 里（#/memo?type=task&id=...）
-        // 但为了兼容其它打开方式，也支持 window.location.search
-        const hash = window.location.hash || '';
-        const hashQueryPart = hash.includes('?') ? hash.split('?')[1] : '';
-        const searchQueryPart = window.location.search ? window.location.search.replace(/^\?/, '') : '';
-        const params = new URLSearchParams(hashQueryPart || searchQueryPart);
+        const computeAndApply = () => {
+            // HashRouter: query 常在 hash 里（#/memo?type=task&id=...）
+            // 但为了兼容其它打开方式，也支持 window.location.search
+            const hash = window.location.hash || '';
+            const hashQueryPart = hash.includes('?') ? hash.split('?')[1] : '';
+            const searchQueryPart = window.location.search ? window.location.search.replace(/^\?/, '') : '';
+            const params = new URLSearchParams(hashQueryPart || searchQueryPart);
 
-        const id = params.get('id');
-        const type = params.get('type');
-        const title = params.get('title');
+            const id = params.get('id');
+            const type = params.get('type');
+            const rawTitle = params.get('title');
+            const title = rawTitle ? decodeURIComponent(rawTitle) : null;
 
-        let prefix = 'manifesto-global';
-        if (id && type === 'task') {
-            setTaskId(id);
-            setTaskTitle(title || 'Task Memo');
-            prefix = `task-memo-${id}`;
-        }
-        setStorageKeyPrefix(prefix);
+            let prefix = 'manifesto-global';
+            if (id && type === 'task') {
+                setTaskId(id);
+                setTaskTitle(title || 'Task Memo');
+                prefix = `task-memo-${id}`;
+            } else {
+                setTaskId(null);
+                setTaskTitle(null);
+            }
+            setStorageKeyPrefix(prefix);
+        };
+
+        // 初次计算
+        computeAndApply();
+
+        // 兼容 Electron/HashRouter 某些场景下 hash 在初次渲染后才稳定
+        window.addEventListener('hashchange', computeAndApply);
+        return () => window.removeEventListener('hashchange', computeAndApply);
     }, []);
 
     const handleClose = () => {
@@ -42,6 +55,10 @@ const MemoPage = () => {
                     <h2 className="text-xs font-medium text-zinc-300 truncate">
                         {taskId ? (taskTitle || 'Task Memo') : '备忘录'}
                     </h2>
+                    {/* Debug: 用于确认是否正确进入 task-memo 前缀（避免误判“联通”） */}
+                    <span className="text-[10px] text-zinc-500 truncate max-w-[140px]" title={storageKeyPrefix}>
+                        {storageKeyPrefix}
+                    </span>
                 </div>
                 <button
                     onClick={handleClose}
