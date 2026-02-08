@@ -1,45 +1,48 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { MemoBoard } from '../components/features/memo/MemoBoard';
 
 const MemoPage = () => {
+    const location = useLocation();
     const [taskId, setTaskId] = useState<string | null>(null);
     const [taskTitle, setTaskTitle] = useState<string | null>(null);
     const [storageKeyPrefix, setStorageKeyPrefix] = useState('manifesto-global');
 
     useEffect(() => {
-        const computeAndApply = () => {
-            // HashRouter: query 常在 hash 里（#/memo?type=task&id=...）
-            // 但为了兼容其它打开方式，也支持 window.location.search
-            const hash = window.location.hash || '';
-            const hashQueryPart = hash.includes('?') ? hash.split('?')[1] : '';
-            const searchQueryPart = window.location.search ? window.location.search.replace(/^\?/, '') : '';
-            const params = new URLSearchParams(hashQueryPart || searchQueryPart);
+        // 首选：使用 React Router 的 location（HashRouter 下也能正确拿到 search）
+        let params = new URLSearchParams(location.search || '');
 
-            const id = params.get('id');
-            const type = params.get('type');
-            const rawTitle = params.get('title');
-            const title = rawTitle ? decodeURIComponent(rawTitle) : null;
-
-            let prefix = 'manifesto-global';
-            if (id && type === 'task') {
-                setTaskId(id);
-                setTaskTitle(title || 'Task Memo');
-                prefix = `task-memo-${id}`;
-            } else {
-                setTaskId(null);
-                setTaskTitle(null);
+        // 兜底：部分 Electron loadFile(hash=...) 场景会把 ? & 编码进 hash（%3F %26），导致 location.search 为空
+        if (![...params.keys()].length) {
+            try {
+                const rawHash = (window.location.hash || '').replace(/^#/, '');
+                const decodedHash = decodeURIComponent(rawHash);
+                const queryPart = decodedHash.includes('?') ? decodedHash.split('?')[1] : '';
+                params = new URLSearchParams(queryPart);
+            } catch {
+                // ignore
             }
-            setStorageKeyPrefix(prefix);
-        };
+        }
 
-        // 初次计算
-        computeAndApply();
+        const id = params.get('id');
+        const type = params.get('type');
+        const rawTitle = params.get('title');
+        const title = rawTitle ? (() => {
+            try { return decodeURIComponent(rawTitle); } catch { return rawTitle; }
+        })() : null;
 
-        // 兼容 Electron/HashRouter 某些场景下 hash 在初次渲染后才稳定
-        window.addEventListener('hashchange', computeAndApply);
-        return () => window.removeEventListener('hashchange', computeAndApply);
-    }, []);
+        let prefix = 'manifesto-global';
+        if (id && type === 'task') {
+            setTaskId(id);
+            setTaskTitle(title || 'Task Memo');
+            prefix = `task-memo-${id}`;
+        } else {
+            setTaskId(null);
+            setTaskTitle(null);
+        }
+        setStorageKeyPrefix(prefix);
+    }, [location.search, location.hash]);
 
     const handleClose = () => {
         window.close();
