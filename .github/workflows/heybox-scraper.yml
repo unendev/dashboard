@@ -35,8 +35,12 @@ jobs:
       - name: 运行小黑盒爬虫
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           HEYBOX_TOKEN_ID: ${{ secrets.HEYBOX_TOKEN_ID }}
+          AI_PROVIDER: gemini
+          GEMINI_BASE_URL: ${{ secrets.GEMINI_BASE_URL }}
+          GEMINI_PROXY_API_KEY: ${{ secrets.GEMINI_PROXY_API_KEY }}
+          GEMINI_MODEL: gemini-3-flash
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           GITHUB_ACTIONS: true
         run: |
           cd linuxdo-scraper/heybox_scraper

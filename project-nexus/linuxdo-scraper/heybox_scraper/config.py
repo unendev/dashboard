@@ -21,9 +21,18 @@ REQUEST_INTERVAL = 2  # 请求间隔（秒）
 MAX_RETRIES = 3
 RETRY_DELAY = 5
 
-# ========== DeepSeek AI配置 ==========
+# ========== AI配置（Gemini优先，DeepSeek回退） ==========
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").lower()  # gemini | deepseek
+
+# Gemini (Primary)
+GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://api.unendev.com/v1").rstrip('/')
+GEMINI_PROXY_API_KEY = os.getenv("GEMINI_PROXY_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash")
+
+# DeepSeek (Fallback)
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+
 AI_REQUEST_DELAY = 3  # AI请求间隔（秒）
 
 # ========== 数据库配置 ==========
@@ -45,6 +54,21 @@ def get_proxies():
         }
     return None
 
+
+def has_gemini_config() -> bool:
+    return bool(GEMINI_BASE_URL and GEMINI_PROXY_API_KEY)
+
+
+def has_deepseek_config() -> bool:
+    return bool(DEEPSEEK_API_KEY)
+
+
+def get_ai_provider_order():
+    """根据配置返回 AI 调用顺序。默认 Gemini 优先，失败后回退 DeepSeek。"""
+    if AI_PROVIDER == "deepseek":
+        return ["deepseek"]
+    return ["gemini", "deepseek"]
+
 # ========== 环境检查 ==========
 def check_config():
     """检查配置是否完整"""
@@ -53,8 +77,8 @@ def check_config():
     if not HEYBOX_TOKEN_ID:
         issues.append("❌ 未配置 HEYBOX_TOKEN_ID")
     
-    if not DEEPSEEK_API_KEY:
-        issues.append("❌ 未配置 DEEPSEEK_API_KEY")
+    if not has_gemini_config() and not has_deepseek_config():
+        issues.append("❌ AI配置缺失：请至少配置 GEMINI_BASE_URL + GEMINI_PROXY_API_KEY，或配置 DEEPSEEK_API_KEY")
     
     if not DATABASE_URL:
         issues.append("❌ 未配置 DATABASE_URL")
@@ -80,6 +104,8 @@ if __name__ == "__main__":
     print(f"  - 使用代理: {USE_PROXY}")
     print(f"  - GitHub Actions: {IS_GITHUB_ACTIONS}")
     print(f"  - Token已配置: {'是' if HEYBOX_TOKEN_ID else '否'}")
-
+    print(f"  - AI_PROVIDER: {AI_PROVIDER}")
+    print(f"  - Gemini可用: {'是' if has_gemini_config() else '否'}")
+    print(f"  - DeepSeek可用: {'是' if has_deepseek_config() else '否'}")
 
 

@@ -6,7 +6,7 @@
 
 - ✅ 每日自动爬取小黑盒首页最新20个帖子
 - ✅ 抓取每个帖子的评论区内容
-- ✅ 使用DeepSeek AI进行智能分析
+- ✅ AI 分析支持 Gemini 优先，失败自动回退 DeepSeek
 - ✅ 数据存储到PostgreSQL数据库
 - ✅ 前端实时展示（集成到首页）
 
@@ -49,8 +49,14 @@ HEYBOX_TOKEN_ID=你的token值
 HEYBOX_POST_LIMIT=20
 HEYBOX_COMMENT_LIMIT=50
 
-# DeepSeek AI（必填）
-DEEPSEEK_API_KEY=sk-your-api-key
+# AI Provider（默认 Gemini 优先）
+AI_PROVIDER=gemini
+GEMINI_BASE_URL=https://api.unendev.com/v1
+GEMINI_PROXY_API_KEY=sk-your-gemini-proxy-key
+GEMINI_MODEL=gemini-3-flash
+
+# DeepSeek（建议配置：作为回退链路）
+DEEPSEEK_API_KEY=sk-your-deepseek-api-key
 
 # 数据库（必填）
 DATABASE_URL=postgresql://user:password@host/database
@@ -113,9 +119,11 @@ python heybox_api_scraper.py
 #### 方式D：使用 GitHub Actions（云端）
 
 1. 在 GitHub 仓库设置中添加 Secrets：
-   - `HEYBOX_TOKEN_ID`: 你的小黑盒token
-   - `DEEPSEEK_API_KEY`: DeepSeek API密钥
-   - `DATABASE_URL`: 数据库连接URL
+   - **必须** `HEYBOX_TOKEN_ID`: 你的小黑盒token
+   - **必须** `DATABASE_URL`: 数据库连接URL
+   - **必须（Gemini主路径）** `GEMINI_BASE_URL`: Gemini 反代地址（如 `https://api.unendev.com/v1`）
+   - **必须（Gemini主路径）** `GEMINI_PROXY_API_KEY`: Gemini 反代密钥
+   - **建议（回退）** `DEEPSEEK_API_KEY`: DeepSeek API密钥（Gemini不可用时自动回退）
 
 2. GitHub Actions 会每天凌晨自动运行
 

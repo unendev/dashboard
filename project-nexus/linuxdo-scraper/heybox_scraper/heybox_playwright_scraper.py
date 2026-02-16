@@ -46,14 +46,18 @@ from playwright.async_api import async_playwright, Page
 # from playwright_stealth import stealth  # 已禁用：token认证已足够
 import asyncpg
 import re
+import requests
 
 # 导入配置
 from config import (
     HEYBOX_TOKEN_ID, HEYBOX_USER_PKEY, HEYBOX_HOME_URL,
     POST_LIMIT, COMMENT_LIMIT, REQUEST_INTERVAL,
     MAX_RETRIES, RETRY_DELAY, AI_REQUEST_DELAY,
+    AI_PROVIDER,
+    GEMINI_BASE_URL, GEMINI_PROXY_API_KEY, GEMINI_MODEL,
     DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
-    DATABASE_URL, USE_PROXY, get_proxies, check_config
+    DATABASE_URL, USE_PROXY, get_proxies, check_config,
+    get_ai_provider_order, has_gemini_config, has_deepseek_config
 )
 
 # ========== 日志配置 ==========
@@ -489,10 +493,11 @@ async def extract_comments(page: Page, post_id: str, post_url: str) -> List[Dict
 # ========== AI分析 ==========
 
 def analyze_with_ai(post: Dict, comments: List[Dict]) -> Dict:
-    """使用DeepSeek AI分析 - 对标Reddit的高质量分析"""
+    """AI分析（Gemini优先，失败后自动回退DeepSeek）"""
     logger.info(f"  🤖 AI分析: {post['title'][:30]}...")
-    
-    if not DEEPSEEK_API_KEY:
+
+    if not has_gemini_config() and not has_deepseek_config():
+        logger.warning("    ⚠ 未配置可用AI Provider（Gemini/DeepSeek），使用默认分析")
         return {
             'title_cn': post.get('title', ''),
             'core_issue': post.get('summary', '')[:100],
@@ -501,9 +506,7 @@ def analyze_with_ai(post: Dict, comments: List[Dict]) -> Dict:
             'value_assessment': '中',
             'detailed_analysis': ''
         }
-    
-    import requests
-    
+
     # 构建内容摘要
     excerpt = post.get('summary', '')[:1000]
     if not excerpt.strip():
@@ -563,8 +566,51 @@ def analyze_with_ai(post: Dict, comments: List[Dict]) -> Dict:
     
     # 调试日志
     logger.debug(f"  → Prompt长度: {len(prompt)}字符, 评论区长度: {len(comment_section)}字符")
-    
-    try:
+
+    system_prompt = "你是专业的游戏社区内容分析专家，擅长分析游戏攻略、资讯、讨论和硬件评测。你的分析客观专业，注重实用价值。"
+
+    def _parse_analysis_response(content: str):
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if not json_match:
+            return None
+        return json.loads(json_match.group())
+
+    def _call_gemini() -> Dict:
+        if not has_gemini_config():
+            raise RuntimeError("Gemini 配置缺失")
+
+        url = f"{GEMINI_BASE_URL}/chat/completions"
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {GEMINI_PROXY_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": GEMINI_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2000
+            },
+            timeout=45
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"Gemini API返回错误: {response.status_code} {response.text[:200]}")
+
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        parsed = _parse_analysis_response(content)
+        if not parsed:
+            raise RuntimeError("Gemini 返回内容未解析出JSON")
+        return parsed
+
+    def _call_deepseek() -> Dict:
+        if not has_deepseek_config():
+            raise RuntimeError("DeepSeek 配置缺失")
+
         response = requests.post(
             DEEPSEEK_API_URL,
             headers={
@@ -574,35 +620,46 @@ def analyze_with_ai(post: Dict, comments: List[Dict]) -> Dict:
             json={
                 "model": "deepseek-chat",
                 "messages": [
-                    {
-                        "role": "system", 
-                        "content": "你是专业的游戏社区内容分析专家，擅长分析游戏攻略、资讯、讨论和硬件评测。你的分析客观专业，注重实用价值。"
-                    },
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.3,
                 "max_tokens": 2000
             },
             timeout=60
         )
-        
-        if response.status_code == 200:
-            result = response.json()
-            content = result['choices'][0]['message']['content']
-            json_match = re.search(r'\{[\s\S]*\}', content)
-            if json_match:
-                analysis = json.loads(json_match.group())
-                logger.info(f"    ✓ AI分析完成")
+        if response.status_code != 200:
+            raise RuntimeError(f"DeepSeek API返回错误: {response.status_code} {response.text[:200]}")
+
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        parsed = _parse_analysis_response(content)
+        if not parsed:
+            raise RuntimeError("DeepSeek 返回内容未解析出JSON")
+        return parsed
+
+    provider_order = get_ai_provider_order()
+    logger.info(f"  🧭 AI调用顺序: {' -> '.join(provider_order)} (AI_PROVIDER={AI_PROVIDER})")
+
+    for provider in provider_order:
+        try:
+            if provider == 'gemini':
+                logger.info(f"  🚀 优先调用 Gemini: model={GEMINI_MODEL}")
+                analysis = _call_gemini()
+                logger.info("    ✓ Gemini 分析完成")
                 time.sleep(AI_REQUEST_DELAY)
                 return analysis
-        else:
-            logger.warning(f"    ✗ API返回错误: {response.status_code}")
-                
-    except Exception as e:
-        logger.warning(f"    ✗ AI分析失败: {e}")
+
+            if provider == 'deepseek':
+                logger.info("  🔁 回退调用 DeepSeek: model=deepseek-chat")
+                analysis = _call_deepseek()
+                logger.info("    ✓ DeepSeek 分析完成")
+                time.sleep(AI_REQUEST_DELAY)
+                return analysis
+
+        except Exception as e:
+            logger.warning(f"    ✗ {provider} 调用失败: {e}")
+            continue
     
     # 返回默认分析
     return {
@@ -727,7 +784,10 @@ async def main():
     logger.info(f"\n配置信息：")
     logger.info(f"  - 目标帖子数: {POST_LIMIT}")
     logger.info(f"  - Token已配置: 是")
-    logger.info(f"  - AI分析: {'是' if DEEPSEEK_API_KEY else '否'}")
+    logger.info(f"  - AI分析: {'是' if (has_gemini_config() or has_deepseek_config()) else '否'}")
+    logger.info(f"  - AI_PROVIDER: {AI_PROVIDER}")
+    logger.info(f"  - Gemini可用: {'是' if has_gemini_config() else '否'} (model={GEMINI_MODEL})")
+    logger.info(f"  - DeepSeek可用(回退): {'是' if has_deepseek_config() else '否'}")
     logger.info(f"  - 使用代理: {'是' if USE_PROXY else '否'}")
     
     async with async_playwright() as p:
@@ -922,4 +982,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
