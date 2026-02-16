@@ -27,6 +27,15 @@ export interface FeedConfig {
     isParent?: boolean;
 }
 
+export const REDDIT_GAMEDEV_SUBREDDITS = [
+    'unrealengine',
+    'Unity3D',
+    'godot',
+    'gamedev',
+    'indiegames',
+    'gamedevjobs'
+] as const;
+
 export const RSS_FEEDS: FeedConfig[] = [
     // --- Frontier (Tech/Dev/News) ---
     {
@@ -83,16 +92,53 @@ export const RSS_FEEDS: FeedConfig[] = [
         enabled: true,
         parentId: 'reddit_root'
     },
-
-    // --- Culture (Game/Art/Bilibili) ---
     {
-        key: 'bilibili_dynamic',
-        name: 'Bilibili',
-        url: 'api_mode', // Handled by Zima/Edge or dedicated API
-        type: 'culture',
-        icon: '📺',
-        enabled: true
+        key: 'reddit_unrealengine',
+        name: 'Unreal Engine',
+        url: 'https://www.reddit.com/r/unrealengine/hot.json',
+        type: 'frontier',
+        icon: '🧩',
+        enabled: true,
+        parentId: 'reddit_root'
     },
+    {
+        key: 'reddit_unity3d',
+        name: 'Unity3D',
+        url: 'https://www.reddit.com/r/Unity3D/hot.json',
+        type: 'frontier',
+        icon: '🎯',
+        enabled: true,
+        parentId: 'reddit_root'
+    },
+    {
+        key: 'reddit_godot',
+        name: 'Godot',
+        url: 'https://www.reddit.com/r/godot/hot.json',
+        type: 'frontier',
+        icon: '🤖',
+        enabled: true,
+        parentId: 'reddit_root'
+    },
+    {
+        key: 'reddit_indiegames',
+        name: 'Indie Games',
+        url: 'https://www.reddit.com/r/indiegames/hot.json',
+        type: 'frontier',
+        icon: '🕹️',
+        enabled: true,
+        parentId: 'reddit_root'
+    },
+    {
+        key: 'reddit_gamedevjobs',
+        name: 'GameDev Jobs',
+        url: 'https://www.reddit.com/r/gamedevjobs/hot.json',
+        type: 'frontier',
+        icon: '💼',
+        enabled: true,
+        parentId: 'reddit_root'
+    },
+
+    // --- Culture (Game/Art) ---
     {
         key: 'gcores',
         name: '机核 Gcores',
@@ -117,30 +163,6 @@ export const RSS_FEEDS: FeedConfig[] = [
         url: 'https://sspai.com/feed',
         type: 'wool',
         icon: '⚡',
-        enabled: true
-    },
-    {
-        key: 'telegram_main',
-        name: 'Telegram Groups',
-        url: 'api_mode', // Pushed by Zima Userbot
-        type: 'wool',
-        icon: '✈️',
-        enabled: true
-    },
-    {
-        key: 'qq_all',
-        name: 'QQ Messages',
-        url: 'api_mode', // Pushed by Zima NapCat
-        type: 'wool',
-        icon: '🐧',
-        enabled: true
-    },
-    {
-        key: 'x_twitter',
-        name: 'X (Twitter)',
-        url: 'api_mode', // Pushed by Zima Nitter/RSSHub
-        type: 'wool',
-        icon: '✖️',
         enabled: true
     },
     // Duplicate sspai removed

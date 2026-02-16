@@ -19,7 +19,7 @@ export function FlashcardReviewClient({ initialCards, allCards = [], totalCount 
   const [isFlipped, setIsFlipped] = useState(false);
   const [viewMode, setViewMode] = useState<'review' | 'list'>('review');
   const [isPending, startTransition] = useTransition();
-  const { speak } = useTTS();
+  const { speak, lastError } = useTTS();
 
   const handleUpdateReview = (performance: 'Forgot' | 'Good' | 'Easy') => {
     startTransition(async () => {
@@ -125,7 +125,7 @@ export function FlashcardReviewClient({ initialCards, allCards = [], totalCount 
                 {getMaskedContext(currentCard.front, currentCard.back)}
               </p>
               <button 
-                onClick={(e) => { e.stopPropagation(); speak(currentCard.back); }}
+                onClick={(e) => { e.stopPropagation(); void speak(currentCard.back, 'ru-RU'); }}
                 className="mt-4 p-2 rounded-full hover:bg-gray-700 text-blue-400 transition-colors"
                 title="朗读句子"
               >
@@ -142,7 +142,7 @@ export function FlashcardReviewClient({ initialCards, allCards = [], totalCount 
                 {getHighlightedContext(currentCard.front, currentCard.back)}
               </p>
               <button 
-                onClick={(e) => { e.stopPropagation(); speak(currentCard.back); }}
+                onClick={(e) => { e.stopPropagation(); void speak(currentCard.back, 'ru-RU'); }}
                 className="mt-4 p-2 rounded-full hover:bg-gray-700 text-green-400 transition-colors"
                 title="朗读句子"
               >
@@ -153,6 +153,9 @@ export function FlashcardReviewClient({ initialCards, allCards = [], totalCount 
       </div>
       
       <div className="mt-4 flex flex-col items-center w-full flex-shrink-0 px-4">
+        {lastError && (
+          <p className="mb-3 text-xs text-red-400 text-center">{lastError}</p>
+        )}
         {isPending ? (
           <p className="animate-pulse text-gray-500">处理中...</p>
         ) : !isFlipped ? (

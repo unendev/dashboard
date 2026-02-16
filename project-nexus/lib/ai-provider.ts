@@ -16,6 +16,7 @@ if (!isProduction) {
 let googleProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
 let customGeminiProxyProvider: ReturnType<typeof createOpenAI> | undefined;
 let customGoogleNativeProvider: ReturnType<typeof createGoogleGenerativeAI> | undefined;
+let nexusFeedGeminiProvider: ReturnType<typeof createOpenAI> | undefined;
 let deepseekProvider: ReturnType<typeof createDeepSeek> | undefined;
 
 function getGoogleProvider() {
@@ -85,12 +86,36 @@ function getDeepSeekProvider() {
   return deepseekProvider;
 }
 
+/**
+ * Nexus Feed 专用 Gemini 链路（与 GOC 可区分）
+ * - 固定走 OpenAI-compatible 代理
+ * - 固定默认 baseURL 为 https://api.unendev.com/v1
+ */
+function getNexusFeedGeminiProvider() {
+  if (!nexusFeedGeminiProvider) {
+    const baseUrl = 'https://api.unendev.com/v1';
+    console.log(`[NexusFeed Gemini] Using dedicated provider: ${baseUrl}`);
+
+    nexusFeedGeminiProvider = createOpenAI({
+      apiKey: env.GEMINI_PROXY_API_KEY || process.env.GEMINI_PROXY_API_KEY || 'sk-placeholder',
+      baseURL: baseUrl,
+    });
+  }
+
+  return nexusFeedGeminiProvider;
+}
+
 export function getAIModel({ provider, modelId, enableThinking }: { provider: string, modelId?: string, enableThinking?: boolean }) {
   const effectiveModelId = modelId || (provider === 'gemini' ? 'gemini-2.0-flash-exp' : 'deepseek-chat');
   let model: any;
   let providerOptions: any = {};
 
-  if (provider === 'gemini') {
+  if (provider === 'gemini-nexus-feed') {
+    // 主路由信息页（Nexus Feed）默认链路：api.unendev.com + Gemini 2.0 Flash
+    // 保持与 GOC 的 provider 选择可区分，避免误伤 GOC 默认行为。
+    console.log(`[AI Provider] Routing to Nexus Feed dedicated Gemini proxy: ${effectiveModelId}`);
+    model = getNexusFeedGeminiProvider()(effectiveModelId || 'gemini-2.0-flash-exp');
+  } else if (provider === 'gemini') {
     console.log(`[AI Provider] Gemini model requested: ${effectiveModelId}`);
 
     // 路由逻辑:

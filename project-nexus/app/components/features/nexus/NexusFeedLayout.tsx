@@ -10,6 +10,7 @@ export default function NexusFeedLayout() {
     const [filter, setFilter] = useState<'all' | 'frontier' | 'culture' | 'wool'>('all');
     // Date State
     const [selectedDate, setSelectedDate] = useState<string>(''); // YYYY-MM-DD
+    const [recencyFilter, setRecencyFilter] = useState<'all' | 'history'>('all');
     // Fold/Unfold State for Parent Items
     const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({});
     // Theme State: 'oled' (Pure Black), 'dim' (Zinc-900), 'light' (Zinc-50), 'treasure' (GitHub Dark)
@@ -81,15 +82,9 @@ export default function NexusFeedLayout() {
 
     // Compute Active Feeds
     const filteredItems = items.filter(item => {
-        // Fix: Check both name and key (to support 'bilibili_dynamic' from DB and 'Bilibili' from RSS)
-        // Also check if source contains key or name for partial matches (e.g., "QQ群: xxx" should match "qq_all")
         const config = RSS_FEEDS.find(f =>
             f.name === item.source ||
-            f.key === item.source ||
-            item.source.toLowerCase().includes('qq') && f.key === 'qq_all' ||
-            item.source.toLowerCase().includes('telegram') && f.key === 'telegram_main' ||
-            item.source.toLowerCase().includes('twitter') && f.key === 'x_twitter' ||
-            item.source.toLowerCase().includes('bilibili') && f.key === 'bilibili_dynamic'
+            f.key === item.source
         );
         // If no config found, filter out the item (unknown source)
         if (!config) return false;
@@ -98,11 +93,24 @@ export default function NexusFeedLayout() {
 
         // Filter Logic
         let categoryMatch = true;
-        if (filter === 'culture') categoryMatch = item.source.includes('机核') || item.source.includes('小黑盒') || item.source.includes('Bilibili');
-        else if (filter === 'frontier') categoryMatch = item.source.includes('Linux') || item.source.includes('Reddit') || item.source.includes('Technology') || item.source.includes('Game Dev');
-        else if (filter === 'wool') categoryMatch = item.source.includes('买') || item.source.includes('Telegram');
+        if (filter !== 'all') categoryMatch = config.type === filter;
 
         if (!categoryMatch) return false;
+
+        // Historical entry: minimal viable "past unread" shortcut.
+        // Extension point: when unread/read model is available, replace this with real unread filtering.
+        if (recencyFilter === 'history') {
+            if (!item.isoDate) return false;
+            const itemDate = new Date(item.isoDate);
+            const today = new Date();
+            if (
+                itemDate.getFullYear() === today.getFullYear() &&
+                itemDate.getMonth() === today.getMonth() &&
+                itemDate.getDate() === today.getDate()
+            ) {
+                return false;
+            }
+        }
 
         if (selectedDate) {
             if (!item.isoDate) return false;
@@ -263,6 +271,30 @@ export default function NexusFeedLayout() {
         return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     };
 
+    const getTodayDateString = () => new Date().toLocaleDateString('en-CA');
+
+    const shiftSelectedDate = (days: number) => {
+        const baseDate = selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date();
+        baseDate.setDate(baseDate.getDate() + days);
+        const nextDate = baseDate.toLocaleDateString('en-CA');
+        setSelectedDate(nextDate);
+        setRecencyFilter('all');
+    };
+
+    const applyTodayFilter = () => {
+        setSelectedDate(getTodayDateString());
+        setRecencyFilter('all');
+    };
+
+    const clearDateFilter = () => {
+        setSelectedDate('');
+    };
+
+    const showHistoryPriority = () => {
+        setRecencyFilter('history');
+        setSelectedDate('');
+    };
+
     return (
         <div className={`min-h-screen font-sans flex overflow-hidden duration-300 ${currentTheme.bg} ${currentTheme.text}`}
             style={viewMode === 'treasure' ? {
@@ -372,6 +404,67 @@ export default function NexusFeedLayout() {
                         </div>
                     </div>
                 </header>
+
+                {/* Date + History Controls (Nexus Feed main entry) */}
+                <div className={`border-b px-4 lg:px-8 py-3 flex flex-wrap items-center gap-2 text-xs ${currentTheme.header}`}>
+                    <button
+                        onClick={applyTodayFilter}
+                        className={`px-3 py-1.5 rounded-md border transition-colors ${selectedDate === getTodayDateString() && recencyFilter === 'all'
+                            ? 'bg-blue-500/20 border-blue-400/60 text-blue-200'
+                            : 'border-white/15 hover:border-white/30'
+                            }`}
+                    >
+                        今天
+                    </button>
+                    <button
+                        onClick={() => shiftSelectedDate(-1)}
+                        className="px-3 py-1.5 rounded-md border border-white/15 hover:border-white/30 transition-colors"
+                    >
+                        前一天
+                    </button>
+                    <button
+                        onClick={() => shiftSelectedDate(1)}
+                        className="px-3 py-1.5 rounded-md border border-white/15 hover:border-white/30 transition-colors"
+                    >
+                        后一天
+                    </button>
+                    <button
+                        onClick={clearDateFilter}
+                        className={`px-3 py-1.5 rounded-md border transition-colors ${!selectedDate
+                            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-200'
+                            : 'border-white/15 hover:border-white/30'
+                            }`}
+                    >
+                        清除筛选
+                    </button>
+
+                    <div className="mx-1 h-4 w-px bg-white/15" />
+
+                    <button
+                        onClick={showHistoryPriority}
+                        className={`px-3 py-1.5 rounded-md border transition-colors ${recencyFilter === 'history'
+                            ? 'bg-amber-500/20 border-amber-400/60 text-amber-200'
+                            : 'border-white/15 hover:border-white/30'
+                            }`}
+                        title="最小可行实现：仅看非今天内容（往期优先）"
+                    >
+                        往期未读（历史优先）
+                    </button>
+                    <button
+                        onClick={() => setRecencyFilter('all')}
+                        className={`px-3 py-1.5 rounded-md border transition-colors ${recencyFilter === 'all'
+                            ? 'bg-zinc-500/20 border-zinc-400/60'
+                            : 'border-white/15 hover:border-white/30'
+                            }`}
+                    >
+                        全部时间
+                    </button>
+
+                    <div className={`ml-auto ${currentTheme.subtext}`}>
+                        {selectedDate ? `日期：${selectedDate}` : '日期：未指定'}
+                        {recencyFilter === 'history' ? ' · 仅历史内容' : ''}
+                    </div>
+                </div>
 
                 {/* Scrollable Content */}
                 <main className="flex-1 p-4 lg:p-6 overflow-y-auto custom-scrollbar">

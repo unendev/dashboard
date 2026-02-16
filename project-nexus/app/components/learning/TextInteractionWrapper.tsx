@@ -20,7 +20,7 @@ interface TextInteractionWrapperProps {
 }
 
 export function TextInteractionWrapper({ children }: TextInteractionWrapperProps) {
-  const { speak } = useTTS();
+  const { speak, lastError } = useTTS();
   const router = useRouter();
   const [selectionMenu, setSelectionMenu] = useState<{ x: number, y: number, text: string } | null>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -71,7 +71,7 @@ export function TextInteractionWrapper({ children }: TextInteractionWrapperProps
   // Helper: Handle word click
   const handleWordClick = (word: string) => {
     if (/[а-яА-ЯёЁ]/.test(word)) {
-      speak(word, 'ru-RU');
+      void speak(word, 'ru-RU');
     }
   };
 
@@ -115,7 +115,7 @@ export function TextInteractionWrapper({ children }: TextInteractionWrapperProps
           style={{ left: selectionMenu.x, top: selectionMenu.y }}
         >
           <button 
-            onClick={() => speak(selectionMenu.text)}
+            onClick={() => void speak(selectionMenu.text, 'ru-RU')}
             className="p-1.5 hover:bg-gray-700 rounded text-blue-400"
             title="朗读"
           >
@@ -129,6 +129,12 @@ export function TextInteractionWrapper({ children }: TextInteractionWrapperProps
           >
             <BookPlus size={16} />
           </button>
+        </span>
+      )}
+
+      {lastError && (
+        <span className="absolute left-0 top-full mt-2 text-xs text-red-400">
+          {lastError}
         </span>
       )}
     </span>

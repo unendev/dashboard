@@ -33,7 +33,9 @@ SUBREDDITS = [
     "gamedev",       # 独立游戏开发
     "godot",         # Godot引擎
     "Unity3D",       # Unity引擎
-    "unrealengine"   # 虚幻引擎
+    "unrealengine",  # 虚幻引擎
+    "indiegames",    # 独立游戏社区
+    "gamedevjobs"    # 游戏开发招聘
 ]
 
 POST_COUNT_PER_SUB = 5  # 每个subreddit取5个帖子

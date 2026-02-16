@@ -2,6 +2,12 @@ import { getAIModel } from './ai-provider';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
+// 主路由信息页（Nexus Feed）AI 默认链路标识：
+// provider: gemini-nexus-feed（专用分支，便于与 GOC 区分）
+// model: Gemini 2.0 Flash
+const NEXUS_FEED_PROVIDER = 'gemini-nexus-feed';
+const NEXUS_FEED_MODEL = 'gemini-3-flash';
+
 // Define the output structure for Intelligence Analysis
 const AnalysisSchema = z.object({
     summary: z.string().describe("A concise 1-2 sentence summary of the content in Chinese."),
@@ -18,17 +24,20 @@ export async function analyzeNexusItem(
     source: string
 ): Promise<NexusAnalysisResult | null> {
 
-    // Choose model: Prioritize 'gemini-3-flash' (Google Native Proxy) as requested
-    // The 'gemini' provider string triggers the complex routing logic in ai-provider.ts
-    // which knows how to handle 'gemini-3-*' by using the Custom Google Native Provider.
+    // Nexus Feed 专用默认链路：api.unendev.com/v1 + Gemini 2.0 Flash
+    // 通过独立 provider 分支与 GOC 聊天链路做最小隔离，避免行为耦合。
     const { model, providerOptions } = getAIModel({
-        provider: 'gemini',
-        modelId: 'gemini-3-flash', // User's preferred high-speed model
+        provider: NEXUS_FEED_PROVIDER,
+        modelId: NEXUS_FEED_MODEL,
         enableThinking: false
     });
 
     // Content Truncation (Safety against huge payloads)
     const safeContent = content.slice(0, 5000);
+    const isRedditSource = /reddit/i.test(source);
+    const sourceSpecificRule = isRedditSource
+        ? '4. If the title/content is in English, you MUST still output Chinese summary and Chinese tags. Keep Chinese as the only output language for analysis.'
+        : '';
 
     const prompt = `
 You are Nexus AI, an intelligence officer for a Game Developer & Tech Enthusiast.
@@ -43,6 +52,7 @@ Task:
 1. Summarize the main point in Chinese (Concise).
 2. Rate relevance (0-10) for a game developer/tech user. (High for: AI, Coding, Game Design, Major Industry News. Low for: Gossip, Ads).
 3. Extract Tags.
+${sourceSpecificRule}
 `;
 
     try {

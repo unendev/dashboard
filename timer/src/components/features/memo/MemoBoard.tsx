@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Plus, X, GripVertical } from 'lucide-react';
 import { MarkdownRenderer } from '@shared';
 import {
@@ -112,6 +112,40 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
     // --- State: UI ---
     const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
     const [viewMode, setViewMode] = useState<'edit' | 'preview'>('preview');
+
+    // --- Undo / Redo (for this special console textarea) ---
+    type TextSnapshot = {
+        value: string;
+        selectionStart: number;
+        selectionEnd: number;
+    };
+
+    const undoStackRef = useRef<TextSnapshot[]>([]);
+    const redoStackRef = useRef<TextSnapshot[]>([]);
+
+    const pushUndoSnapshot = (textarea: HTMLTextAreaElement) => {
+        undoStackRef.current.push({
+            value: textarea.value,
+            selectionStart: textarea.selectionStart ?? 0,
+            selectionEnd: textarea.selectionEnd ?? 0,
+        });
+        // Any new edit invalidates redo history
+        redoStackRef.current = [];
+
+        // Guardrail: avoid unbounded memory
+        if (undoStackRef.current.length > 200) {
+            undoStackRef.current = undoStackRef.current.slice(-200);
+        }
+    };
+
+    const restoreSnapshot = (snapshot: TextSnapshot, textarea: HTMLTextAreaElement) => {
+        saveLog(snapshot.value);
+        requestAnimationFrame(() => {
+            const start = Math.max(0, Math.min(snapshot.selectionStart, snapshot.value.length));
+            const end = Math.max(0, Math.min(snapshot.selectionEnd, snapshot.value.length));
+            textarea.setSelectionRange(start, end);
+        });
+    };
 
     const defaultVariables: EnvVariable[] = [
         { id: '1', key: 'CURRENT_MISSION', value: 'Defining the Objective...' },
@@ -263,7 +297,8 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
                         onChange={(e) => saveLog(e.target.value)}
                         onBlur={() => setViewMode('preview')}
                         onKeyDown={(e) => {
-                            if (e.ctrlKey) {
+                            const isCtrlLike = e.ctrlKey || e.metaKey;
+                            if (isCtrlLike) {
                                 const textarea = e.currentTarget;
                                 const start = textarea.selectionStart;
                                 const value = textarea.value;
@@ -271,7 +306,40 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
                                 const getLineIndexAt = (pos: number) => value.substring(0, pos).split('\n').length - 1;
                                 const currentLineIndex = getLineIndexAt(start);
 
+                                // Ctrl+Z: undo (only when we have our own history; otherwise let browser handle native undo)
+                                if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                                    if (undoStackRef.current.length > 0) {
+                                        e.preventDefault();
+                                        const snapshot = undoStackRef.current.pop()!;
+                                        // Save current state for redo
+                                        redoStackRef.current.push({
+                                            value: textarea.value,
+                                            selectionStart: textarea.selectionStart ?? 0,
+                                            selectionEnd: textarea.selectionEnd ?? 0,
+                                        });
+                                        restoreSnapshot(snapshot, textarea);
+                                    }
+                                    return;
+                                }
+
+                                // Ctrl+Shift+Z / Ctrl+Y: redo
+                                if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+                                    if (redoStackRef.current.length > 0) {
+                                        e.preventDefault();
+                                        const snapshot = redoStackRef.current.pop()!;
+                                        // Save current state for undo
+                                        undoStackRef.current.push({
+                                            value: textarea.value,
+                                            selectionStart: textarea.selectionStart ?? 0,
+                                            selectionEnd: textarea.selectionEnd ?? 0,
+                                        });
+                                        restoreSnapshot(snapshot, textarea);
+                                    }
+                                    return;
+                                }
+ 
                                 if (e.key === 'd') {
+                                    pushUndoSnapshot(textarea);
                                     e.preventDefault();
                                     const newLines = [...lines];
                                     newLines.splice(currentLineIndex, 1);
@@ -282,6 +350,7 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
                                         textarea.setSelectionRange(pos, pos);
                                     });
                                 } else if (e.key === 'ArrowUp') {
+                                    pushUndoSnapshot(textarea);
                                     e.preventDefault();
                                     if (currentLineIndex > 0) {
                                         const newLines = [...lines];
@@ -300,6 +369,7 @@ export function MemoBoard({ storageKeyPrefix = 'manifesto-global', title, showVa
                                         });
                                     }
                                 } else if (e.key === 'ArrowDown') {
+                                    pushUndoSnapshot(textarea);
                                     e.preventDefault();
                                     if (currentLineIndex < lines.length - 1) {
                                         const newLines = [...lines];
