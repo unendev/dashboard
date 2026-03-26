@@ -37,6 +37,7 @@ pnpm-debug.log*
 *.md
 *.txt
 !README.md
+!requirements.txt
 !**/README.md
 !PROJECT_PROGRESS/**/*.md
 
