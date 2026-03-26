@@ -7,7 +7,7 @@ const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE
 const proxyConfig: any = {};
 
 if (!isProduction) {
-  const proxyUrl = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || 'http://127.0.0.1:10809';
+  const proxyUrl = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || 'http://127.0.0.1:7897';
   proxyConfig.httpAgent = proxyUrl;
   proxyConfig.httpsAgent = proxyUrl;
 }

@@ -82,6 +82,12 @@ const envSchema = z.object({
   HTTP_PROXY: z.string().optional(),
 
   // ==========================================
+  // Reddit API (可选)
+  // ==========================================
+  REDDIT_CLIENT_ID: z.string().optional(),
+  REDDIT_CLIENT_SECRET: z.string().optional(),
+
+  // ==========================================
   // Liveblocks (可选 - 用于多人协作)
   // ==========================================
   LIVEBLOCKS_SECRET_KEY: z.string().optional(),

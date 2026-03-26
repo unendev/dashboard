@@ -139,7 +139,7 @@ def check_environment():
         logger.error("\n请在 .env 文件中配置以下变量：")
         logger.error("  DEEPSEEK_API_KEY=your_api_key")
         logger.error("  DATABASE_URL=your_postgres_url")
-        logger.error("  PROXY_URL=http://127.0.0.1:10809  # 可选，不用代理则设为 none")
+        logger.error("  PROXY_URL=http://127.0.0.1:7897  # 可选，不用代理则设为 none")
         logger.error("  POST_COUNT_LIMIT=30  # 可选，默认30")
         return False
     

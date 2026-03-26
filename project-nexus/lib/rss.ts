@@ -1,12 +1,14 @@
 import { FeedItem, FeedConfig, RSS_FEEDS } from './rss-config';
 import Parser from 'rss-parser';
+import nodeFetch from 'node-fetch'; // Use node-fetch for better proxy agent support in Node.js
 
 export type { FeedItem, FeedConfig };
 export { RSS_FEEDS };
 
 // Helper to fetch with timeout and headers (Proxy aware)
-async function fetchWithTimeout(url: string, options: RequestInit = {}) {
-    const proxyUrl = process.env.HTTPS_PROXY || 'http://127.0.0.1:7890';
+async function fetchWithTimeout(url: string, options: any = {}) {
+    // Current user proxy is 7897 (Clash default)
+    const proxyUrl = process.env.HTTPS_PROXY || 'http://127.0.0.1:7897';
     let agent = undefined;
 
     try {
@@ -19,16 +21,15 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 10000); // 10s timeout
     try {
-        const response = await fetch(url, {
+        // Use nodeFetch specifically to ensure agent support
+        const response = await nodeFetch(url, {
             ...options,
-            // @ts-ignore
             agent: agent,
-            signal: controller.signal,
+            signal: controller.signal as any,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 ...options.headers
-            },
-            next: { revalidate: 300 }
+            }
         });
         clearTimeout(id);
         return response;
@@ -104,11 +105,25 @@ export async function fetchFeed(config: FeedConfig): Promise<FeedItem[]> {
     if (config.url === 'api_mode') return [];
 
     try {
-        // Handle Reddit JSON API specially (RSS Handler is for XML)
-        if (config.url.endsWith('.json')) {
+        // Handle Reddit JSON API specially
+        if (config.url.includes('reddit.com') && config.url.endsWith('.json')) {
+            const subredditMatch = config.url.match(/\/r\/([^/]+)\//);
+            const subreddit = subredditMatch ? subredditMatch[1] : 'all';
+            
+            // Try official API if credentials exist
+            if (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET) {
+                try {
+                    const { fetchRedditSubreddit } = await import('./reddit');
+                    const items = await fetchRedditSubreddit(subreddit);
+                    if (items.length > 0) return items;
+                } catch (e) {
+                    console.warn(`[Reddit] Official API failed for r/${subreddit}, falling back to JSON:`, e);
+                }
+            }
+
             const res = await fetchWithTimeout(config.url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
+            const data = await res.json() as any;
             if (!data.data?.children) return [];
 
             return data.data.children.map((child: any) => {
@@ -127,7 +142,11 @@ export async function fetchFeed(config: FeedConfig): Promise<FeedItem[]> {
                     source: config.name,
                     sourceIcon: config.icon,
                     author: item.author,
-                    categories: [item.subreddit]
+                    categories: [item.subreddit],
+                    metadata: {
+                        score: item.score,
+                        num_comments: item.num_comments
+                    }
                 };
             });
         }

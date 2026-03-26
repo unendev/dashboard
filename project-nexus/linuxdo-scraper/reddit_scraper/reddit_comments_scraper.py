@@ -95,8 +95,8 @@ class RedditCommentsScraper:
             
             # 查询没有评论数据的帖子
             query = """
-            SELECT DISTINCT p.id, p.url, p.title
-            FROM posts p 
+            SELECT DISTINCT p.id, p.url, p.title, p.timestamp
+            FROM reddit_posts p 
             WHERE p.id LIKE 'reddit_%' 
             AND NOT EXISTS (
                 SELECT 1 FROM reddit_comments rc 
