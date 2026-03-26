@@ -6,7 +6,7 @@ export const revalidate = 60; // Cache for 1 minute
 
 export async function GET() {
     try {
-        const [rssItems, nexusItems, redditItems, heyboxItems] = await Promise.all([
+        const [rssItems, nexusItems, redditItems] = await Promise.all([
             // Filter out reddit and heybox from RSS fetch to avoid slow network calls
             fetchAllFeeds().then(items => items.filter(item => 
                 !item.source.toLowerCase().includes('reddit') && 
@@ -17,10 +17,6 @@ export async function GET() {
                 take: 50
             }),
             prisma.reddit_posts.findMany({
-                orderBy: { timestamp: 'desc' },
-                take: 30
-            }),
-            prisma.heybox_posts.findMany({
                 orderBy: { timestamp: 'desc' },
                 take: 30
             })
@@ -69,36 +65,10 @@ export async function GET() {
             }
         }));
 
-        // Convert heybox_posts
-        const heyboxFeedItems = heyboxItems.map(item => ({
-            id: item.id,
-            title: item.title_cn || item.title,
-            link: item.url,
-            pubDate: item.timestamp?.toUTCString() || new Date().toUTCString(),
-            isoDate: item.timestamp?.toISOString() || new Date().toISOString(),
-            content: item.detailed_analysis || item.content_summary || '',
-            contentSnippet: item.core_issue || item.content_summary?.slice(0, 150) || '',
-            imageUrl: item.cover_image || '',
-            source: '小黑盒 Heybox',
-            sourceIcon: '📦',
-            categories: item.post_type ? [item.post_type] : (item.game_tag ? [item.game_tag] : []),
-            author: item.author || 'Heybox Scraper',
-            summary: item.detailed_analysis || undefined,
-            metadata: {
-                likes: item.likes_count,
-                comments: item.comments_count,
-                core_issue: item.core_issue,
-                key_info: item.key_info,
-                value_assessment: item.value_assessment,
-                source: 'heybox_posts_table'
-            }
-        }));
-
         const allItems = [
             ...rssItems, 
             ...nexusFeedItems, 
-            ...redditFeedItems, 
-            ...heyboxFeedItems
+            ...redditFeedItems
         ].sort((a, b) => {
             const dateA = a.isoDate ? new Date(a.isoDate).getTime() : 0;
             const dateB = b.isoDate ? new Date(b.isoDate).getTime() : 0;

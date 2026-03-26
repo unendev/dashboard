@@ -147,14 +147,6 @@ export const RSS_FEEDS: FeedConfig[] = [
         icon: '🎮',
         enabled: true
     },
-    {
-        key: 'heybox',
-        name: '小黑盒 Heybox',
-        url: 'api_mode', // Handled by Cloud Actions (prevent 403 from RSSHub)
-        type: 'culture',
-        icon: '📦',
-        enabled: true
-    },
 
     // --- Wool (Social/Signals/Deals) ---
     {
