@@ -50,7 +50,7 @@ pnpm-debug.log*
 # User specified ignores
 gemini-conversation-*.json
 .archive/
-.github/workflows/
+# .github/workflows/
 .playwright-mcp/
 .vercel/
 _deprecated_sources/
