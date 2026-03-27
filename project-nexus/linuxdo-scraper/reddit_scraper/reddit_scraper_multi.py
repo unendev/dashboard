@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # --- 配置 ---
 # 允许从子目录运行，自动向上搜索 .env 文件
-load_dotenv(find_dotenv(use_required_hash=False))
+load_dotenv(find_dotenv())
 
 # 支持多个subreddit
 SUBREDDITS = [
