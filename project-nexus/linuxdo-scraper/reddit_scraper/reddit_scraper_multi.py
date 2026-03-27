@@ -28,9 +28,8 @@ logger = logging.getLogger(__name__)
 # 允许从子目录运行，自动向上搜索 .env 文件
 load_dotenv(find_dotenv())
 
-# 支持多个subreddit
+# 支持多个subreddit (专注游戏开发)
 SUBREDDITS = [
-    "technology",    # 科技
     "gamedev",       # 独立游戏开发
     "godot",         # Godot引擎
     "Unity3D",       # Unity引擎
@@ -171,13 +170,13 @@ async def fetch_post_comments(post_id):
     """从数据库获取帖子的高质量评论"""
     try:
         conn = await asyncpg.connect(NEON_DB_URL)
-        # 获取评分最高的前5条评论
+        # 获取评分最高的前20条评论 (全量分析)
         comments = await conn.fetch("""
             SELECT author, body, score 
             FROM reddit_comments 
             WHERE post_id = $1 
             ORDER BY score DESC 
-            LIMIT 5
+            LIMIT 20
         """, post_id)
         await conn.close()
         return [dict(c) for c in comments]
@@ -190,14 +189,14 @@ async def analyze_single_post_with_deepseek(post, retry_count=0, comments=None):
     if not excerpt.strip():
         excerpt = "（无详细内容）"
     
-    # 构建评论摘要
+    # 构建评论摘要 (由于现在采集量受控，此处进行全量分析)
     comment_section = ""
     if comments and len(comments) > 0:
-        comment_section = "\n\n**社区讨论精华**（高赞评论）：\n"
-        for i, comment in enumerate(comments[:3], 1):
-            comment_body = comment['body'][:200]
-            comment_section += f"{i}. [{comment['author']}] (👍{comment['score']}): {comment_body}...\n"
-        logger.info(f"  ✓ 包含 {len(comments[:3])} 条评论到分析 Prompt")
+        comment_section = "\n\n**社区讨论全量精华**（按热度排序）：\n"
+        for i, comment in enumerate(comments, 1):
+            comment_body = comment['body'][:300]
+            comment_section += f"{i}. [{comment['author']}] (👍{comment['score']}): {comment_body}\n"
+        logger.info(f"  ✓ 包含 {len(comments)} 条全量评论到分析 Prompt")
     else:
         num_comments = post.get('num_comments', 0)
         if num_comments > 0:
@@ -454,9 +453,16 @@ async def generate_ai_summary_report(posts_data):
         all_comments.append(comments)
 
     # 并发分析所有帖子
-    logger.info(f"=== 开始并发分析 {len(posts_data)} 个帖子 ===")
+    # 使用信号量限制并发，保护反代 (限制为5个并发)
+    sem = asyncio.Semaphore(5)
+    
+    async def limited_analysis(post, comments):
+        async with sem:
+            return await analyze_single_post_with_deepseek(post, comments=comments)
+
+    logger.info(f"=== 开始受控并发分析 {len(posts_data)} 个帖子 (并发限制: 5) ===")
     tasks = [
-        analyze_single_post_with_deepseek(post, comments=comments) 
+        limited_analysis(post, comments) 
         for post, comments in zip(posts_data, all_comments)
     ]
     analyses = await asyncio.gather(*tasks)

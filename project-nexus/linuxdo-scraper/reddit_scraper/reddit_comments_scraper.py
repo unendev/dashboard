@@ -142,8 +142,8 @@ class RedditCommentsScraper:
             # 获取 submission 对象
             submission = self.reddit.submission(id=reddit_id)
             
-            # 展开所有评论（包括被折叠的）
-            submission.comments.replace_more(limit=None)
+            # 只获取首层高赞评论，不再展开无限层级，以节省 API 消耗和时间
+            # submission.comments.replace_more(limit=0)  # 默认不展开
             
             # 扁平化评论树并收集数据
             comments = []
@@ -167,8 +167,8 @@ class RedditCommentsScraper:
                     logger.warning(f"处理评论时出错: {e}")
                     continue
             
-            logger.info(f"帖子 {reddit_id} 获取到 {len(comments)} 条评论")
-            return comments
+            logger.info(f"帖子 {reddit_id} 获取到 {len(comments)} 条评论，取前20条进行存储")
+            return comments[:20]
             
         except Exception as e:
             logger.error(f"获取帖子 {reddit_id} 评论失败: {e}")
