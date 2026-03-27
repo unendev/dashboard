@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchAllFeeds } from '@/lib/rss';
 import { prisma } from '@/lib/prisma';
 
-export const revalidate = 60; // Cache for 1 minute
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {

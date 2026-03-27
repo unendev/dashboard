@@ -321,26 +321,6 @@ export default function NexusFeedLayout() {
                 </div>
 
                 <div className="p-4 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
-                    {/* Classification */}
-                    <div>
-                        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 px-2 ${currentTheme.subtext}`}>Sectors</h3>
-                        <div className="space-y-0.5">
-                            {(['all', 'frontier', 'culture', 'wool'] as const).map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setFilter(tab)}
-                                    className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center gap-3 font-medium ${filter === tab ? currentTheme.activeTab : `${currentTheme.subtext} ${currentTheme.hoverTab}`
-                                        }`}
-                                >
-                                    <span className={`w-1.5 h-1.5 rounded-full ${tab === 'all' ? 'bg-zinc-400' :
-                                        tab === 'frontier' ? 'bg-blue-500' :
-                                            tab === 'culture' ? 'bg-purple-500' : 'bg-emerald-500'
-                                        }`} />
-                                    {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
 
                     {/* Sources Tree */}
                     <div>
