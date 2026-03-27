@@ -201,7 +201,7 @@ function formatViewCount(count: string): string {
   return num.toString();
 }
 
-export const revalidate = 600; // 10分钟缓存
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
