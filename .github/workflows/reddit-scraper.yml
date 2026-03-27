@@ -3,7 +3,7 @@ name: Reddit 爬虫定时任务
 on:
   schedule:
     # 每天 UTC 18:30 运行（北京时间 02:30）- 评论采集后30分钟运行
-    - cron: '30 18 * * *'
+    - cron: '30 5 * * *'
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -30,7 +30,9 @@ jobs:
       - name: 运行 Reddit 爬虫
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          ANTIGRAVITY_TOOLS_KEY: ${{ secrets.ANTIGRAVITY_TOOLS_KEY }}
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
           GITHUB_ACTIONS: true
         run: |
           cd project-nexus/linuxdo-scraper/reddit_scraper

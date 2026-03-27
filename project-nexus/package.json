@@ -6,7 +6,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "postinstall": "prisma generate",
-    "dev": "next dev -p 3001",
+    "dev": "node scripts/wake-db.mjs && next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -130,11 +130,5 @@
   "engines": {
     "pnpm": ">=10.0.0",
     "node": ">=18.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "prisma"
-    ]
   }
 }

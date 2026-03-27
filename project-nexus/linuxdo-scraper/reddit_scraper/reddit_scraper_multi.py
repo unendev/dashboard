@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime
 import requests
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import xml.etree.ElementTree as ET
 import time
 import asyncpg
@@ -25,7 +25,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- 配置 ---
-load_dotenv()
+# 允许从子目录运行，自动向上搜索 .env 文件
+load_dotenv(find_dotenv(use_required_hash=False))
 
 # 支持多个subreddit
 SUBREDDITS = [
@@ -39,8 +40,10 @@ SUBREDDITS = [
 ]
 
 POST_COUNT_PER_SUB = 5  # 每个subreddit取5个帖子
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+DEEPSEEK_API_KEY = os.getenv("ANTIGRAVITY_TOOLS_KEY") or os.getenv("ANTIGRAVITY_TOOLS") or os.getenv("DEEPSEEK_API_KEY") or os.getenv("GEMINI_PROXY_API_KEY")
+AI_BASE_URL = os.getenv("AI_BASE_URL", "https://api.unendev.com/v1")
+AI_MODEL = os.getenv("AI_MODEL", "gemini-3-flash")
+AI_ENDPOINT = f"{AI_BASE_URL.rstrip('/')}/chat/completions"
 NEON_DB_URL = os.getenv("DATABASE_URL")
 
 # asyncpg不支持URL中的查询参数，需要清理
@@ -230,13 +233,13 @@ async def analyze_single_post_with_deepseek(post, retry_count=0, comments=None):
         # 使用 DeepSeek API (REST)
         def call_deepseek():
             response = requests.post(
-                DEEPSEEK_API_URL,
+                AI_ENDPOINT,
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                 },
                 json={
-                    "model": "deepseek-chat",
+                    "model": AI_MODEL,
                     "messages": [
                         {
                             "role": "user",
@@ -250,7 +253,7 @@ async def analyze_single_post_with_deepseek(post, retry_count=0, comments=None):
             )
             
             if not response.ok:
-                raise Exception(f"DeepSeek API error: {response.status_code}")
+                raise Exception(f"AI API error: {response.status_code} - {response.text}")
             
             return response.json()
         

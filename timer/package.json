@@ -42,10 +42,6 @@
       "artifactName": "TimerWidget-${version}.exe"
     }
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron"
-    ]
   },
   "keywords": [],
   "author": "unendev",
