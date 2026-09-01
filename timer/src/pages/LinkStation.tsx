@@ -127,7 +127,10 @@ export default function LinkStation() {
                     setGroups(data.groups || []);
                     setLinks(data.links || []);
                     setSections(data.sections || []);
-                    if (data.groups && data.groups.length > 0) {
+                    const performanceGroup = data.groups?.find((g: LinkGroup) => g.name === '演出');
+                    if (performanceGroup) {
+                        setActiveGroupId(performanceGroup.id);
+                    } else if (data.groups && data.groups.length > 0) {
                         setActiveGroupId(data.groups[0].id);
                     }
                 }
@@ -329,7 +332,14 @@ export default function LinkStation() {
                     <div className="my-1 border-t border-[#222] opacity-30 mx-2" />
 
                     {/* Group List */}
-                    {groups.map(group => {
+                    {[...groups].sort((a, b) => {
+                        const priority = (name: string) => {
+                            if (name === '演出') return 0;
+                            if (name === '情报') return 1;
+                            return 2;
+                        };
+                        return priority(a.name) - priority(b.name);
+                    }).map(group => {
                         if (group.id === 'default') return null;
                         const isEditing = editingGroupId === group.id;
 

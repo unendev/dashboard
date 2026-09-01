@@ -150,7 +150,7 @@ export function EnhancedInstanceTagInput({
 
     console.log('[TagInput] Deleting tag:', id, name);
 
-    if (id.startsWith('used-')) {
+    if (id.startsWith('used-') || id.startsWith('local-')) {
       // 对于历史标签，本地拉黑
       const newBlacklist = [...deletedHistoryTags, name];
       setDeletedHistoryTags(newBlacklist);
@@ -194,11 +194,26 @@ export function EnhancedInstanceTagInput({
         setAvailableTags(prev => [...prev, newTag])
         InstanceTagCache.addInstanceTag(newTag)
         return formattedTag
+      } else {
+        console.warn('[TagInput] Server rejected tag creation, using local fallback');
       }
-    } catch (error) { } finally {
+    } catch (error) {
+      console.warn('[TagInput] Failed to connect to server for tag creation, using local fallback:', error);
+    } finally {
       setIsCreating(false)
     }
-    return null
+
+    // 本地兜底逻辑：生成一个本地特有的标签
+    const localTag: InstanceTag = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      name: formattedTag,
+      userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    setAvailableTags(prev => [...prev, localTag])
+    InstanceTagCache.addInstanceTag(localTag)
+    return formattedTag
   }
 
   const addTag = async (tagName: string) => {

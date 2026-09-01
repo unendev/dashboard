@@ -1,14 +1,22 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import useSWR, { mutate } from 'swr';
-import { Play, Pause, FileText, FolderOpen, Bot, Loader2, Trash2 } from 'lucide-react';
-import { useTimerControl } from '@/hooks/useTimerControl';
+import { Play, Pause, FileText, Trash2, Clock, Link2 } from 'lucide-react';
+import { useLocalTimerControl } from '@/hooks/useLocalTimerControl';
 import { TimerTask, formatTime } from '@dashboard/shared';
-import { fetcher, getApiUrl } from '@/lib/api';
-import { getUser } from '@/lib/auth-token';
+import { getAllTasks, saveAllTasks, deleteTask, createTask } from '@/lib/local-timer-storage';
+import { getUnifiedItem } from '@/lib/unified-storage';
+import type { AtomicWorkspaceData } from '@/types/atomic';
+import StopwatchPanel from '@/components/features/timer/StopwatchPanel';
+import CountdownPanel from '@/components/features/timer/CountdownPanel';
+
+type TimerMode = 'focus' | 'stopwatch' | 'countdown';
+
+const modeLabels: Record<TimerMode, string> = {
+  focus: '专注',
+  stopwatch: '秒表',
+  countdown: '倒计时',
+};
 
 const openCreateWindow = () => {
-  console.log('[Navigation] Opening Create window');
   if (window.electron) {
     window.electron.send('open-create-window');
   } else {
@@ -16,7 +24,6 @@ const openCreateWindow = () => {
   }
 };
 const openMemoWindow = () => {
-  console.log('[Navigation] Opening Memo window');
   if (window.electron) {
     window.electron.send('open-memo-window');
   } else {
@@ -24,7 +31,6 @@ const openMemoWindow = () => {
   }
 };
 const openTodoWindow = () => {
-  console.log('[Navigation] Opening Todo window');
   if (window.electron) {
     window.electron.send('open-todo-window');
   } else {
@@ -32,19 +38,17 @@ const openTodoWindow = () => {
   }
 };
 const openAiWindow = () => {
-  console.log('[Navigation] Opening AI window');
   if (window.electron) {
     window.electron.send('open-ai-window');
   } else {
     window.open(window.location.pathname + '#/ai', '_blank');
   }
 };
-const openPromptLibraryWindow = () => {
-  console.log('[Navigation] Opening Prompt Library window');
+const openLinkStationWindow = () => {
   if (window.electron) {
-    window.electron.send('open-prompt-library-window');
+    window.electron.send('open-link-station-window');
   } else {
-    window.open(window.location.pathname + '#/prompt-library', '_blank');
+    window.open(window.location.pathname + '#/link-station', '_blank');
   }
 };
 
@@ -71,213 +75,138 @@ function useDoubleTap(callback: () => void, delay = 300) {
   };
 }
 
+// 自动对齐并清理已在工作台中删除的孤儿即时待办
+function cleanOrphanInstantTasks(currentTasks: TimerTask[]): TimerTask[] {
+  const workspaceData = getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null);
+  if (!workspaceData) return currentTasks;
+
+  const validWorkspaceTitles = new Set<string>();
+  if (workspaceData.nowFocus) {
+    validWorkspaceTitles.add((workspaceData.nowFocus.title || workspaceData.nowFocus.rawText).trim());
+  }
+  workspaceData.nextQueue?.forEach(item => {
+    validWorkspaceTitles.add((item.title || item.rawText).trim());
+  });
+  workspaceData.pool?.forEach(item => {
+    validWorkspaceTitles.add((item.title || item.rawText).trim());
+  });
+
+  const filtered = currentTasks.filter(t => {
+    if (t.categoryPath === '即时待办') {
+      return validWorkspaceTitles.has(t.name.trim());
+    }
+    return true;
+  });
+
+  if (filtered.length !== currentTasks.length) {
+    saveAllTasks(filtered);
+    return filtered;
+  }
+  return currentTasks;
+}
+
 export default function TimerPage() {
   const doubleTapCreate = useDoubleTap(openCreateWindow);
   const [isBlurred, setIsBlurred] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<{ id: string; name: string; hasLogs: boolean } | null>(null);
-  const [deleteLogsOption, setDeleteLogsOption] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<TimerTask | null>(null);
+  const [currentMode, setCurrentMode] = useState<TimerMode>('focus');
+  const [globalTick, setGlobalTick] = useState(0);
+  const [tasks, setTasks] = useState<TimerTask[]>(() => cleanOrphanInstantTasks(getAllTasks()));
 
-  const user = getUser();
-  const userId = user?.id;
-
-  // 恢复日期过滤，只显示今天的任务（保持界面简洁）
-  const today = new Date().toISOString().split('T')[0];
-  const apiUrl = userId ? `/api/timer-tasks?userId=${userId}&date=${today}` : null;
-
-  const { data: tasks = [], mutate: mutateTasks } = useSWR<TimerTask[]>(
-    apiUrl,
-    fetcher,
-    {
-      refreshInterval: 0,           // 禁用自动轮询，节省 Vercel 资源
-      revalidateOnFocus: true,      // 窗口聚焦时自动刷新
-      revalidateOnReconnect: true,  // 网络重连时刷新
-      dedupingInterval: 2000
-    }
-  );
-
-  // 递归查找所有运行中的任务（包括子任务）
-  const findAllRunningTasks = useCallback((taskList: TimerTask[]): TimerTask[] => {
-    const running: TimerTask[] = [];
-    for (const task of taskList) {
-      if (task.isRunning && !task.isPaused) {
-        running.push(task);
-      }
-      if (task.children && task.children.length > 0) {
-        running.push(...findAllRunningTasks(task.children));
-      }
-    }
-    return running;
+  const refreshTasks = useCallback(() => {
+    const raw = getAllTasks();
+    const cleaned = cleanOrphanInstantTasks(raw);
+    setTasks(cleaned);
   }, []);
 
-  // 递归停止任务状态
-  const stopTasksRecursive = useCallback((taskList: TimerTask[]): TimerTask[] => {
-    return taskList.map(task => {
-      const updatedChildren = task.children ? stopTasksRecursive(task.children) : [];
-      if (task.isRunning) {
-        return { ...task, isRunning: false, startTime: null, children: updatedChildren };
-      }
-      return { ...task, children: updatedChildren };
-    });
+  const { startTimer, pauseTimer } = useLocalTimerControl({
+    onTasksChange: (newTasks) => {
+      setTasks(cleanOrphanInstantTasks(newTasks));
+    },
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => setGlobalTick((t) => t + 1), 200);
+    return () => clearInterval(id);
   }, []);
 
-  const handleStartTask = useCallback(async (taskData: any) => {
-    console.log('[Timer] Processing start-task:', taskData.name);
 
-    // 1. 本地乐观更新 (Optimistic UI)
-    const now = Math.floor(Date.now() / 1000);
-    const optimisticTask: TimerTask = {
-      id: `temp-${Date.now()}`,
-      name: taskData.name,
-      categoryPath: taskData.categoryPath || '未分类',
-      instanceTag: Array.isArray(taskData.instanceTagNames)
-        ? taskData.instanceTagNames[0] || ''
-        : (typeof taskData.instanceTagNames === 'string' ? taskData.instanceTagNames : ''),
-      initialTime: taskData.initialTime || 0,
-      elapsedTime: taskData.initialTime || 0,
-      isRunning: true,
-      startTime: now,
-      isPaused: false,
-      pausedTime: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      children: [],
-      parentId: taskData.parentId || null, // Added parentId
-      date: new Date().toISOString().split('T')[0], // Added missing date
-    };
-
-    // 立即更新 UI，让用户感觉到“秒开”
-    console.log('[Timer] Applying optimistic update for:', taskData.name);
-    await mutateTasks((currentTasks) => {
-      const current = currentTasks || [];
-      // 递归停止所有正在运行的任务
-      const stoppedTasks = stopTasksRecursive(current);
-      return [optimisticTask, ...stoppedTasks];
-    }, false);
-
-    // 2. 备份到 LocalStorage (容错)
-    localStorage.setItem('widget-pending-task', JSON.stringify(taskData));
-
-    try {
-      // 3. 后台同步
-      // 使用递归查找确保找到所有层级的运行任务
-      const runningTasks = findAllRunningTasks(tasks);
-
-      if (runningTasks.length > 0) {
-        await Promise.all(runningTasks.map(task =>
-          fetch(getApiUrl('/api/timer-tasks'), {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              id: task.id,
-              isRunning: false,
-              startTime: null,
-              elapsedTime: task.elapsedTime + (task.startTime ? now - task.startTime : 0),
-            }),
-          })
-        ));
-      }
-
-      const createBody = {
-        name: taskData.name,
-        userId: taskData.userId || userId, // Fallback to current user
-        categoryPath: taskData.categoryPath,
-        date: taskData.date || today, // Fallback to today
-        initialTime: taskData.initialTime || 0,
-        elapsedTime: taskData.initialTime || 0,
-        instanceTagNames: taskData.instanceTagNames
-          ? (typeof taskData.instanceTagNames === 'string'
-            ? taskData.instanceTagNames.split(',').map((t: string) => t.trim()).filter((t: string) => t)
-            : taskData.instanceTagNames)
-          : (taskData.instanceTags || []), // Map AI instanceTags
-        isRunning: true,
-        startTime: now,
-        parentId: taskData.parentId || null,
-      };
-
-      console.log('[Timer] Sending POST request to create task...');
-      const createResponse = await fetch(getApiUrl('/api/timer-tasks'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(createBody),
-      });
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-        console.error('[Timer] Task creation failed. Status:', createResponse.status, 'Body:', errorText);
-        throw new Error(errorText);
-      } else {
-        console.log('[Timer] Task created successfully. Triggering revalidation.');
-        localStorage.removeItem('widget-pending-task'); // 同步成功，移除备份
-        await mutateTasks(); // 重新验证，获取真实 ID
-        console.log('[Timer] Revalidation complete.');
-      }
-    } catch (err) {
-      console.error('[Timer] Error processing start-task:', err);
-      // 注意：出错时不移除 widget-pending-task，保留以供重试
-      // 这里的乐观状态会被 SWR 的下一次自动验证冲掉，变回原样（符合预期，提示失败）
-      // 但数据留在了 LocalStorage
-    }
-  }, [tasks, mutateTasks]);
-
-  // 启动时检查是否有未完成的任务 (Retry Pending Task)
-  useEffect(() => {
-    const pendingTask = localStorage.getItem('widget-pending-task');
-    if (pendingTask) {
-      try {
-        console.log('[Timer] Found pending task, retrying...');
-        const taskData = JSON.parse(pendingTask);
-        // 稍微延迟，避免和 SWR 初始化冲突
-        setTimeout(() => handleStartTask(taskData), 1000);
-      } catch (e) {
-        localStorage.removeItem('widget-pending-task');
-      }
-    }
-  }, []); // Run once on mount
 
   useEffect(() => {
-    // 1. IPC Listener (Preferred)
     let unsubscribeStart: (() => void) | undefined;
+    let unsubscribeMode: (() => void) | undefined;
 
     if (window.electron) {
-      console.log('[Timer] Subscribing to IPC');
       unsubscribeStart = window.electron.receive('on-start-task', (taskData) => {
-        console.log('[Timer] IPC Received on-start-task:', taskData);
-        handleStartTask(taskData);
+        console.log('[Timer Renderer] on-start-task:', taskData);
+        setCurrentMode('focus');
+
+        // 查找是否已经存在同名顶级任务
+        const currentTasks = getAllTasks();
+        const nowSec = Math.floor(Date.now() / 1000);
+        const existingIndex = currentTasks.findIndex(t => t.name === taskData.name && !t.parentId);
+
+        if (existingIndex > -1) {
+          // 已经存在该任务：复用并置顶启动，不再产生重复条目
+          const existingTask = currentTasks[existingIndex];
+          const remainingTasks = currentTasks.filter((t, i) => i !== existingIndex);
+          const updatedExisting = {
+            ...existingTask,
+            isRunning: true,
+            isPaused: false,
+            startTime: nowSec,
+            updatedAt: new Date().toISOString(),
+          };
+          const nextList = [
+            updatedExisting,
+            ...remainingTasks.map(t => (t.isRunning && !t.isPaused ? { ...t, isRunning: false, isPaused: true, pausedTime: nowSec } : t))
+          ];
+          saveAllTasks(nextList);
+        } else {
+          // 不存在：暂停其他正在运行的任务并新建
+          const updated = currentTasks.map(t => (t.isRunning && !t.isPaused ? { ...t, isRunning: false, isPaused: true, pausedTime: nowSec } : t));
+          saveAllTasks(updated);
+
+          const tag = Array.isArray(taskData.instanceTagNames)
+            ? taskData.instanceTagNames[0] || ''
+            : (typeof taskData.instanceTagNames === 'string' ? taskData.instanceTagNames : '');
+
+          createTask({
+            name: taskData.name,
+            categoryPath: taskData.categoryPath || '即时待办',
+            instanceTag: tag,
+            initialTime: taskData.initialTime || 0,
+            elapsedTime: 0,
+            isRunning: true,
+            startTime: nowSec,
+            isPaused: false,
+            pausedTime: 0,
+            children: [],
+            parentId: taskData.parentId || null,
+            date: new Date().toISOString().split('T')[0],
+          });
+        }
+        refreshTasks();
       });
 
-      // Listen for logs from Main Process
-      window.electron.receive('on-console-log', ({ type, message }) => {
-        if (type === 'error') console.error(message);
-        else console.log(message);
+      unsubscribeMode = window.electron.receive('on-mode-selected', (mode) => {
+        console.log('[Timer Renderer] on-mode-selected:', mode);
+        if (mode === 'focus' || mode === 'stopwatch' || mode === 'countdown') {
+          setCurrentMode(mode as TimerMode);
+        }
       });
     }
 
-    // 2. Storage Event (Fallback)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'widget-pending-task' && e.newValue) {
-        try {
-          const taskData = JSON.parse(e.newValue);
-          handleStartTask(taskData);
-        } catch (err) {
-          console.error('[Timer] Storage parse error:', err);
-        }
-      }
+    const handleStorageChange = () => {
+      refreshTasks();
     };
-
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       if (unsubscribeStart) unsubscribeStart();
+      if (unsubscribeMode) unsubscribeMode();
     };
-  }, [handleStartTask]);
-
-  const { startTimer, pauseTimer } = useTimerControl({
-    tasks,
-    onTasksChange: (newTasks) => { if (apiUrl) mutate(apiUrl, newTasks, false); },
-    onVersionConflict: () => mutateTasks(),
-  });
+  }, [refreshTasks]);
 
   const activeTask = useMemo(() => {
     const findActive = (list: TimerTask[]): TimerTask | null => {
@@ -295,8 +224,14 @@ export default function TimerPage() {
 
   const recentTasks = useMemo(() => {
     const topLevelTasks = tasks.filter((t) => !t.parentId);
+    const seenNames = new Set<string>();
     return topLevelTasks
-      .filter((t) => t.id !== activeTask?.id)
+      .filter((t) => {
+        if (t.id === activeTask?.id) return false;
+        if (seenNames.has(t.name)) return false; // 智能过滤同名重复任务
+        seenNames.add(t.name);
+        return true;
+      })
       .sort((a, b) => {
         const timeA = new Date(a.updatedAt || 0).getTime();
         const timeB = new Date(b.updatedAt || 0).getTime();
@@ -304,7 +239,6 @@ export default function TimerPage() {
       });
   }, [tasks, activeTask]);
 
-  // 移除 Emoji 的辅助函数
   const removeEmojis = (str: string) => {
     return str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
   };
@@ -326,45 +260,36 @@ export default function TimerPage() {
     return () => clearInterval(interval);
   }, [activeTask]);
 
-  // 右键备份处理
   const handleBackup = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     if (!window.electron) return;
 
-    // 1. 收集 localStorage 数据
     const backupData: Record<string, any> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {
-        // 过滤掉 AI 聊天记录等大数据 (根据前缀或特定 key)
         if (key.startsWith('chat-history-') || key.startsWith('ai-chat-')) continue;
-        
         try {
           const val = localStorage.getItem(key);
           backupData[key] = val ? JSON.parse(val) : null;
-        } catch (e) {
+        } catch {
           backupData[key] = localStorage.getItem(key);
         }
       }
     }
 
-    // 2. 发送到主进程进行保存和推送
-    console.log('[Timer] Triggering backup-and-push');
     window.electron.send('backup-and-push', backupData);
-    
-    // 视觉反馈：按钮闪烁一下
     const btn = e.currentTarget as HTMLElement;
     btn.style.opacity = '0.5';
     setTimeout(() => btn.style.opacity = '1', 200);
   }, []);
 
-  // 右键菜单处理
   const openChartWindow = useCallback((params: { mode: 'task' | 'tag' | 'category'; value: string; title: string; custom?: boolean }) => {
     const query = new URLSearchParams({
       mode: params.mode,
       value: params.value,
       title: params.title,
-      custom: params.custom ? '1' : '0'
+      custom: params.custom ? '1' : '0',
     }).toString();
 
     if (window.electron) {
@@ -389,95 +314,37 @@ export default function TimerPage() {
     }
   }, [openChartWindow]);
 
-  // 删除任务处理
-  const handleDeleteTask = useCallback(async (taskId: string) => {
-    if (!taskToDelete) return;
+  const handleDeleteConfirm = useCallback((taskId: string) => {
+    deleteTask(taskId);
+    refreshTasks();
+    setTaskToDelete(null);
+  }, [refreshTasks]);
 
-    console.log('[Timer] Attempting to delete task:', taskId);
-    console.log('[Timer] Task details:', taskToDelete);
-
-    try {
-      const deleteQuery = deleteLogsOption ? `&deleteLogs=true` : '';
-      const url = `${getApiUrl('/api/timer-tasks')}?id=${taskId}${deleteQuery}`;
-      console.log('[Timer] DELETE URL:', url);
-      
-      // 乐观更新：立即从 UI 移除
-      await mutateTasks((currentTasks) => {
-        if (!currentTasks) return currentTasks;
-        return currentTasks.filter(t => t.id !== taskId);
-      }, false);
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      console.log('[Timer] DELETE response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[Timer] DELETE failed:', errorText);
-        throw new Error(`删除失败: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('[Timer] Task deleted successfully:', result);
-      
-      // 重新验证以确保数据一致性
-      await mutateTasks();
-      
-    } catch (error) {
-      console.error('[Timer] Delete task failed:', error);
-      alert(`删除任务失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      // 失败时重新加载数据
-      await mutateTasks();
-    } finally {
-      setTaskToDelete(null);
-      setDeleteLogsOption(false);
-    }
-  }, [taskToDelete, deleteLogsOption, mutateTasks]);
-
-  // 准备删除任务（显示确认对话框）
   const prepareDeleteTask = useCallback((task: TimerTask, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    // 检查是否是临时 ID（乐观更新创建的）
-    if (task.id.startsWith('temp-')) {
-      alert('任务正在同步中，请稍后再试');
-      return;
-    }
-    
-    // 检查是否有关联日志（简化版：假设有 elapsedTime > 0 就可能有日志）
-    const hasLogs = task.elapsedTime > 0;
-    
-    setTaskToDelete({
-      id: task.id,
-      name: task.name,
-      hasLogs,
-    });
-    setDeleteLogsOption(false);
+    setTaskToDelete(task);
   }, []);
-
-
-
-  if (!userId) {
-    return (
-      <div className="flex flex-col items-center justify-center w-full h-full bg-[#1a1a1a] text-zinc-400 gap-3 p-4">
-        <span className="text-sm">请先登录</span>
-        <Link
-          to="/login"
-          className="text-sm text-emerald-400 hover:text-emerald-300 underline"
-          onClick={() => console.log('[Navigation] Clicking login link')}
-        >
-          点击登录
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-white select-none overflow-hidden flex">
       <div className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0">
+        <button
+          onClick={() => {
+            if (window.electron) {
+              window.electron.send('show-mode-menu');
+            }
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (window.electron) {
+              window.electron.send('show-toolbar-context-menu');
+            }
+          }}
+          className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
+          title="切换模式 (右键查看更多)"
+        >
+          <Clock size={18} />
+        </button>
         <button
           onClick={openMemoWindow}
           onContextMenu={(e) => {
@@ -487,25 +354,12 @@ export default function TimerPage() {
             }
           }}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
-          title="备忘录 (右键查看更多)"
+          title="即时原子工作台 (右键查看更多)"
         >
           <FileText size={18} />
         </button>
         <button
-          onClick={openTodoWindow}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            if (window.electron) {
-              window.electron.send('show-toolbar-context-menu');
-            }
-          }}
-          className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
-          title="项目 (右键查看更多)"
-        >
-          <FolderOpen size={18} />
-        </button>
-        <button
-          onClick={openAiWindow}
+          onClick={openLinkStationWindow}
           onContextMenu={(e) => {
             e.preventDefault();
             if (window.electron) {
@@ -513,196 +367,176 @@ export default function TimerPage() {
             }
           }}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-          title="AI 助手 (右键查看更多)"
+          title="链接收纳槽 (右键查看更多)"
         >
-          <Bot size={18} />
+          <Link2 size={18} />
         </button>
       </div>
 
       <div className="flex-1 h-full flex flex-col overflow-hidden relative">
-        <div className="shrink-0 p-3 pb-2 flex items-center gap-3" data-drag="true">
-          {activeTask ? (
-            <>
-              <div
-                className="shrink-0 w-12 h-12 flex items-center justify-center"
-                data-drag="false"
-                title="拖拽此圆形区域移动窗口"
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); activeTask.isPaused ? startTimer(activeTask.id) : pauseTimer(activeTask.id); }}
-                  onContextMenu={handleBackup}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${activeTask.isPaused ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}
-                  title={activeTask.isPaused ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
-                  data-drag="false"
-                >
-                  {activeTask.isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
-                </button>
-              </div>
-              <div
-                className={`flex-1 min-w-0 cursor-pointer transition-all ${activeTask.isPaused ? 'text-yellow-400' : 'text-emerald-400'}`}
-                data-drag="true"
-                {...doubleTapCreate}
-                title="拖拽此区域移动窗口"
-              >
-                <div
-                  onClick={() => setIsBlurred(!isBlurred)}
-                  data-drag="false"
-                  title="单击模糊 / 双击新建"
-                >
-                  <div className={`font-mono text-2xl font-bold transition-all ${isBlurred ? 'blur-md' : ''}`}>
-                    {formatTime(displayTime)}
-                  </div>
-                  <div className={`text-xs truncate ${activeTask.isPaused ? 'text-yellow-300/70' : 'text-emerald-300/70'}`} title={activeTask.categoryPath}>
-                    {displayTaskName}
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div
-                className="shrink-0 w-12 h-12 flex items-center justify-center"
-                data-drag="false"
-                title="拖拽此圆形区域移动窗口"
-              >
-                <div 
-                  className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-context-menu" 
-                  data-drag="false"
-                  onContextMenu={handleBackup}
-                  title="右键备份数据"
-                >
-                  <Play size={18} />
-                </div>
-              </div>
-              <div
-                className="flex-1 min-w-0 cursor-pointer"
-                data-drag="true"
-                {...doubleTapCreate}
-                title="拖拽此区域移动窗口"
-              >
-                <div
-                  onClick={() => setIsBlurred(!isBlurred)}
-                  data-drag="false"
-                  title="单击模糊 / 双击新建"
-                >
-                  <div className={`font-mono text-2xl font-bold text-zinc-600 transition-all ${isBlurred ? 'blur-md' : ''}`}>
-                    00:00:00
-                  </div>
-                  <div className="text-xs text-zinc-600">双击新建任务</div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-1 pb-3">
-          <div className="grid grid-cols-2 border-l border-t border-zinc-700/40">
-            {recentTasks.map((task) => {
-              const hasInstanceTag = !!(task.instanceTag && task.instanceTag.trim() !== '');
-              return (
-                <div
-                  key={task.id}
-                  className={`relative transition-colors group border-r border-b border-zinc-700/40
-                    ${hasInstanceTag
-                      ? 'bg-[#2a1d10] hover:bg-[#332414]'
-                      : 'bg-zinc-800/60 hover:bg-zinc-700/60'
-                    }`}
-                  data-drag="false"
-                >
-                  <div className="w-full flex items-stretch h-7">
-                    {/* 左侧开始按钮区域 - 极致压缩 */}
-                    <div
-                      onClick={() => startTimer(task.id)}
-                      className="shrink-0 w-7 flex items-center justify-center cursor-pointer group/play hover:bg-emerald-500/20 transition-colors"
-                      title="开始计时"
-                    >
-                      <Play
-                        size={9}
-                        className={`transition-colors ${hasInstanceTag ? 'text-amber-500 group-hover/play:text-amber-400' : 'text-zinc-500 group-hover/play:text-zinc-300'}`}
-                        fill="currentColor"
-                      />
-                    </div>
-                    {/* 右侧信息区域 - 纯净表格行 */}
-                    <div
-                      onClick={() => handleCategoryClick(task)}
-                      onContextMenu={(e) => handleContextMenu(task, e)}
-                      className={`flex-1 min-w-0 pr-2 flex items-center cursor-pointer transition-all ${isBlurred ? 'blur-sm' : ''}`}
-                      title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
-                    >
-                      <span className={`text-[11px] truncate leading-none ${hasInstanceTag ? 'text-amber-100' : 'text-zinc-200'}`}>
-                        {removeEmojis(task.name)}
-                      </span>
-                    </div>
-                  </div>
-                  {/* 删除按钮 */}
-                  <button
-                    onClick={(e) => prepareDeleteTask(task, e)}
-                    className="absolute top-1 right-1 w-5 h-5 rounded flex items-center justify-center bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-all z-10"
-                    title="删除任务"
+        {currentMode === 'focus' ? (
+          <>
+            <div className="shrink-0 p-3 pb-2 flex items-center gap-3" data-drag="true">
+              {activeTask ? (
+                <>
+                  <div
+                    className="shrink-0 w-12 h-12 flex items-center justify-center"
                     data-drag="false"
+                    title="拖拽此圆形区域移动窗口"
                   >
-                    <Trash2 size={10} />
-                  </button>
-                </div>
-              );
-            })}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); activeTask.isPaused ? startTimer(activeTask.id) : pauseTimer(activeTask.id); }}
+                      onContextMenu={handleBackup}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${activeTask.isPaused ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}
+                      title={activeTask.isPaused ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
+                      data-drag="false"
+                    >
+                      {activeTask.isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                    </button>
+                  </div>
+                  <div
+                    className={`flex-1 min-w-0 cursor-pointer transition-all ${activeTask.isPaused ? 'text-yellow-400' : 'text-emerald-400'}`}
+                    data-drag="true"
+                    {...doubleTapCreate}
+                    title="拖拽此区域移动窗口"
+                  >
+                    <div
+                      onClick={() => setIsBlurred(!isBlurred)}
+                      data-drag="false"
+                      title="单击模糊 / 双击新建"
+                    >
+                      <div className={`font-mono text-2xl font-bold transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                        {formatTime(displayTime)}
+                      </div>
+                      <div className={`text-xs truncate ${activeTask.isPaused ? 'text-yellow-300/70' : 'text-emerald-300/70'}`} title={activeTask.categoryPath}>
+                        {displayTaskName}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className="shrink-0 w-12 h-12 flex items-center justify-center"
+                    data-drag="false"
+                    title="拖拽此圆形区域移动窗口"
+                  >
+                    <div 
+                      className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-context-menu" 
+                      data-drag="false"
+                      onContextMenu={handleBackup}
+                      title="右键备份数据"
+                    >
+                      <Play size={18} />
+                    </div>
+                  </div>
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    data-drag="true"
+                    {...doubleTapCreate}
+                    title="拖拽此区域移动窗口"
+                  >
+                    <div
+                      onClick={() => setIsBlurred(!isBlurred)}
+                      data-drag="false"
+                      title="单击模糊 / 双击新建"
+                    >
+                      <div className={`font-mono text-2xl font-bold text-zinc-600 transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                        00:00:00
+                      </div>
+                      <div className="text-xs text-zinc-600">双击新建任务</div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-1 pb-3">
+              <div className="grid grid-cols-2 border-l border-t border-zinc-700/40">
+                {recentTasks.map((task) => {
+                  const hasInstanceTag = !!(task.instanceTag && task.instanceTag.trim() !== '');
+                  return (
+                    <div
+                      key={task.id}
+                      className={`relative transition-colors group border-r border-b border-zinc-700/40
+                        ${hasInstanceTag
+                          ? 'bg-[#2a1d10] hover:bg-[#332414]'
+                          : 'bg-zinc-800/60 hover:bg-zinc-700/60'
+                        }`}
+                      data-drag="false"
+                    >
+                      <div className="w-full flex items-stretch h-7">
+                        <div
+                          onClick={() => startTimer(task.id)}
+                          className="shrink-0 w-7 flex items-center justify-center cursor-pointer group/play hover:bg-emerald-500/20 transition-colors"
+                          title="开始计时"
+                        >
+                          <Play
+                            size={9}
+                            className={`transition-colors ${hasInstanceTag ? 'text-amber-500 group-hover/play:text-amber-400' : 'text-zinc-500 group-hover/play:text-zinc-300'}`}
+                            fill="currentColor"
+                          />
+                        </div>
+                        <div
+                          onClick={() => handleCategoryClick(task)}
+                          onContextMenu={(e) => handleContextMenu(task, e)}
+                          className={`flex-1 min-w-0 pr-2 flex items-center cursor-pointer transition-all ${isBlurred ? 'blur-sm' : ''}`}
+                          title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
+                        >
+                          <span className={`text-[11px] truncate leading-none ${hasInstanceTag ? 'text-amber-100' : 'text-zinc-200'}`}>
+                            {removeEmojis(task.name)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => prepareDeleteTask(task, e)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded flex items-center justify-center bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-all z-10"
+                        title="删除任务"
+                        data-drag="false"
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {recentTasks.length === 0 && !activeTask && (
+                <div className="text-center text-zinc-600 text-sm py-4">暂无任务</div>
+              )}
+            </div>
+          </>
+        ) : currentMode === 'stopwatch' ? (
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 overflow-hidden">
+              <StopwatchPanel tick={globalTick} />
+            </div>
           </div>
-          {recentTasks.length === 0 && !activeTask && (
-            <div className="text-center text-zinc-600 text-sm py-4">暂无任务</div>
-          )}
-        </div>
+        ) : (
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 overflow-hidden">
+              <CountdownPanel tick={globalTick} />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* 删除确认对话框 */}
       {taskToDelete && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setTaskToDelete(null)}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                <Trash2 size={20} className="text-red-400" />
-              </div>
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0"><Trash2 size={20} className="text-red-400" /></div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-white mb-1">删除任务</h3>
-                <p className="text-sm text-zinc-400">
-                  确定要删除 <span className="text-white font-medium">"{taskToDelete.name}"</span> 吗？
-                </p>
+                <p className="text-sm text-zinc-400">确定要删除 <span className="text-white font-medium">"{taskToDelete.name}"</span> 吗？</p>
               </div>
             </div>
-
-            {taskToDelete.hasLogs && (
-              <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={deleteLogsOption}
-                    onChange={(e) => setDeleteLogsOption(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-yellow-500/50 bg-yellow-500/10 text-yellow-500 focus:ring-yellow-500/50"
-                  />
-                  <span className="text-xs text-yellow-200">
-                    同时删除关联的日志记录
-                  </span>
-                </label>
-              </div>
-            )}
-
             <div className="flex gap-2">
-              <button
-                onClick={() => setTaskToDelete(null)}
-                className="flex-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={() => handleDeleteTask(taskToDelete.id)}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
-              >
-                确认删除
-              </button>
+              <button onClick={() => setTaskToDelete(null)} className="flex-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors">取消</button>
+              <button onClick={() => handleDeleteConfirm(taskToDelete.id)} className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors">确认删除</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

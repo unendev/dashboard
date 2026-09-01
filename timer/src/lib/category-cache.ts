@@ -56,20 +56,45 @@ const clearStorage = () => {
   }
 };
 
+const SCENES = ['工作', '生活', '维护', '探索'] as const;
+const ACTIONS = ['产出', '输入', '协同', '执行', '运营', '恢复'] as const;
+const OBJECTS = ['产品', '学业', '身体', '家庭', '关系', '资产', '系统', '内容', '行政', '认知'] as const;
+
+function buildAxisCategories(): CategoryNode[] {
+  return SCENES.map((scene) => ({
+    id: `scene-${scene}`,
+    name: scene,
+    children: ACTIONS.map((action) => ({
+      id: `scene-${scene}__action-${action}`,
+      name: action,
+      children: OBJECTS.map((obj) => ({
+        id: `scene-${scene}__action-${action}__obj-${obj}`,
+        name: obj,
+      })),
+    })),
+  }));
+}
+
 const fetchCategories = (): Promise<CategoryNode[]> =>
   // Timer 表单分类改为三轴固定字典，不再复用 /api/log-categories
   fetch(getApiUrl('/api/timer-categories'), { credentials: 'include' })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    })
     .then((data: CategoryNode[]) => {
+      if (!Array.isArray(data) || data.length === 0) throw new Error('Invalid or empty category data');
       categoriesCache = data;
       isCacheReady = true;
       saveToStorage(data);
       return data;
     })
     .catch(error => {
-      console.error('预加载分类数据失败:', error);
+      console.warn('预加载分类数据失败，使用本地默认静态三轴分类:', error);
+      const defaultData = buildAxisCategories();
+      categoriesCache = defaultData;
       isCacheReady = true;
-      return [];
+      return defaultData;
     });
 
 const refreshInBackground = () => {

@@ -5,4 +5,7 @@ release/
 .DS_Store
 .env.local
 .env.*.local
-timer/release-tmp/  
+timer/release-tmp/
+backups/
+*.mjs
+!scripts/*.mjs  

@@ -19,8 +19,8 @@ export default function CreatePage() {
     { revalidateOnFocus: false }
   );
   
-  // 如果 API 还没返回，优先使用本地缓存的 User ID
-  const userId = sessionData?.user?.id || localUser?.id;
+  // 如果 API 还没返回，优先使用本地缓存的 User ID，最差使用 'local-user' 兜底
+  const userId = sessionData?.user?.id || localUser?.id || 'local-user';
   const today = new Date().toISOString().split('T')[0];
 
   const handleAddToTimer = async (
@@ -30,10 +30,6 @@ export default function CreatePage() {
     initialTime?: number,
     instanceTagNames?: string
   ) => {
-    // 即使没有 userId，也允许先创建（后续可以由主进程处理或提示）
-    // 但为了数据完整性，暂且要求有 userId（本地缓存的也行）
-    if (!userId) return;
-    
     const taskData = {
       name: taskName,
       userId,
@@ -57,23 +53,6 @@ export default function CreatePage() {
     // 延迟关闭，确保数据发出
     setTimeout(() => window.close(), 100);
   };
-
-  // 如果本地有用户，就不显示 Loading，直接渲染界面
-  if (isLoading && !userId) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-zinc-900">
-        <span className="text-sm text-emerald-400 font-medium">正在准备...</span>
-      </div>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-zinc-900 text-emerald-400">
-        <span className="text-sm">请先登录</span>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen text-white overflow-y-auto bg-zinc-900 relative custom-scrollbar">

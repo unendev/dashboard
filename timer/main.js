@@ -54,9 +54,84 @@ function initLogging() {
   }
 }
 
-// 在 app 准备好之前安全地调用
+// 在 app 准备好之前安全地调用并锁定 App Name 确保统一数据目录
 if (app) {
+  app.name = 'Timer Widget';
+  app.setAppUserModelId('com.unendev.timer-widget');
   app.disableHardwareAcceleration();
+}
+
+// 统一物理存储管理器 (Unified Physical Storage Manager)
+const getUnifiedStoragePath = () => path.join(app.getPath('userData'), 'unified_storage.json');
+const getBackupsDir = () => path.join(app.getPath('userData'), 'backups');
+
+function loadUnifiedStorage() {
+  try {
+    const filePath = getUnifiedStoragePath();
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    console.error('[Main Process] Failed to load unified storage:', err);
+  }
+  return {};
+}
+
+let saveStorageTimeout = null;
+function createBackupSnapshot(data) {
+  try {
+    const backupsDir = getBackupsDir();
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotPath = path.join(backupsDir, `snapshot-${timestamp}.json`);
+    fs.writeFileSync(snapshotPath, JSON.stringify(data, null, 2), 'utf-8');
+
+    // 同时在项目根目录维护一份 backup_projects.json 作为双重安全网
+    const rootBackupPath = path.join(__dirname, 'backup_projects.json');
+    fs.writeFileSync(rootBackupPath, JSON.stringify(data, null, 2), 'utf-8');
+
+    // 保留最近 10 个历史快照，自动清理更早快照
+    const files = fs.readdirSync(backupsDir)
+      .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
+      .sort()
+      .reverse();
+
+    if (files.length > 10) {
+      files.slice(10).forEach(oldFile => {
+        try {
+          fs.unlinkSync(path.join(backupsDir, oldFile));
+        } catch (_) {}
+      });
+    }
+  } catch (err) {
+    console.error('[Main Process] Failed to create backup snapshot:', err);
+  }
+}
+
+function saveUnifiedStorage(data, immediateSnapshot = false) {
+  try {
+    const filePath = getUnifiedStoragePath();
+    const backupsDir = getBackupsDir();
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+
+    if (immediateSnapshot) {
+      createBackupSnapshot(data);
+    } else {
+      if (saveStorageTimeout) clearTimeout(saveStorageTimeout);
+      saveStorageTimeout = setTimeout(() => {
+        createBackupSnapshot(data);
+      }, 5000);
+    }
+  } catch (err) {
+    console.error('[Main Process] Failed to save unified storage:', err);
+  }
 }
 
 // 如果未打包且 NODE_ENV 不为 'production'，则视为开发模式
@@ -149,7 +224,7 @@ function createToolWindow(type, existingWindow) {
 
   const ses = session.fromPartition('persist:timer-widget');
   const configs = {
-    memo: { width: 320, height: 450, title: '备忘录', route: '/memo', alwaysOnTop: true, skipTaskbar: true },
+    memo: { width: 720, height: 500, title: '⚡ 原子工作台', route: '/memo', alwaysOnTop: true, skipTaskbar: true },
     'task-memo': { width: 320, height: 450, title: '任务备注', route: '/memo?type=task', alwaysOnTop: false, skipTaskbar: false },
     todo: { width: 340, height: 500, title: '项目管理', route: '/todo', alwaysOnTop: true, skipTaskbar: true },
     ai: { width: 360, height: 500, title: 'AI 助手', route: '/ai', alwaysOnTop: true, skipTaskbar: true },
@@ -331,7 +406,138 @@ function createMainWindow() {
   };
 
   mainWindow.on('resize', scheduleSave);
-  mainWindow.on('move', scheduleSave);
+  let snapState = null; // 'left' | 'right' | null
+  let isDragging = false;
+  let dragEndTimeout = null;
+  let isProgrammaticMove = false;
+  let hoverCheckInterval = null;
+
+  const startHoverCheck = () => {
+    if (hoverCheckInterval) return;
+    console.log('[Main Process Hover Polling] Polling started.');
+    hoverCheckInterval = setInterval(() => {
+      if (!mainWindow || mainWindow.isDestroyed() || !snapState || isDragging) return;
+
+      const cursor = screen.getCursorScreenPoint();
+      const bounds = mainWindow.getBounds();
+      const display = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay();
+      const { x: sx, width: sw } = display.workArea;
+
+      // Check if window is currently slid out or hidden
+      const isHidden = (snapState === 'left' && bounds.x < sx) || (snapState === 'right' && bounds.x > sx + sw - bounds.width + 10);
+
+      if (isHidden) {
+        // Trigger slide out if cursor touches the edge where window is snapped
+        const triggerDistance = 10; // px distance from screen edge to trigger slide out
+        if (snapState === 'left' && cursor.x <= sx + triggerDistance) {
+          console.log(`[Main Process Hover Polling] Cursor at left edge (${cursor.x}). Slide OUT.`);
+          isProgrammaticMove = true;
+          mainWindow.setBounds({ x: sx, y: bounds.y, width: bounds.width, height: bounds.height });
+        } else if (snapState === 'right' && cursor.x >= sx + sw - triggerDistance) {
+          console.log(`[Main Process Hover Polling] Cursor at right edge (${cursor.x}). Slide OUT.`);
+          isProgrammaticMove = true;
+          mainWindow.setBounds({ x: sx + sw - bounds.width, y: bounds.y, width: bounds.width, height: bounds.height });
+        }
+      } else {
+        // If window is slid out, check if cursor leaves window bounds
+        const outBuffer = 20; // px buffer to avoid aggressive hiding
+        const isCursorOutside = 
+          cursor.x < bounds.x - outBuffer || 
+          cursor.x > bounds.x + bounds.width + outBuffer ||
+          cursor.y < bounds.y - outBuffer ||
+          cursor.y > bounds.y + bounds.height + outBuffer;
+
+        if (isCursorOutside) {
+          console.log(`[Main Process Hover Polling] Cursor outside bounds (${cursor.x}, ${cursor.y}). Hiding.`);
+          isProgrammaticMove = true;
+          if (snapState === 'left') {
+            mainWindow.setBounds({ x: sx - bounds.width + 4, y: bounds.y, width: bounds.width, height: bounds.height });
+          } else if (snapState === 'right') {
+            mainWindow.setBounds({ x: sx + sw - 4, y: bounds.y, width: bounds.width, height: bounds.height });
+          }
+        }
+      }
+    }, 150);
+  };
+
+  const stopHoverCheck = () => {
+    if (hoverCheckInterval) {
+      console.log('[Main Process Hover Polling] Polling stopped.');
+      clearInterval(hoverCheckInterval);
+      hoverCheckInterval = null;
+    }
+  };
+
+  mainWindow.on('move', () => {
+    scheduleSave();
+    if (isProgrammaticMove) {
+      isProgrammaticMove = false;
+      return;
+    }
+    isDragging = true;
+
+    // Debounce the end of dragging
+    if (dragEndTimeout) clearTimeout(dragEndTimeout);
+    dragEndTimeout = setTimeout(() => {
+      isDragging = false;
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+
+      const bounds = mainWindow.getBounds();
+      const display = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay();
+      const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
+      const SNAP_THRESHOLD = 40;
+
+      let nextX = bounds.x;
+      let nextY = bounds.y;
+      let snapped = false;
+
+      console.log(`[Main Process Drag End] bounds.x: ${bounds.x}, bounds.y: ${bounds.y}, bounds.w: ${bounds.width}, bounds.h: ${bounds.height}, sx: ${sx}, sw: ${sw}`);
+
+      // Left edge snap (when pushed off-screen left)
+      if (bounds.x < sx) {
+        nextX = sx - bounds.width + 4;
+        snapState = 'left';
+        snapped = true;
+        console.log(`[Main Process Snap] Snapped LEFT. nextX: ${nextX}`);
+      }
+      // Right edge snap (when pushed off-screen right)
+      else if (bounds.x + bounds.width > sx + sw) {
+        nextX = sx + sw - 4;
+        snapState = 'right';
+        snapped = true;
+        console.log(`[Main Process Snap] Snapped RIGHT. nextX: ${nextX}`);
+      } else {
+        snapState = null;
+        console.log(`[Main Process Snap] No Snap.`);
+      }
+
+      // Top edge snap
+      if (Math.abs(bounds.y - sy) < SNAP_THRESHOLD) {
+        nextY = sy;
+        snapped = true;
+      }
+      // Bottom edge snap
+      else if (Math.abs((bounds.y + bounds.height) - (sy + sh)) < SNAP_THRESHOLD) {
+        nextY = sy + sh - bounds.height;
+        snapped = true;
+      }
+
+      if (snapped) {
+        isProgrammaticMove = true;
+        mainWindow.setBounds({ x: nextX, y: nextY, width: bounds.width, height: bounds.height });
+        saveWindowState(mainWindow);
+
+        if (snapState) {
+          startHoverCheck();
+        } else {
+          stopHoverCheck();
+        }
+      } else {
+        stopHoverCheck();
+      }
+    }, 150);
+  });
+
   mainWindow.on('close', () => saveWindowState(mainWindow));
 
   mainWindow.on('focus', () => {
@@ -357,6 +563,7 @@ function createMainWindow() {
   });
 
   mainWindow.on('closed', () => {
+    stopHoverCheck();
     mainWindow = null;
     globalShortcut.unregisterAll();
   });
@@ -646,6 +853,126 @@ ipcMain.handle('get-links-data', async () => {
   }
 });
 
+// 统一持久化存储 IPC 接口 (实现 Dev 与打包 EXE 物理存储共享与备份)
+ipcMain.handle('get-unified-storage', async () => {
+  return loadUnifiedStorage();
+});
+
+ipcMain.on('save-unified-storage', (event, { key, value, allData }) => {
+  const current = loadUnifiedStorage();
+  if (key && value !== undefined) {
+    current[key] = value;
+  } else if (allData && typeof allData === 'object') {
+    Object.assign(current, allData);
+  }
+  saveUnifiedStorage(current);
+});
+
+ipcMain.handle('create-manual-backup', async () => {
+  const data = loadUnifiedStorage();
+  createBackupSnapshot(data);
+  return { success: true, backupDir: getBackupsDir() };
+});
+
+// Scan all possible skill directories and return parsed skills
+ipcMain.handle('get-agent-skills', async () => {
+  const skills = [];
+  const pathsToScan = new Set();
+
+  // 1. Read C:\Users\a1634\.gemini\antigravity\skills.txt
+  try {
+    const txtPath = 'C:\\Users\\a1634\\.gemini\\antigravity\\skills.txt';
+    if (fs.existsSync(txtPath)) {
+      const content = fs.readFileSync(txtPath, 'utf-8');
+      content.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed) {
+          pathsToScan.add(trimmed);
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to read skills.txt:', e);
+  }
+
+  // 2. Scan C:\Users\a1634\.gemini\antigravity\skills directory
+  const skillsDir = 'C:\\Users\\a1634\\.gemini\\antigravity\\skills';
+  if (fs.existsSync(skillsDir)) {
+    pathsToScan.add(skillsDir);
+  }
+
+  // 3. Scan C:\Users\a1634\.agents\skills as fallback
+  const defaultAgentsSkillsDir = 'C:\\Users\\a1634\\.agents\\skills';
+  if (fs.existsSync(defaultAgentsSkillsDir)) {
+    pathsToScan.add(defaultAgentsSkillsDir);
+  }
+
+  // 4. Scan C:\Users\a1634\.claude\skills (Claude Code skills)
+  const claudeSkillsDir = 'C:\\Users\\a1634\\.claude\\skills';
+  if (fs.existsSync(claudeSkillsDir)) {
+    pathsToScan.add(claudeSkillsDir);
+  }
+
+  // Scan all unique paths
+  for (const dirPath of pathsToScan) {
+    try {
+      if (!fs.existsSync(dirPath)) continue;
+      const stat = fs.statSync(dirPath);
+      if (!stat.isDirectory()) continue;
+
+      const subs = fs.readdirSync(dirPath);
+      for (const sub of subs) {
+        const subPath = path.join(dirPath, sub);
+        try {
+          if (!fs.existsSync(subPath)) continue;
+          const subStat = fs.statSync(subPath);
+          if (subStat.isDirectory()) {
+            const skillMdPath = path.join(subPath, 'SKILL.md');
+            if (fs.existsSync(skillMdPath)) {
+              const content = fs.readFileSync(skillMdPath, 'utf-8');
+              
+              let name = sub;
+              let description = '';
+              let promptContent = content;
+
+              const fmRegex = /^---\r?\n([\s\S]+?)\r?\n---\r?\n/;
+              const match = content.match(fmRegex);
+              if (match) {
+                const fmText = match[1];
+                promptContent = content.replace(fmRegex, '');
+                
+                fmText.split('\n').forEach(line => {
+                  const colonIndex = line.indexOf(':');
+                  if (colonIndex > -1) {
+                    const key = line.substring(0, colonIndex).trim();
+                    const val = line.substring(colonIndex + 1).trim();
+                    if (key === 'name') name = val;
+                    if (key === 'description') description = val;
+                  }
+                });
+              }
+
+              skills.push({
+                id: `${dirPath}-${sub}`,
+                name,
+                description,
+                content: promptContent.trim(),
+                path: skillMdPath
+              });
+            }
+          }
+        } catch (innerErr) {
+          console.error(`Error scanning subpath ${subPath}:`, innerErr);
+        }
+      }
+    } catch (err) {
+      console.error(`Error scanning dirPath ${dirPath}:`, err);
+    }
+  }
+
+  return skills;
+});
+
 ipcMain.on('save-links-data', (event, data) => {
   try {
     const dataPath = path.join(app.getPath('userData'), 'link-station-data.json');
@@ -717,6 +1044,9 @@ ipcMain.on('open-project-window', (event, { projectId, title }) => {
 ipcMain.on('start-task', (event, taskData) => {
   console.log('[Main Process] Received start-task:', taskData.name);
   if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
     mainWindow.webContents.send('on-start-task', taskData);
   }
 });
@@ -807,15 +1137,49 @@ ipcMain.on('ai-create-task', async (event, { text, userId, autoStart }) => {
 ipcMain.on('show-toolbar-context-menu', (event) => {
   const template = [
     {
+      label: '📁 项目管理',
+      click: () => {
+        openTodoWindow();
+      }
+    },
+    {
+      label: '🤖 AI 助手',
+      click: () => {
+        openAiWindow();
+      }
+    },
+    { type: 'separator' },
+    {
       label: '📚 提示词库',
       click: () => {
         openPromptLibraryWindow();
       }
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
+});
+
+// 模式切换菜单
+ipcMain.on('show-mode-menu', (event) => {
+  const template = [
+    {
+      label: '⏱️ 专注模式',
+      click: () => {
+        event.sender.send('on-mode-selected', 'focus');
+      }
     },
     {
-      label: '🔗 链接收纳槽',
+      label: '⏱️ 秒表模式',
       click: () => {
-        openLinkStationWindow();
+        event.sender.send('on-mode-selected', 'stopwatch');
+      }
+    },
+    {
+      label: '⏳ 倒计时模式',
+      click: () => {
+        event.sender.send('on-mode-selected', 'countdown');
       }
     }
   ];
