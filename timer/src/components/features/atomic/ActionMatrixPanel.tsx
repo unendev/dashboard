@@ -3,6 +3,7 @@ import { Flame, ListOrdered, Play, Pause, CheckCircle2, Trash2, ArrowUpCircle, E
 import { AtomicItem } from '../../../types/atomic';
 import { AtomicCard } from './AtomicCard';
 import { openObsidianLink } from '../../../lib/atomic-parser';
+import { getAllTasks } from '../../../lib/local-timer-storage';
 
 interface ActionMatrixPanelProps {
   nowFocus: AtomicItem | null;
@@ -48,6 +49,33 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
       return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const totalAccumulatedSeconds = React.useMemo(() => {
+    if (!nowFocus) return 0;
+    const taskName = (nowFocus.title || nowFocus.rawText || '').trim();
+    let total = 0;
+    try {
+      const allTasks = getAllTasks();
+      allTasks.forEach(t => {
+        if (t.name.trim() === taskName) {
+          total += (t.elapsedTime || 0);
+          if (t.isRunning && !t.isPaused && t.startTime) {
+            const nowSec = Math.floor(Date.now() / 1000);
+            total += (nowSec - t.startTime);
+          }
+        }
+      });
+    } catch { }
+    return total;
+  }, [nowFocus, timerRunningState]);
+
+  const formatTotalTime = (seconds: number) => {
+    if (seconds <= 0) return '0m';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
   };
 
   const [isEditingNow, setIsEditingNow] = React.useState(false);
@@ -110,9 +138,14 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
               <h3 className="text-xs font-semibold tracking-wide">当前</h3>
             </div>
             {nowFocus && (
-              <span className="text-[10px] text-zinc-500 font-mono">
-                当前专注
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-purple-300 font-mono font-semibold bg-purple-950/60 border border-purple-800/40 px-1.5 py-0.5 rounded shadow-sm" title="该任务历史总计专注总时长">
+                  总累计: {formatTotalTime(totalAccumulatedSeconds)}
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono">
+                  当前专注
+                </span>
+              </div>
             )}
           </div>
 

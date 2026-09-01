@@ -449,6 +449,31 @@ export default function TimerPage() {
 
   const displayTaskName = activeTask ? removeEmojis(activeTask.name) : '';
 
+  // 累计该任务在所有历史记录中的全量专注时长
+  const totalAccumulatedSeconds = useMemo(() => {
+    if (!activeTask) return 0;
+    const taskName = activeTask.name.trim();
+    let total = 0;
+    tasks.forEach(t => {
+      if (t.name.trim() === taskName) {
+        total += (t.elapsedTime || 0);
+        if (t.isRunning && !t.isPaused && t.startTime) {
+          const nowSec = Math.floor(Date.now() / 1000);
+          total += (nowSec - t.startTime);
+        }
+      }
+    });
+    return total;
+  }, [activeTask, tasks, globalTick]);
+
+  const formatTotalTime = (seconds: number) => {
+    if (seconds <= 0) return '0m';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
   const [displayTime, setDisplayTime] = useState(0);
   useEffect(() => {
     if (!activeTask) { setDisplayTime(0); return; }
@@ -548,7 +573,11 @@ export default function TimerPage() {
 
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-white select-none overflow-hidden flex">
-      <div className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0">
+      {/* 左侧功能栏：支持拖拽，按钮独立响应 */}
+      <div
+        className="w-10 h-full bg-[#141414] border-r border-zinc-800 flex flex-col z-10 relative shrink-0"
+        style={{ WebkitAppRegion: 'drag' } as any}
+      >
         <button
           onClick={() => {
             if (window.electron) {
@@ -561,6 +590,7 @@ export default function TimerPage() {
               window.electron.send('show-toolbar-context-menu');
             }
           }}
+          style={{ WebkitAppRegion: 'no-drag' } as any}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
           title="切换模式 (右键查看更多)"
         >
@@ -574,6 +604,7 @@ export default function TimerPage() {
               window.electron.send('show-toolbar-context-menu');
             }
           }}
+          style={{ WebkitAppRegion: 'no-drag' } as any}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800"
           title="即时原子工作台 (右键查看更多)"
         >
@@ -587,6 +618,7 @@ export default function TimerPage() {
               window.electron.send('show-toolbar-context-menu');
             }
           }}
+          style={{ WebkitAppRegion: 'no-drag' } as any}
           className="flex-1 w-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
           title="链接收纳槽 (右键查看更多)"
         >
@@ -597,57 +629,53 @@ export default function TimerPage() {
       <div className="flex-1 h-full flex flex-col overflow-hidden relative">
         {currentMode === 'focus' ? (
           <>
-            <div className="shrink-0 p-3 pb-2 flex items-center gap-3" data-drag="true">
+            {/* 顶部主计时区：整块区域无障碍拖拽，双击新建，点击模糊 */}
+            <div
+              className="shrink-0 p-3 pb-2.5 flex items-center justify-between gap-2.5 cursor-move"
+              style={{ WebkitAppRegion: 'drag' } as any}
+              {...doubleTapCreate}
+              title="按住此区域可任意拖拽窗口，双击新建任务"
+            >
               {activeTask ? (
                 (() => {
                   const isRunning = Boolean(activeTask.isRunning && !activeTask.isPaused);
                   return (
                     <>
-                      <div
-                        className="shrink-0 w-12 h-12 flex items-center justify-center"
-                        data-drag="false"
-                        title="拖拽此圆形区域移动窗口"
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isRunning) {
-                              pauseTimer(activeTask.id);
-                            } else {
-                              startTimer(activeTask.id);
-                            }
-                          }}
-                          onContextMenu={handleBackup}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                            !isRunning
-                              ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400'
-                              : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'
-                          }`}
-                          title={!isRunning ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
-                          data-drag="false"
-                        >
-                          {!isRunning ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
-                        </button>
-                      </div>
-                      <div
-                        className={`flex-1 min-w-0 cursor-pointer transition-all ${
-                          !isRunning ? 'text-yellow-400' : 'text-emerald-400'
-                        }`}
-                        data-drag="true"
-                        {...doubleTapCreate}
-                        title="拖拽此区域移动窗口"
-                      >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="shrink-0" style={{ WebkitAppRegion: 'no-drag' } as any}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isRunning) {
+                                pauseTimer(activeTask.id);
+                              } else {
+                                startTimer(activeTask.id);
+                              }
+                            }}
+                            onContextMenu={handleBackup}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-md ${
+                              !isRunning
+                                ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30'
+                                : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30'
+                            }`}
+                            title={!isRunning ? "开始计时 (右键备份数据)" : "暂停计时 (右键备份数据)"}
+                          >
+                            {!isRunning ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                          </button>
+                        </div>
+
                         <div
+                          className="flex-1 min-w-0"
                           onClick={() => setIsBlurred(!isBlurred)}
-                          data-drag="false"
-                          title="单击模糊 / 双击新建"
                         >
-                          <div className={`font-mono text-2xl font-bold transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                          <div className={`font-mono text-2xl font-bold tracking-tight transition-all leading-none ${
+                            !isRunning ? 'text-yellow-400' : 'text-emerald-400'
+                          } ${isBlurred ? 'blur-md' : ''}`}>
                             {formatTime(displayTime)}
                           </div>
                           <div
-                            className={`text-xs truncate ${
-                              !isRunning ? 'text-yellow-300/70' : 'text-emerald-300/70'
+                            className={`text-xs truncate font-medium mt-1 ${
+                              !isRunning ? 'text-yellow-300/80' : 'text-emerald-300/80'
                             }`}
                             title={activeTask.categoryPath}
                           >
@@ -655,40 +683,40 @@ export default function TimerPage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* 右上角：历史总累计专注时间 */}
+                      <div
+                        className="flex flex-col items-end shrink-0 pr-1 select-none pointer-events-none"
+                        title={`《${activeTask.name}》历史累计总专注时间`}
+                      >
+                        <span className="text-[9px] text-zinc-500 font-mono tracking-tighter uppercase leading-none">总累计</span>
+                        <span className="text-[11px] text-purple-300 font-mono font-semibold mt-0.5 leading-none">
+                          {formatTotalTime(totalAccumulatedSeconds)}
+                        </span>
+                      </div>
                     </>
                   );
                 })()
               ) : (
                 <>
-                  <div
-                    className="shrink-0 w-12 h-12 flex items-center justify-center"
-                    data-drag="false"
-                    title="拖拽此圆形区域移动窗口"
-                  >
-                    <div 
-                      className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-context-menu" 
-                      data-drag="false"
-                      onContextMenu={handleBackup}
-                      title="右键备份数据"
-                    >
-                      <Play size={18} />
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="shrink-0" style={{ WebkitAppRegion: 'no-drag' } as any}>
+                      <div 
+                        className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-context-menu" 
+                        onContextMenu={handleBackup}
+                        title="右键备份数据"
+                      >
+                        <Play size={18} />
+                      </div>
                     </div>
-                  </div>
-                  <div
-                    className="flex-1 min-w-0 cursor-pointer"
-                    data-drag="true"
-                    {...doubleTapCreate}
-                    title="拖拽此区域移动窗口"
-                  >
                     <div
+                      className="flex-1 min-w-0"
                       onClick={() => setIsBlurred(!isBlurred)}
-                      data-drag="false"
-                      title="单击模糊 / 双击新建"
                     >
-                      <div className={`font-mono text-2xl font-bold text-zinc-600 transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                      <div className={`font-mono text-2xl font-bold text-zinc-600 transition-all leading-none ${isBlurred ? 'blur-md' : ''}`}>
                         00:00:00
                       </div>
-                      <div className="text-xs text-zinc-600">双击新建任务</div>
+                      <div className="text-xs text-zinc-600 mt-1">双击新建任务</div>
                     </div>
                   </div>
                 </>
