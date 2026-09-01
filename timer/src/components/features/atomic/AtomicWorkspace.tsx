@@ -32,6 +32,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
     moveToNow,
     moveToNext,
     moveToPool,
+    reorderNextQueue,
     setObsidianVault,
     startTimerForNow,
   } = useAtomicWorkspace();
@@ -145,6 +146,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
             onMoveToNow={moveToNow}
             onMoveToNext={moveToNext}
             onMoveToPool={moveToPool}
+            onReorderNextQueue={reorderNextQueue}
             onStartTimer={startTimerForNow}
             onClearCompleted={clearAllCompleted}
           />

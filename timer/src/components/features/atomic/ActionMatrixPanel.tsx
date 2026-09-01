@@ -20,6 +20,7 @@ interface ActionMatrixPanelProps {
   onMoveToNow: (id: string) => void;
   onMoveToNext?: (id: string) => void;
   onMoveToPool: (id: string) => void;
+  onReorderNextQueue?: (newQueue: AtomicItem[]) => void;
   onStartTimer: () => void;
   onClearCompleted: () => void;
 }
@@ -35,11 +36,13 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
   onMoveToNow,
   onMoveToNext,
   onMoveToPool,
+  onReorderNextQueue,
   onStartTimer,
   onClearCompleted,
 }) => {
   const [isNowDragOver, setIsNowDragOver] = React.useState(false);
   const [isNextDragOver, setIsNextDragOver] = React.useState(false);
+  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
 
   const formatTimerSeconds = (totalSec: number) => {
     const h = Math.floor(totalSec / 3600);
@@ -116,8 +119,30 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
   const handleNextDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsNextDragOver(false);
+    setDragOverIndex(null);
     const id = e.dataTransfer.getData('text/plain');
     if (id && onMoveToNext) onMoveToNext(id);
+  };
+
+  const handleItemDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverIndex(null);
+    setIsNextDragOver(false);
+
+    const id = e.dataTransfer.getData('text/plain');
+    if (!id) return;
+
+    const sourceIdx = nextQueue.findIndex(i => i.id === id);
+    if (sourceIdx !== -1) {
+      if (sourceIdx === targetIdx) return;
+      const updated = [...nextQueue];
+      const [moved] = updated.splice(sourceIdx, 1);
+      updated.splice(targetIdx, 0, moved);
+      onReorderNextQueue?.(updated);
+    } else {
+      onMoveToNext?.(id);
+    }
   };
 
   return (
@@ -350,8 +375,24 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
 
           <div className="space-y-2">
             {nextQueue.map((item, idx) => (
-              <div key={item.id} className="relative flex items-center gap-2">
-                <span className="text-[10px] text-zinc-600 font-mono w-3 text-right">
+              <div
+                key={item.id}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOverIndex(idx);
+                }}
+                onDragLeave={() => {
+                  if (dragOverIndex === idx) setDragOverIndex(null);
+                }}
+                onDrop={(e) => handleItemDrop(e, idx)}
+                className={`relative flex items-center gap-2 rounded-xl transition-all duration-150 ${
+                  dragOverIndex === idx
+                    ? 'ring-2 ring-purple-500 bg-purple-950/40 translate-y-0.5 shadow-lg shadow-purple-950/50'
+                    : ''
+                }`}
+              >
+                <span className="text-[10px] text-zinc-500 font-mono w-3.5 text-right select-none shrink-0 cursor-grab">
                   {idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
