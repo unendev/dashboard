@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, CheckCircle2, RotateCcw, Trash2, ExternalLink, Sparkles } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, CheckCircle2, RotateCcw, Trash2, ExternalLink, Sparkles, Search } from 'lucide-react';
 import { AtomicItem } from '../../../types/atomic';
 import { openObsidianLink } from '../../../lib/atomic-parser';
 
@@ -22,6 +22,44 @@ export const CompletedArchiveModal: React.FC<CompletedArchiveModalProps> = ({
   onDeleteSingle,
   onClearAll,
 }) => {
+  const [selectedTag, setSelectedTag] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // 提取所有已完成任务中的所有标签
+  const allTags = useMemo(() => {
+    return Array.from(new Set(completedList.flatMap(i => i.tags || [])));
+  }, [completedList]);
+
+  // 无标签任务数量
+  const untaggedCount = useMemo(() => {
+    return completedList.filter(i => !i.tags || i.tags.length === 0).length;
+  }, [completedList]);
+
+  // 过滤后的列表
+  const filteredList = useMemo(() => {
+    return completedList.filter(item => {
+      // 1. 标签过滤
+      if (selectedTag === 'none') {
+        if (item.tags && item.tags.length > 0) return false;
+      } else if (selectedTag !== 'all') {
+        if (!item.tags || !item.tags.includes(selectedTag)) return false;
+      }
+
+      // 2. 搜索过滤
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          item.title.toLowerCase().includes(q) ||
+          item.rawText.toLowerCase().includes(q) ||
+          (item.tags && item.tags.some(t => t.toLowerCase().includes(q))) ||
+          (item.obsidianLinks && item.obsidianLinks.some(l => l.toLowerCase().includes(q)))
+        );
+      }
+
+      return true;
+    });
+  }, [completedList, selectedTag, searchQuery]);
+
   if (!isOpen) return null;
 
   const formatCompletedTime = (timestamp?: number) => {
@@ -34,29 +72,93 @@ export const CompletedArchiveModal: React.FC<CompletedArchiveModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#16161a] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="w-full max-w-lg bg-[#16161a] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* 1. 弹窗头部 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/80 bg-[#1a1a1f] shrink-0">
-          <div className="flex items-center gap-2 text-emerald-400">
-            <CheckCircle2 size={16} />
-            <h3 className="text-xs font-bold text-white tracking-wide">已完成任务归档</h3>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 font-mono">
-              {completedList.length}
-            </span>
+        <div className="flex flex-col border-b border-zinc-800/80 bg-[#1a1a1f] shrink-0">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 size={16} />
+              <h3 className="text-xs font-bold text-white tracking-wide">已完成任务归档</h3>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 font-mono">
+                {completedList.length}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* 搜索框 */}
+              <div className="relative flex items-center">
+                <Search size={11} className="absolute left-2 text-zinc-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜索已完成..."
+                  className="w-24 focus:w-36 bg-[#121215] border border-zinc-700/60 focus:border-purple-500 rounded-md pl-6 pr-2 py-0.5 text-[11px] text-zinc-300 placeholder-zinc-500 outline-none transition-all"
+                />
+              </div>
+
+              <button
+                onClick={onClose}
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="关闭 (Esc)"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="关闭 (Esc)"
-          >
-            <X size={14} />
-          </button>
+          {/* 标签分类切换栏 */}
+          {(allTags.length > 0 || untaggedCount > 0) && (
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar px-4 pb-2.5 pt-0.5">
+              <button
+                onClick={() => setSelectedTag('all')}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all ${
+                  selectedTag === 'all'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                全部 ({completedList.length})
+              </button>
+
+              {untaggedCount > 0 && (
+                <button
+                  onClick={() => setSelectedTag('none')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all ${
+                    selectedTag === 'none'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  无标签 ({untaggedCount})
+                </button>
+              )}
+
+              {allTags.map(tag => {
+                const count = completedList.filter(i => i.tags && i.tags.includes(tag)).length;
+                const isSelected = selectedTag === tag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTag(tag)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span>#{tag}</span>
+                    <span className="text-[9px] opacity-75">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 2. 已完成任务列表 */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {completedList.map(item => (
+          {filteredList.map(item => (
             <div
               key={item.id}
               className="p-2.5 rounded-xl bg-[#1f1f26]/80 border border-zinc-800/80 hover:border-zinc-700/80 transition-all flex items-start justify-between gap-2.5 group"
@@ -123,12 +225,16 @@ export const CompletedArchiveModal: React.FC<CompletedArchiveModalProps> = ({
             </div>
           ))}
 
-          {completedList.length === 0 && (
+          {filteredList.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4 text-zinc-600">
               <Sparkles size={24} className="mb-2 text-zinc-700" />
-              <p className="text-xs font-medium text-zinc-400">暂无已完成归档</p>
+              <p className="text-xs font-medium text-zinc-400">
+                {completedList.length === 0 ? '暂无已完成归档' : '该分类下暂无已完成任务'}
+              </p>
               <p className="text-[11px] text-zinc-600 mt-1">
-                所有打勾完成的任务都会被安全存放在这里，随时可查阅或恢复
+                {completedList.length === 0
+                  ? '所有打勾完成的任务都会被安全存放在这里，随时可查阅或恢复'
+                  : '切换上方标签或清空搜索条件查看更多'}
               </p>
             </div>
           )}
