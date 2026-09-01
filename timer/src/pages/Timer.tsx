@@ -3,10 +3,20 @@ import { Play, Pause, FileText, Trash2, Clock, Link2 } from 'lucide-react';
 import { useLocalTimerControl } from '@/hooks/useLocalTimerControl';
 import { TimerTask, formatTime } from '@dashboard/shared';
 import { getAllTasks, saveAllTasks, deleteTask, createTask } from '@/lib/local-timer-storage';
-import { getUnifiedItem } from '@/lib/unified-storage';
+import { getUnifiedItem, setUnifiedItem } from '@/lib/unified-storage';
 import type { AtomicWorkspaceData } from '@/types/atomic';
 import StopwatchPanel from '@/components/features/timer/StopwatchPanel';
 import CountdownPanel from '@/components/features/timer/CountdownPanel';
+
+export interface SwitcherItem {
+  id: string;
+  name: string;
+  categoryPath?: string;
+  instanceTag?: string;
+  source: 'workspace-next' | 'workspace-pool' | 'task';
+  isNext?: boolean;
+  rawWorkspaceItem?: any;
+}
 
 type TimerMode = 'focus' | 'stopwatch' | 'countdown';
 
@@ -108,15 +118,22 @@ function cleanOrphanInstantTasks(currentTasks: TimerTask[]): TimerTask[] {
 export default function TimerPage() {
   const doubleTapCreate = useDoubleTap(openCreateWindow);
   const [isBlurred, setIsBlurred] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<TimerTask | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<SwitcherItem | null>(null);
   const [currentMode, setCurrentMode] = useState<TimerMode>('focus');
   const [globalTick, setGlobalTick] = useState(0);
   const [tasks, setTasks] = useState<TimerTask[]>(() => cleanOrphanInstantTasks(getAllTasks()));
+  const [workspaceData, setWorkspaceData] = useState<AtomicWorkspaceData | null>(() =>
+    getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null)
+  );
 
   const refreshTasks = useCallback(() => {
     const raw = getAllTasks();
     const cleaned = cleanOrphanInstantTasks(raw);
     setTasks(cleaned);
+  }, []);
+
+  const refreshWorkspace = useCallback(() => {
+    setWorkspaceData(getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null));
   }, []);
 
   const { startTimer, pauseTimer } = useLocalTimerControl({
@@ -129,8 +146,6 @@ export default function TimerPage() {
     const id = setInterval(() => setGlobalTick((t) => t + 1), 200);
     return () => clearInterval(id);
   }, []);
-
-
 
   useEffect(() => {
     let unsubscribeStart: (() => void) | undefined;
@@ -191,6 +206,7 @@ export default function TimerPage() {
           });
         }
         refreshTasks();
+        refreshWorkspace();
       });
 
       unsubscribeMode = window.electron.receive('on-mode-selected', (mode) => {
@@ -203,6 +219,7 @@ export default function TimerPage() {
 
     const handleStorageChange = () => {
       refreshTasks();
+      refreshWorkspace();
     };
     window.addEventListener('storage', handleStorageChange);
     return () => {
@@ -210,7 +227,7 @@ export default function TimerPage() {
       if (unsubscribeStart) unsubscribeStart();
       if (unsubscribeMode) unsubscribeMode();
     };
-  }, [refreshTasks]);
+  }, [refreshTasks, refreshWorkspace]);
 
   const activeTask = useMemo(() => {
     const findActive = (list: TimerTask[]): TimerTask | null => {
@@ -226,22 +243,173 @@ export default function TimerPage() {
     return findActive(tasks);
   }, [tasks]);
 
-  const recentTasks = useMemo(() => {
-    const topLevelTasks = tasks.filter((t) => !t.parentId);
+  // 从工作台（接下来 + 任务池）以及已有任务中智能聚合待切任务流
+  const switcherList = useMemo(() => {
+    const list: SwitcherItem[] = [];
     const seenNames = new Set<string>();
-    return topLevelTasks
-      .filter((t) => {
-        if (t.id === activeTask?.id) return false;
-        if (seenNames.has(t.name)) return false; // 智能过滤同名重复任务
-        seenNames.add(t.name);
-        return true;
-      })
-      .sort((a, b) => {
-        const timeA = new Date(a.updatedAt || 0).getTime();
-        const timeB = new Date(b.updatedAt || 0).getTime();
-        return timeB - timeA;
+    const activeName = activeTask ? activeTask.name.trim() : '';
+
+    // 1. 优先展示工作台「接下来」(Next Queue)
+    if (workspaceData?.nextQueue) {
+      workspaceData.nextQueue.forEach((item) => {
+        const title = (item.title || item.rawText || '').trim();
+        if (title && title !== activeName && !seenNames.has(title)) {
+          seenNames.add(title);
+          list.push({
+            id: item.id,
+            name: title,
+            categoryPath: '接下来',
+            instanceTag: item.tags?.[0] || '接下来',
+            source: 'workspace-next',
+            isNext: true,
+            rawWorkspaceItem: item,
+          });
+        }
       });
-  }, [tasks, activeTask]);
+    }
+
+    // 2. 展示工作台「任务池」(Pool)
+    if (workspaceData?.pool) {
+      workspaceData.pool.forEach((item) => {
+        const title = (item.title || item.rawText || '').trim();
+        if (title && title !== activeName && !seenNames.has(title)) {
+          seenNames.add(title);
+          list.push({
+            id: item.id,
+            name: title,
+            categoryPath: '任务池',
+            instanceTag: item.tags?.[0] || '',
+            source: 'workspace-pool',
+            rawWorkspaceItem: item,
+          });
+        }
+      });
+    }
+
+    // 3. 其他顶级 Timer 历史任务
+    const topLevelTasks = tasks.filter((t) => !t.parentId);
+    topLevelTasks.forEach((t) => {
+      const title = t.name.trim();
+      if (title && title !== activeName && !seenNames.has(title)) {
+        seenNames.add(title);
+        list.push({
+          id: t.id,
+          name: title,
+          categoryPath: t.categoryPath || '',
+          instanceTag: t.instanceTag || '',
+          source: 'task',
+        });
+      }
+    });
+
+    return list;
+  }, [workspaceData, tasks, activeTask]);
+
+  // 一键切换任务：同时联动更新工作台「当前」与 Timer 计时器
+  const handleSwitchToItem = useCallback((item: SwitcherItem) => {
+    const currentWorkspace = getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const nowISO = new Date().toISOString();
+
+    if (currentWorkspace) {
+      const oldNow = currentWorkspace.nowFocus;
+
+      // 结算旧 nowFocus
+      if (oldNow) {
+        const currentTasks = getAllTasks();
+        const targetTitle = (oldNow.title || oldNow.rawText || '').trim();
+        const updated = currentTasks.map(t => {
+          if (t.name.trim() === targetTitle && t.isRunning && !t.isPaused) {
+            const sessionTime = t.startTime ? nowSec - t.startTime : 0;
+            return {
+              ...t,
+              isRunning: false,
+              isPaused: true,
+              elapsedTime: (t.elapsedTime || 0) + sessionTime,
+              startTime: null,
+              pausedTime: nowSec,
+              updatedAt: nowISO,
+            };
+          }
+          return t;
+        });
+        saveAllTasks(updated);
+      }
+
+      // 查找并转移新目标
+      const targetId = item.id;
+      const targetInPool = currentWorkspace.pool.find(i => i.id === targetId);
+      const targetInNext = currentWorkspace.nextQueue.find(i => i.id === targetId);
+      const target = targetInPool || targetInNext || (currentWorkspace.nowFocus?.id === targetId ? currentWorkspace.nowFocus : null) || {
+        id: item.id,
+        rawText: item.name,
+        title: item.name,
+        tags: item.instanceTag ? [item.instanceTag] : [],
+        obsidianLinks: [],
+        completed: false,
+        createdAt: Date.now(),
+      };
+
+      const filteredNext = currentWorkspace.nextQueue.filter(i => i.id !== targetId);
+      const newNext = oldNow && oldNow.id !== targetId ? [oldNow, ...filteredNext] : filteredNext;
+      const newPool = currentWorkspace.pool.filter(i => i.id !== targetId);
+
+      const nextWorkspace: AtomicWorkspaceData = {
+        ...currentWorkspace,
+        pool: newPool,
+        nowFocus: target,
+        nextQueue: newNext,
+      };
+      setUnifiedItem('atomic-workspace-data-v1', nextWorkspace);
+    }
+
+    // 启动目标计时
+    const taskName = item.name.trim();
+    const tag = item.instanceTag || '即时待办';
+    const currentTasks = getAllTasks();
+    const existingIndex = currentTasks.findIndex(t => t.name.trim() === taskName && !t.parentId);
+
+    if (existingIndex > -1) {
+      const existingTask = currentTasks[existingIndex];
+      const oldSessionTime = (existingTask.isRunning && !existingTask.isPaused && existingTask.startTime)
+        ? nowSec - existingTask.startTime
+        : 0;
+      const remainingTasks = currentTasks.filter((t, i) => i !== existingIndex);
+      const updatedExisting = {
+        ...existingTask,
+        isRunning: true,
+        isPaused: false,
+        startTime: nowSec,
+        elapsedTime: (existingTask.elapsedTime || 0) + oldSessionTime,
+        updatedAt: nowISO,
+      };
+      saveAllTasks([
+        updatedExisting,
+        ...remainingTasks.map(t => (t.isRunning && !t.isPaused ? { ...t, isRunning: false, isPaused: true, pausedTime: nowSec, updatedAt: nowISO } : t))
+      ]);
+    } else {
+      const paused = currentTasks.map(t => (t.isRunning && !t.isPaused ? { ...t, isRunning: false, isPaused: true, pausedTime: nowSec, updatedAt: nowISO } : t));
+      saveAllTasks(paused);
+      createTask({
+        name: taskName,
+        categoryPath: item.categoryPath || '即时待办',
+        instanceTag: tag,
+        initialTime: 0,
+        elapsedTime: 0,
+        isRunning: true,
+        startTime: nowSec,
+        isPaused: false,
+        pausedTime: 0,
+        children: [],
+        parentId: null,
+        date: new Date().toISOString().split('T')[0],
+      });
+    }
+
+    window.dispatchEvent(new Event('storage'));
+    refreshTasks();
+    refreshWorkspace();
+  }, [refreshTasks, refreshWorkspace]);
 
   const removeEmojis = (str: string) => {
     return str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
@@ -303,13 +471,13 @@ export default function TimerPage() {
     }
   }, []);
 
-  const handleContextMenu = useCallback((task: TimerTask, e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((task: SwitcherItem, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     openChartWindow({ mode: 'task', value: task.id, title: task.name, custom: true });
   }, [openChartWindow]);
 
-  const handleCategoryClick = useCallback((task: TimerTask) => {
+  const handleCategoryClick = useCallback((task: SwitcherItem) => {
     const categoryPath = task.categoryPath || '';
     if (categoryPath) {
       openChartWindow({ mode: 'category', value: categoryPath, title: categoryPath, custom: false });
@@ -318,15 +486,32 @@ export default function TimerPage() {
     }
   }, [openChartWindow]);
 
-  const handleDeleteConfirm = useCallback((taskId: string) => {
-    deleteTask(taskId);
-    refreshTasks();
+  const handleDeleteConfirm = useCallback((item: SwitcherItem) => {
+    if (item.source === 'workspace-next' || item.source === 'workspace-pool') {
+      const currentWorkspace = getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null);
+      if (currentWorkspace) {
+        const nextWorkspace: AtomicWorkspaceData = {
+          ...currentWorkspace,
+          pool: currentWorkspace.pool.filter(i => i.id !== item.id),
+          nextQueue: currentWorkspace.nextQueue.filter(i => i.id !== item.id),
+          nowFocus: currentWorkspace.nowFocus?.id === item.id ? null : currentWorkspace.nowFocus,
+        };
+        setUnifiedItem('atomic-workspace-data-v1', nextWorkspace);
+        deleteTask(item.id);
+        window.dispatchEvent(new Event('storage'));
+        refreshTasks();
+        refreshWorkspace();
+      }
+    } else {
+      deleteTask(item.id);
+      refreshTasks();
+    }
     setTaskToDelete(null);
-  }, [refreshTasks]);
+  }, [refreshTasks, refreshWorkspace]);
 
-  const prepareDeleteTask = useCallback((task: TimerTask, e: React.MouseEvent) => {
+  const prepareDeleteTask = useCallback((item: SwitcherItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    setTaskToDelete(task);
+    setTaskToDelete(item);
   }, []);
 
   return (
@@ -457,45 +642,70 @@ export default function TimerPage() {
 
             <div className="flex-1 overflow-y-auto px-1 pb-3">
               <div className="grid grid-cols-2 border-l border-t border-zinc-700/40">
-                {recentTasks.map((task) => {
-                  const hasInstanceTag = !!(task.instanceTag && task.instanceTag.trim() !== '');
+                {switcherList.map((item) => {
+                  const isNext = item.source === 'workspace-next';
+                  const isPool = item.source === 'workspace-pool';
+                  const hasTag = !!(item.instanceTag && item.instanceTag.trim() !== '');
+
                   return (
                     <div
-                      key={task.id}
-                      className={`relative transition-colors group border-r border-b border-zinc-700/40
-                        ${hasInstanceTag
+                      key={item.id}
+                      className={`relative transition-colors group border-r border-b border-zinc-700/40 ${
+                        isNext
+                          ? 'bg-[#241738]/90 hover:bg-[#341e54]'
+                          : isPool
+                          ? 'bg-[#181822]/90 hover:bg-[#252536]'
+                          : hasTag
                           ? 'bg-[#2a1d10] hover:bg-[#332414]'
                           : 'bg-zinc-800/60 hover:bg-zinc-700/60'
-                        }`}
+                      }`}
                       data-drag="false"
                     >
                       <div className="w-full flex items-stretch h-7">
                         <div
-                          onClick={() => startTimer(task.id)}
+                          onClick={() => handleSwitchToItem(item)}
                           className="shrink-0 w-7 flex items-center justify-center cursor-pointer group/play hover:bg-emerald-500/20 transition-colors"
-                          title="开始计时"
+                          title="切换并开始计时"
                         >
                           <Play
                             size={9}
-                            className={`transition-colors ${hasInstanceTag ? 'text-amber-500 group-hover/play:text-amber-400' : 'text-zinc-500 group-hover/play:text-zinc-300'}`}
+                            className={`transition-colors ${
+                              isNext
+                                ? 'text-purple-400 group-hover/play:text-purple-300'
+                                : isPool
+                                ? 'text-zinc-400 group-hover/play:text-emerald-400'
+                                : hasTag
+                                ? 'text-amber-500 group-hover/play:text-amber-400'
+                                : 'text-zinc-500 group-hover/play:text-zinc-300'
+                            }`}
                             fill="currentColor"
                           />
                         </div>
                         <div
-                          onClick={() => handleCategoryClick(task)}
-                          onContextMenu={(e) => handleContextMenu(task, e)}
+                          onClick={() => handleSwitchToItem(item)}
                           className={`flex-1 min-w-0 pr-2 flex items-center cursor-pointer transition-all ${isBlurred ? 'blur-sm' : ''}`}
-                          title={`${task.categoryPath}${hasInstanceTag ? ` #${task.instanceTag}` : ''}\n左键分类统计 / 右键自定义统计`}
+                          title={`点击一键切换为当前专注\n[${item.categoryPath}] ${item.name}${hasTag ? ` #${item.instanceTag}` : ''}`}
                         >
-                          <span className={`text-[11px] truncate leading-none ${hasInstanceTag ? 'text-amber-100' : 'text-zinc-200'}`}>
-                            {removeEmojis(task.name)}
+                          <span className={`text-[11px] truncate leading-none ${
+                            isNext
+                              ? 'text-purple-200 font-medium'
+                              : isPool
+                              ? 'text-zinc-200'
+                              : hasTag
+                              ? 'text-amber-100'
+                              : 'text-zinc-200'
+                          }`}>
+                            {removeEmojis(item.name)}
                           </span>
                         </div>
                       </div>
                       <button
-                        onClick={(e) => prepareDeleteTask(task, e)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTaskToDelete(item);
+                        }}
                         className="absolute top-1 right-1 w-5 h-5 rounded flex items-center justify-center bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-all z-10"
-                        title="删除任务"
+                        title="删除待办"
                         data-drag="false"
                       >
                         <Trash2 size={10} />
@@ -504,8 +714,8 @@ export default function TimerPage() {
                   );
                 })}
               </div>
-              {recentTasks.length === 0 && !activeTask && (
-                <div className="text-center text-zinc-600 text-sm py-4">暂无任务</div>
+              {switcherList.length === 0 && !activeTask && (
+                <div className="text-center text-zinc-600 text-sm py-4">暂无待办</div>
               )}
             </div>
           </>
@@ -530,13 +740,13 @@ export default function TimerPage() {
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0"><Trash2 size={20} className="text-red-400" /></div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-white mb-1">删除任务</h3>
+                <h3 className="text-lg font-bold text-white mb-1">删除待办</h3>
                 <p className="text-sm text-zinc-400">确定要删除 <span className="text-white font-medium">"{taskToDelete.name}"</span> 吗？</p>
               </div>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setTaskToDelete(null)} className="flex-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors">取消</button>
-              <button onClick={() => handleDeleteConfirm(taskToDelete.id)} className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors">确认删除</button>
+              <button onClick={() => handleDeleteConfirm(taskToDelete)} className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors">确认删除</button>
             </div>
           </div>
         </div>
