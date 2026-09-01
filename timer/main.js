@@ -61,6 +61,69 @@ if (app) {
   app.disableHardwareAcceleration();
 }
 
+// 自动检测并无缝继承/迁移历史版本数据 (保证 Link Station、历史任务 100% 完好)
+function migrateHistoricalUserData() {
+  try {
+    const userData = app.getPath('userData');
+    const roaming = process.env.APPDATA || '';
+    const candidateOldDirs = [
+      path.join(roaming, 'timer-widget'),
+      path.join(roaming, 'timer-widget-BACKUP-SAFE'),
+      path.join(roaming, 'timer-widget-integrated'),
+      path.join(roaming, 'timer-widget-electron'),
+    ];
+
+    if (!fs.existsSync(userData)) {
+      fs.mkdirSync(userData, { recursive: true });
+    }
+
+    // 1. 迁移 Link Station 数据
+    const targetLinkStation = path.join(userData, 'link-station-data.json');
+    const currentLinkStationSize = fs.existsSync(targetLinkStation) ? fs.statSync(targetLinkStation).size : 0;
+    if (currentLinkStationSize < 100) {
+      for (const oldDir of candidateOldDirs) {
+        const candidate = path.join(oldDir, 'link-station-data.json');
+        if (fs.existsSync(candidate) && fs.statSync(candidate).size > 100) {
+          fs.copyFileSync(candidate, targetLinkStation);
+          console.log('[Main] Auto-migrated link-station-data.json from', candidate);
+          break;
+        }
+      }
+    }
+
+    // 2. 迁移 timer-data.json
+    const targetTimerData = path.join(userData, 'timer-data.json');
+    if (!fs.existsSync(targetTimerData)) {
+      for (const oldDir of candidateOldDirs) {
+        const candidate = path.join(oldDir, 'timer-data.json');
+        if (fs.existsSync(candidate) && fs.statSync(candidate).size > 100) {
+          fs.copyFileSync(candidate, targetTimerData);
+          console.log('[Main] Auto-migrated timer-data.json from', candidate);
+          break;
+        }
+      }
+    }
+
+    // 3. 迁移 timer-window-state.json
+    const targetWindowState = path.join(userData, 'timer-window-state.json');
+    if (!fs.existsSync(targetWindowState)) {
+      for (const oldDir of candidateOldDirs) {
+        const candidate = path.join(oldDir, 'timer-window-state.json');
+        if (fs.existsSync(candidate)) {
+          fs.copyFileSync(candidate, targetWindowState);
+          break;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Main] migrateHistoricalUserData error:', err);
+  }
+}
+
+if (app) {
+  migrateHistoricalUserData();
+}
+
 // 统一物理存储管理器 (Unified Physical Storage Manager)
 const getUnifiedStoragePath = () => path.join(app.getPath('userData'), 'unified_storage.json');
 const getBackupsDir = () => path.join(app.getPath('userData'), 'backups');
@@ -845,8 +908,31 @@ ipcMain.on('open-external-link', async (event, url) => {
 ipcMain.handle('get-links-data', async () => {
   try {
     const dataPath = path.join(app.getPath('userData'), 'link-station-data.json');
-    if (!fs.existsSync(dataPath)) return null;
-    return JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+    if (fs.existsSync(dataPath)) {
+      const content = fs.readFileSync(dataPath, 'utf-8');
+      if (content.length > 100) {
+        return JSON.parse(content);
+      }
+    }
+    // 兜底检查旧数据目录
+    const roaming = process.env.APPDATA || '';
+    const oldCandidates = [
+      path.join(roaming, 'timer-widget', 'link-station-data.json'),
+      path.join(roaming, 'timer-widget-BACKUP-SAFE', 'link-station-data.json'),
+    ];
+    for (const oldP of oldCandidates) {
+      if (fs.existsSync(oldP)) {
+        const raw = fs.readFileSync(oldP, 'utf-8');
+        if (raw.length > 100) {
+          fs.writeFileSync(dataPath, raw, 'utf-8');
+          return JSON.parse(raw);
+        }
+      }
+    }
+    if (fs.existsSync(dataPath)) {
+      return JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+    }
+    return null;
   } catch (e) {
     console.error('Failed to read link station data', e);
     return null;
