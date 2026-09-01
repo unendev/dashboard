@@ -230,18 +230,50 @@ export default function TimerPage() {
   }, [refreshTasks, refreshWorkspace]);
 
   const activeTask = useMemo(() => {
-    const findActive = (list: TimerTask[]): TimerTask | null => {
+    // 1. 优先查找正在运行中的任务 (isRunning && !isPaused)
+    const findRunning = (list: TimerTask[]): TimerTask | null => {
       for (const task of list) {
-        if (task.isRunning) return task;
+        if (task.isRunning && !task.isPaused) return task;
         if (task.children) {
-          const found = findActive(task.children);
+          const found = findRunning(task.children);
           if (found) return found;
         }
       }
       return null;
     };
-    return findActive(tasks);
-  }, [tasks]);
+
+    const running = findRunning(tasks);
+    if (running) return running;
+
+    // 2. 匹配工作台「当前专注」(nowFocus)，哪怕暂停也保持挂载
+    if (workspaceData?.nowFocus) {
+      const nowTitle = (workspaceData.nowFocus.title || workspaceData.nowFocus.rawText || '').trim();
+      const matched = tasks.find(t => t.name.trim() === nowTitle);
+      if (matched) return matched;
+    }
+
+    // 3. 查找处于暂停状态的任务 (isPaused)
+    const findPaused = (list: TimerTask[]): TimerTask | null => {
+      for (const task of list) {
+        if (task.isPaused) return task;
+        if (task.children) {
+          const found = findPaused(task.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const paused = findPaused(tasks);
+    if (paused) return paused;
+
+    // 4. 若已有历史任务列表，保留第一个任务就绪展示，不卸载
+    if (tasks.length > 0) {
+      return tasks[0];
+    }
+
+    return null;
+  }, [tasks, workspaceData?.nowFocus]);
 
   // 从工作台（接下来 + 任务池）以及已有任务中智能聚合待切任务流
   const switcherList = useMemo(() => {
@@ -567,42 +599,65 @@ export default function TimerPage() {
           <>
             <div className="shrink-0 p-3 pb-2 flex items-center gap-3" data-drag="true">
               {activeTask ? (
-                <>
-                  <div
-                    className="shrink-0 w-12 h-12 flex items-center justify-center"
-                    data-drag="false"
-                    title="拖拽此圆形区域移动窗口"
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); activeTask.isPaused ? startTimer(activeTask.id) : pauseTimer(activeTask.id); }}
-                      onContextMenu={handleBackup}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${activeTask.isPaused ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}
-                      title={activeTask.isPaused ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
-                      data-drag="false"
-                    >
-                      {activeTask.isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
-                    </button>
-                  </div>
-                  <div
-                    className={`flex-1 min-w-0 cursor-pointer transition-all ${activeTask.isPaused ? 'text-yellow-400' : 'text-emerald-400'}`}
-                    data-drag="true"
-                    {...doubleTapCreate}
-                    title="拖拽此区域移动窗口"
-                  >
-                    <div
-                      onClick={() => setIsBlurred(!isBlurred)}
-                      data-drag="false"
-                      title="单击模糊 / 双击新建"
-                    >
-                      <div className={`font-mono text-2xl font-bold transition-all ${isBlurred ? 'blur-md' : ''}`}>
-                        {formatTime(displayTime)}
+                (() => {
+                  const isRunning = Boolean(activeTask.isRunning && !activeTask.isPaused);
+                  return (
+                    <>
+                      <div
+                        className="shrink-0 w-12 h-12 flex items-center justify-center"
+                        data-drag="false"
+                        title="拖拽此圆形区域移动窗口"
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isRunning) {
+                              pauseTimer(activeTask.id);
+                            } else {
+                              startTimer(activeTask.id);
+                            }
+                          }}
+                          onContextMenu={handleBackup}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                            !isRunning
+                              ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400'
+                              : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'
+                          }`}
+                          title={!isRunning ? "开始 (右键备份数据)" : "暂停 (右键备份数据)"}
+                          data-drag="false"
+                        >
+                          {!isRunning ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                        </button>
                       </div>
-                      <div className={`text-xs truncate ${activeTask.isPaused ? 'text-yellow-300/70' : 'text-emerald-300/70'}`} title={activeTask.categoryPath}>
-                        {displayTaskName}
+                      <div
+                        className={`flex-1 min-w-0 cursor-pointer transition-all ${
+                          !isRunning ? 'text-yellow-400' : 'text-emerald-400'
+                        }`}
+                        data-drag="true"
+                        {...doubleTapCreate}
+                        title="拖拽此区域移动窗口"
+                      >
+                        <div
+                          onClick={() => setIsBlurred(!isBlurred)}
+                          data-drag="false"
+                          title="单击模糊 / 双击新建"
+                        >
+                          <div className={`font-mono text-2xl font-bold transition-all ${isBlurred ? 'blur-md' : ''}`}>
+                            {formatTime(displayTime)}
+                          </div>
+                          <div
+                            className={`text-xs truncate ${
+                              !isRunning ? 'text-yellow-300/70' : 'text-emerald-300/70'
+                            }`}
+                            title={activeTask.categoryPath}
+                          >
+                            {displayTaskName}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </>
+                    </>
+                  );
+                })()
               ) : (
                 <>
                   <div
