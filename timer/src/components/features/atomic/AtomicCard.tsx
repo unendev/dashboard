@@ -40,20 +40,20 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
     <div
       draggable={!item.completed}
       onDragStart={handleDragStart}
-      className={`group relative flex flex-col gap-2 p-3 rounded-lg border transition-all select-none cursor-grab active:cursor-grabbing
-        ${item.completed
+      className={`group relative p-2.5 rounded-xl border transition-all select-none cursor-grab active:cursor-grabbing ${
+        item.completed
           ? 'bg-[#141416]/60 border-zinc-800/60 opacity-60 cursor-default'
           : isNowFocus
-            ? 'bg-[#1c1a24] border-purple-500/40 shadow-lg shadow-purple-950/20'
-            : 'bg-[#18181b] border-zinc-800 hover:border-zinc-600 hover:bg-[#202024]'
-        }`}
+          ? 'bg-[#1c1a24] border-purple-500/50 shadow-lg shadow-purple-950/20'
+          : 'bg-[#18181d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#1f1f26]'
+      }`}
     >
       <div className="flex items-start gap-2.5">
         {/* 拖拽把手图标 */}
         {!item.completed && (
           <div
             className="shrink-0 mt-0.5 text-zinc-600 group-hover:text-zinc-400 p-0.5 -ml-1 rounded transition-colors"
-            title="按住可拖拽到右侧专注或排队"
+            title="按住可拖拽移动"
           >
             <GripVertical size={13} />
           </div>
@@ -62,68 +62,80 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
         {/* 完成复选框 */}
         {onToggleComplete && (
           <button
+            type="button"
+            draggable={false}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => onToggleComplete(item.id)}
-            className={`shrink-0 mt-0.5 w-4 h-4 rounded flex items-center justify-center border transition-colors
-              ${item.completed
+            className={`shrink-0 mt-0.5 w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+              item.completed
                 ? 'bg-purple-600 border-purple-500 text-white'
                 : 'border-zinc-600 hover:border-purple-400 bg-zinc-800/80 text-transparent hover:text-zinc-400'
-              }`}
+            }`}
             title={item.completed ? '标记为未完成' : '标记为已完成'}
           >
             <Check size={11} strokeWidth={3} />
           </button>
         )}
 
-        {/* 标题内容 */}
-        <div className="flex-1 min-w-0">
+        {/* 标题内容：全宽展示，绝不提前狭窄换行 */}
+        <div className="flex-1 min-w-0 pr-1">
           <p
-            className={`text-xs font-medium leading-relaxed break-words
-              ${item.completed ? 'line-through text-zinc-500' : 'text-zinc-200'}`}
+            className={`text-xs font-normal leading-relaxed break-words ${
+              item.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
+            }`}
           >
             {item.title}
           </p>
 
-          {/* 胶囊标签栏 (Obsidian 双链、估时、Tag) */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            {/* Obsidian 双向链接胶囊 */}
-            {item.obsidianLinks.map((link, idx) => (
-              <button
-                key={idx}
-                onClick={(e) => handleObsidianClick(e, link)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950/60 border border-purple-500/40 text-purple-300 hover:bg-purple-900/80 hover:border-purple-400 hover:text-white transition-all shadow-sm group/link"
-                title={`点击打开 Obsidian 笔记: ${link}`}
-              >
-                <span>[[{link}]]</span>
-                <ExternalLink size={9} className="opacity-70 group-hover/link:opacity-100" />
-              </button>
-            ))}
+          {/* 胶囊标签栏 (Obsidian 双链、估时、Tag) - 仅在有内容时渲染 */}
+          {(item.obsidianLinks.length > 0 || item.estimateMinutes || item.tags.length > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {/* Obsidian 双向链接胶囊 */}
+              {item.obsidianLinks.map((link, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => handleObsidianClick(e, link)}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950/60 border border-purple-500/40 text-purple-300 hover:bg-purple-900/80 hover:border-purple-400 hover:text-white transition-all shadow-sm group/link"
+                  title={`点击打开 Obsidian 笔记: ${link}`}
+                >
+                  <span>[[{link}]]</span>
+                  <ExternalLink size={9} className="opacity-70 group-hover/link:opacity-100" />
+                </button>
+              ))}
 
-            {/* 估时胶囊 */}
-            {item.estimateMinutes && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-zinc-800/80 border border-zinc-700/60 text-amber-400 font-mono">
-                <Clock size={9} />
-                <span>{item.estimateMinutes}m</span>
-              </span>
-            )}
+              {/* 估时胶囊 */}
+              {item.estimateMinutes && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-zinc-800/80 border border-zinc-700/60 text-amber-400 font-mono">
+                  <Clock size={9} />
+                  <span>{item.estimateMinutes}m</span>
+                </span>
+              )}
 
-            {/* 标签胶囊 */}
-            {item.tags.map((tag, idx) => (
-              <span
-                key={idx}
-                className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700/50 text-zinc-400"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
+              {/* 标签胶囊 */}
+              {item.tags.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700/50 text-zinc-400"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* 悬停快捷动作条 */}
-        <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* 悬停快捷动作条：绝对定位浮动在右上角，带柔和微暗色背板，不挤占正文排版空间 */}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 p-0.5 rounded-lg bg-[#141419]/95 backdrop-blur-md border border-zinc-700/80 opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-black/50 pointer-events-none group-hover:pointer-events-auto">
           {onMoveToNow && !isNowFocus && !item.completed && (
             <button
+              type="button"
+              draggable={false}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={() => onMoveToNow(item.id)}
-              className="p-1 rounded text-zinc-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
               title="设为当前"
             >
               <Flame size={12} />
@@ -132,8 +144,11 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
 
           {onMoveToNext && !item.completed && (
             <button
+              type="button"
+              draggable={false}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={() => onMoveToNext(item.id)}
-              className="p-1 rounded text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
               title="排入接下来"
             >
               <ListOrdered size={12} />
@@ -142,18 +157,24 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
 
           {onMoveToPool && (
             <button
+              type="button"
+              draggable={false}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={() => onMoveToPool(item.id)}
-              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
               title="退回任务池"
             >
-              <span className="text-[10px]">池</span>
+              <span className="text-[10px] font-medium px-0.5">池</span>
             </button>
           )}
 
           {onDelete && (
             <button
+              type="button"
+              draggable={false}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={() => onDelete(item.id)}
-              className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
               title="删除"
             >
               <Trash2 size={12} />
