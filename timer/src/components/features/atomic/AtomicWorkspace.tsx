@@ -22,6 +22,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
     selectedTag,
     setSelectedTag,
     addAtomicItem,
+    updateItem,
     deleteItem,
     toggleComplete,
     restoreCompletedItem,
@@ -48,13 +49,13 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
   // 全局键盘监听: Esc 关闭窗口
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isVaultModalOpen) {
+      if (e.key === 'Escape' && !isVaultModalOpen && !isCompletedModalOpen) {
         handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVaultModalOpen]);
+  }, [isVaultModalOpen, isCompletedModalOpen]);
 
   // 当点击开始专注计时后，触发 Timer 并可优雅收起
   const handleStartTimerAndMinimize = () => {
@@ -65,50 +66,52 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
     }, 200);
   };
 
-  const totalActive = pool.filter(i => !i.completed).length + (nowFocus && !nowFocus.completed ? 1 : 0) + nextQueue.filter(i => !i.completed).length;
-
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0d0d10] text-zinc-200 font-sans overflow-hidden select-none border border-zinc-800/80">
-      {/* 1. 顶部标题拖拽栏 */}
-      <div
-        className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-[#141418] shrink-0"
-        data-drag="true"
-      >
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="flex flex-col h-screen w-screen bg-[#111113] text-zinc-200 select-none overflow-hidden font-sans border border-zinc-800/80 rounded-xl shadow-2xl">
+      {/* 1. 顶部标题栏 + 快捷工具 */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#18181c] border-b border-zinc-800/80 shrink-0">
+        <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-500/50" />
-          <h2 className="text-xs font-bold tracking-wide text-zinc-100 flex items-center gap-1.5">
-            <span>工作台</span>
-            <span className="text-[10px] font-normal text-zinc-500 font-mono">
-              (待办 {totalActive})
-            </span>
+          <h2 className="text-xs font-bold tracking-wider text-zinc-100 uppercase">
+            工作台
           </h2>
+          <span className="text-[11px] text-zinc-500 font-medium">
+            (待办 {pool.length + (nowFocus ? 1 : 0) + nextQueue.length})
+          </span>
         </div>
 
-        {/* 顶部右侧功能按钮 */}
-        <div className="flex items-center gap-1" data-drag="false">
+        <div className="flex items-center gap-1.5">
+          {/* Obsidian Vault 绑定按钮 */}
           <button
             onClick={() => setIsVaultModalOpen(true)}
-            className="p-1 rounded text-zinc-400 hover:text-purple-300 hover:bg-zinc-800 transition-colors"
-            title={`Obsidian Vault: ${obsidianVault || '默认'} (点击配置)`}
+            className="p-1 rounded-lg text-zinc-400 hover:text-purple-300 hover:bg-purple-950/40 border border-transparent hover:border-purple-500/30 transition-all text-[11px] flex items-center gap-1"
+            title="绑定 Obsidian 笔记库"
           >
             <Settings size={13} />
           </button>
+
+          {/* 关闭窗口 */}
           <button
             onClick={handleClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="关闭窗口 (Esc)"
+            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            title="关闭 (Esc)"
           >
             <X size={13} />
           </button>
         </div>
       </div>
 
-      {/* 2. 顶部秒级快速捕捉输入条 (支持当前选中分类自动打标) */}
-      <AtomicQuickInput selectedTag={selectedTag} onAdd={addAtomicItem} />
+      {/* 2. 快速输入条 */}
+      <div className="p-3 pb-2 shrink-0">
+        <AtomicQuickInput
+          onAdd={addAtomicItem}
+          selectedTag={selectedTag}
+        />
+      </div>
 
-      {/* 3. 中间核心：左右分屏极速工作台 */}
-      <div className="flex-1 grid grid-cols-12 min-h-0 overflow-hidden">
-        {/* 左侧 45%：闪念与原子池 */}
+      {/* 3. 主双栏工作区 */}
+      <div className="flex-1 grid grid-cols-12 gap-3 px-3 pb-2 overflow-hidden min-h-0">
+        {/* 左侧 45%：任务池 */}
         <div className="col-span-5 h-full overflow-hidden">
           <AtomicPoolPanel
             items={pool}
@@ -118,6 +121,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
             onSelectTag={setSelectedTag}
             onToggleComplete={toggleComplete}
             onDelete={deleteItem}
+            onUpdate={updateItem}
             onMoveToNow={moveToNow}
             onMoveToNext={moveToNext}
             onMoveToPool={moveToPool}
@@ -132,6 +136,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
             obsidianVault={obsidianVault}
             onToggleComplete={toggleComplete}
             onDelete={deleteItem}
+            onUpdate={updateItem}
             onMoveToNow={moveToNow}
             onMoveToNext={moveToNext}
             onMoveToPool={moveToPool}

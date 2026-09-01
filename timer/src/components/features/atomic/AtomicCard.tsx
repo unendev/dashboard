@@ -1,5 +1,5 @@
-import React from 'react';
-import { GripVertical, Check, Trash2, Flame, ListOrdered, ExternalLink, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, Trash2, Flame, ListOrdered, ExternalLink, Clock } from 'lucide-react';
 import { AtomicItem } from '../../../types/atomic';
 import { openObsidianLink } from '../../../lib/atomic-parser';
 
@@ -9,6 +9,7 @@ interface AtomicCardProps {
   isNowFocus?: boolean;
   onToggleComplete?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, newText: string) => void;
   onMoveToNow?: (id: string) => void;
   onMoveToNext?: (id: string) => void;
   onMoveToPool?: (id: string) => void;
@@ -21,51 +22,76 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
   isNowFocus = false,
   onToggleComplete,
   onDelete,
+  onUpdate,
   onMoveToNow,
   onMoveToNext,
   onMoveToPool,
-  dragHandleProps,
 }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(item.rawText || item.title);
+
+  useEffect(() => {
+    setEditValue(item.rawText || item.title);
+  }, [item.rawText, item.title]);
+
+  const handleSave = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== (item.rawText || item.title)) {
+      onUpdate?.(item.id, trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditValue(item.rawText || item.title);
+      setIsEditing(false);
+    }
+  };
+
   const handleObsidianClick = (e: React.MouseEvent, link: string) => {
     e.stopPropagation();
     openObsidianLink(link, obsidianVault);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    if (isEditing) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData('text/plain', item.id);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   return (
     <div
-      draggable={!item.completed}
+      draggable={!item.completed && !isEditing}
       onDragStart={handleDragStart}
-      className={`group relative p-2.5 rounded-xl border transition-all select-none cursor-grab active:cursor-grabbing ${
-        item.completed
+      className={`group relative p-2.5 rounded-xl border transition-all select-none ${
+        isEditing
+          ? 'ring-1 ring-purple-500 bg-[#1e1c26] border-purple-500/80 cursor-default'
+          : item.completed
           ? 'bg-[#141416]/60 border-zinc-800/60 opacity-60 cursor-default'
           : isNowFocus
-          ? 'bg-[#1c1a24] border-purple-500/50 shadow-lg shadow-purple-950/20'
-          : 'bg-[#18181d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#1f1f26]'
+          ? 'bg-[#1c1a24] border-purple-500/50 shadow-lg shadow-purple-950/20 cursor-grab active:cursor-grabbing'
+          : 'bg-[#18181d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#1f1f26] cursor-grab active:cursor-grabbing'
       }`}
     >
-      <div className="flex items-start gap-2.5">
-        {/* 拖拽把手图标 */}
-        {!item.completed && (
-          <div
-            className="shrink-0 mt-0.5 text-zinc-600 group-hover:text-zinc-400 p-0.5 -ml-1 rounded transition-colors"
-            title="按住可拖拽移动"
-          >
-            <GripVertical size={13} />
-          </div>
-        )}
-
+      <div className="flex items-start gap-2">
         {/* 完成复选框 */}
         {onToggleComplete && (
           <button
             type="button"
             draggable={false}
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => onToggleComplete(item.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleComplete(item.id);
+            }}
             className={`shrink-0 mt-0.5 w-4 h-4 rounded flex items-center justify-center border transition-colors ${
               item.completed
                 ? 'bg-purple-600 border-purple-500 text-white'
@@ -77,18 +103,40 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
           </button>
         )}
 
-        {/* 标题内容：全宽展示，绝不提前狭窄换行 */}
+        {/* 标题内容区：支持点击内联编辑 */}
         <div className="flex-1 min-w-0 pr-1">
-          <p
-            className={`text-xs font-normal leading-relaxed break-words ${
-              item.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
-            }`}
-          >
-            {item.title}
-          </p>
+          {isEditing ? (
+            <input
+              type="text"
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full bg-[#121216] text-xs text-white px-2 py-1 rounded border border-purple-500 outline-none shadow-inner"
+              placeholder="修改待办内容 (支持 #标签 [[Obsidian]] ~25m)..."
+            />
+          ) : (
+            <p
+              onClick={(e) => {
+                if (!item.completed) {
+                  e.stopPropagation();
+                  setIsEditing(true);
+                }
+              }}
+              className={`text-xs font-normal leading-relaxed break-words cursor-text hover:text-white transition-colors ${
+                item.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
+              }`}
+              title="点击编辑待办文字"
+            >
+              {item.title}
+            </p>
+          )}
 
-          {/* 胶囊标签栏 (Obsidian 双链、估时、Tag) - 仅在有内容时渲染 */}
-          {(item.obsidianLinks.length > 0 || item.estimateMinutes || item.tags.length > 0) && (
+          {/* 胶囊标签栏 (Obsidian 双链、估时、Tag) - 仅在非编辑态且有内容时渲染 */}
+          {!isEditing && (item.obsidianLinks.length > 0 || item.estimateMinutes || item.tags.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {/* Obsidian 双向链接胶囊 */}
               {item.obsidianLinks.map((link, idx) => (
@@ -127,60 +175,62 @@ export const AtomicCard: React.FC<AtomicCardProps> = ({
           )}
         </div>
 
-        {/* 悬停快捷动作条：绝对定位浮动在右上角，带柔和微暗色背板，不挤占正文排版空间 */}
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 p-0.5 rounded-lg bg-[#141419]/95 backdrop-blur-md border border-zinc-700/80 opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-black/50 pointer-events-none group-hover:pointer-events-auto">
-          {onMoveToNow && !isNowFocus && !item.completed && (
-            <button
-              type="button"
-              draggable={false}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => onMoveToNow(item.id)}
-              className="p-1 rounded text-zinc-400 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
-              title="设为当前"
-            >
-              <Flame size={12} />
-            </button>
-          )}
+        {/* 悬停快捷动作条：绝对定位浮动在右上角 */}
+        {!isEditing && (
+          <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 p-0.5 rounded-lg bg-[#141419]/95 backdrop-blur-md border border-zinc-700/80 opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-black/50 pointer-events-none group-hover:pointer-events-auto">
+            {onMoveToNow && !isNowFocus && !item.completed && (
+              <button
+                type="button"
+                draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onMoveToNow(item.id)}
+                className="p-1 rounded text-zinc-400 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+                title="设为当前"
+              >
+                <Flame size={12} />
+              </button>
+            )}
 
-          {onMoveToNext && !item.completed && (
-            <button
-              type="button"
-              draggable={false}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => onMoveToNext(item.id)}
-              className="p-1 rounded text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
-              title="排入接下来"
-            >
-              <ListOrdered size={12} />
-            </button>
-          )}
+            {onMoveToNext && !item.completed && (
+              <button
+                type="button"
+                draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onMoveToNext(item.id)}
+                className="p-1 rounded text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+                title="排入接下来"
+              >
+                <ListOrdered size={12} />
+              </button>
+            )}
 
-          {onMoveToPool && (
-            <button
-              type="button"
-              draggable={false}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => onMoveToPool(item.id)}
-              className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
-              title="退回任务池"
-            >
-              <span className="text-[10px] font-medium px-0.5">池</span>
-            </button>
-          )}
+            {onMoveToPool && (
+              <button
+                type="button"
+                draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onMoveToPool(item.id)}
+                className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                title="退回任务池"
+              >
+                <span className="text-[10px] font-medium px-0.5">池</span>
+              </button>
+            )}
 
-          {onDelete && (
-            <button
-              type="button"
-              draggable={false}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => onDelete(item.id)}
-              className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              title="删除"
-            >
-              <Trash2 size={12} />
-            </button>
-          )}
-        </div>
+            {onDelete && (
+              <button
+                type="button"
+                draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onDelete(item.id)}
+                className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="删除"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -190,7 +190,37 @@ export function useAtomicWorkspace() {
     });
   }, [persistData]);
 
-  // 3. 切换完成状态（打勾后自动归入已完成归档，若为当前项则自动推进下一项）
+  // 3. 更新原子项文本 (支持编辑后重新解析 #标签 [[双链]] ~估时)
+  const updateItem = useCallback((id: string, newRawText: string) => {
+    const parsed = parseAtomicInput(newRawText.trim());
+    if (!parsed.title && !parsed.rawText) return;
+
+    setData(prev => {
+      const updateFn = (item: AtomicItem): AtomicItem => {
+        if (item.id !== id) return item;
+        return {
+          ...item,
+          rawText: parsed.rawText,
+          title: parsed.title,
+          tags: parsed.tags,
+          obsidianLinks: parsed.obsidianLinks,
+          estimateMinutes: parsed.estimateMinutes,
+        };
+      };
+
+      const nextData: AtomicWorkspaceData = {
+        ...prev,
+        pool: prev.pool.map(updateFn),
+        nowFocus: prev.nowFocus && prev.nowFocus.id === id ? updateFn(prev.nowFocus) : prev.nowFocus,
+        nextQueue: prev.nextQueue.map(updateFn),
+        completedArchive: (prev.completedArchive || []).map(updateFn),
+      };
+      persistData(nextData);
+      return nextData;
+    });
+  }, [persistData]);
+
+  // 4. 切换完成状态（打勾后自动归入已完成归档，若为当前项则自动推进下一项）
   const toggleComplete = useCallback((id: string) => {
     setData(prev => {
       const currentArchive = prev.completedArchive || [];
@@ -467,6 +497,7 @@ export function useAtomicWorkspace() {
     selectedTag,
     setSelectedTag,
     addAtomicItem,
+    updateItem,
     deleteItem,
     toggleComplete,
     restoreCompletedItem,

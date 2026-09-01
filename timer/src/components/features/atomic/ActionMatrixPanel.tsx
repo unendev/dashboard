@@ -10,6 +10,7 @@ interface ActionMatrixPanelProps {
   obsidianVault?: string;
   onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdate?: (id: string, newText: string) => void;
   onMoveToNow: (id: string) => void;
   onMoveToNext?: (id: string) => void;
   onMoveToPool: (id: string) => void;
@@ -23,6 +24,7 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
   obsidianVault,
   onToggleComplete,
   onDelete,
+  onUpdate,
   onMoveToNow,
   onMoveToNext,
   onMoveToPool,
@@ -31,6 +33,34 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
 }) => {
   const [isNowDragOver, setIsNowDragOver] = React.useState(false);
   const [isNextDragOver, setIsNextDragOver] = React.useState(false);
+
+  const [isEditingNow, setIsEditingNow] = React.useState(false);
+  const [editNowValue, setEditNowValue] = React.useState(nowFocus?.rawText || nowFocus?.title || '');
+
+  React.useEffect(() => {
+    setEditNowValue(nowFocus?.rawText || nowFocus?.title || '');
+    setIsEditingNow(false);
+  }, [nowFocus?.id, nowFocus?.rawText, nowFocus?.title]);
+
+  const handleSaveNow = () => {
+    if (!nowFocus) return;
+    const trimmed = editNowValue.trim();
+    if (trimmed && trimmed !== (nowFocus.rawText || nowFocus.title)) {
+      onUpdate?.(nowFocus.id, trimmed);
+    }
+    setIsEditingNow(false);
+  };
+
+  const handleNowKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveNow();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditNowValue(nowFocus?.rawText || nowFocus?.title || '');
+      setIsEditingNow(false);
+    }
+  };
 
   const handleNowDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -72,29 +102,53 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
 
           {nowFocus ? (
             <div
-              draggable={!nowFocus.completed}
+              draggable={!nowFocus.completed && !isEditingNow}
               onDragStart={(e) => {
+                if (isEditingNow) {
+                  e.preventDefault();
+                  return;
+                }
                 e.dataTransfer.setData('text/plain', nowFocus.id);
                 e.dataTransfer.effectAllowed = 'move';
               }}
-              className="relative p-3.5 rounded-xl bg-gradient-to-br from-[#241a22] to-[#1c1926] border border-purple-500/50 shadow-xl shadow-purple-950/30 flex flex-col gap-3 cursor-grab active:cursor-grabbing hover:border-purple-400 transition-all"
+              className={`relative p-3.5 rounded-xl bg-gradient-to-br from-[#241a22] to-[#1c1926] border border-purple-500/50 shadow-xl shadow-purple-950/30 flex flex-col gap-3 transition-all ${
+                isEditingNow ? 'cursor-default ring-1 ring-purple-500' : 'cursor-grab active:cursor-grabbing hover:border-purple-400'
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
-                  <div
-                    className="shrink-0 mt-0.5 text-zinc-500 hover:text-zinc-300 p-0.5 -ml-1 rounded transition-colors"
-                    title="按住可将当前任务拖回左侧任务池或下方接下来队列"
-                  >
-                    <GripVertical size={14} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className={`text-sm font-semibold leading-snug break-words transition-all ${
-                      nowFocus.completed ? 'line-through text-zinc-500 opacity-60' : 'text-white'
-                    }`}>
+                <div className="flex-1 min-w-0">
+                  {isEditingNow ? (
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editNowValue}
+                      onChange={(e) => setEditNowValue(e.target.value)}
+                      onBlur={handleSaveNow}
+                      onKeyDown={handleNowKeyDown}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="w-full bg-[#121216] text-sm text-white font-semibold px-2 py-1 rounded border border-purple-500 outline-none shadow-inner"
+                      placeholder="修改当前专注待办 (支持 #标签 [[Obsidian]] ~25m)..."
+                    />
+                  ) : (
+                    <h4
+                      onClick={(e) => {
+                        if (!nowFocus.completed) {
+                          e.stopPropagation();
+                          setIsEditingNow(true);
+                        }
+                      }}
+                      className={`text-sm font-semibold leading-snug break-words transition-all cursor-text hover:text-purple-200 ${
+                        nowFocus.completed ? 'line-through text-zinc-500 opacity-60' : 'text-white'
+                      }`}
+                      title="点击编辑待办文字"
+                    >
                       {nowFocus.title}
                     </h4>
+                  )}
 
-                    {/* 胶囊标签栏 */}
+                  {/* 胶囊标签栏 */}
+                  {!isEditingNow && (
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {nowFocus.obsidianLinks && nowFocus.obsidianLinks.map((link, idx) => (
                         <button
@@ -126,7 +180,7 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
                         </span>
                       ))}
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* 完成打勾按钮 */}
@@ -233,6 +287,7 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
                     obsidianVault={obsidianVault}
                     onToggleComplete={onToggleComplete}
                     onDelete={onDelete}
+                    onUpdate={onUpdate}
                     onMoveToNow={onMoveToNow}
                     onMoveToPool={onMoveToPool}
                   />

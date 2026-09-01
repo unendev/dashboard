@@ -14,6 +14,7 @@ interface AtomicPoolPanelProps {
   onMoveToNow: (id: string) => void;
   onMoveToNext: (id: string) => void;
   onMoveToPool?: (id: string) => void;
+  onUpdate?: (id: string, newText: string) => void;
 }
 
 export const AtomicPoolPanel: React.FC<AtomicPoolPanelProps> = ({
@@ -24,6 +25,7 @@ export const AtomicPoolPanel: React.FC<AtomicPoolPanelProps> = ({
   onSelectTag,
   onToggleComplete,
   onDelete,
+  onUpdate,
   onMoveToNow,
   onMoveToNext,
   onMoveToPool,
@@ -166,6 +168,7 @@ export const AtomicPoolPanel: React.FC<AtomicPoolPanelProps> = ({
             obsidianVault={obsidianVault}
             onToggleComplete={onToggleComplete}
             onDelete={onDelete}
+            onUpdate={onUpdate}
             onMoveToNow={onMoveToNow}
             onMoveToNext={onMoveToNext}
             onMoveToPool={onMoveToPool}
