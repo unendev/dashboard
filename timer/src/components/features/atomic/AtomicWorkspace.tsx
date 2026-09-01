@@ -69,9 +69,12 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#111113] text-zinc-200 select-none overflow-hidden font-sans border border-zinc-800/80 rounded-xl shadow-2xl">
-      {/* 1. 顶部标题栏 + 快捷工具 */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[#18181c] border-b border-zinc-800/80 shrink-0">
-        <div className="flex items-center gap-2">
+      {/* 1. 顶部标题栏 + 快捷工具 (支持全顶栏按住拖拽窗口) */}
+      <div
+        className="flex items-center justify-between px-3 py-2 bg-[#18181c] border-b border-zinc-800/80 shrink-0 cursor-move"
+        style={{ WebkitAppRegion: 'drag' } as any}
+      >
+        <div className="flex items-center gap-2 pointer-events-none select-none">
           <div className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-500/50" />
           <h2 className="text-xs font-bold tracking-wider text-zinc-100 uppercase">
             工作台
@@ -81,7 +84,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as any}>
           {/* Obsidian Vault 绑定按钮 */}
           <button
             onClick={() => setIsVaultModalOpen(true)}

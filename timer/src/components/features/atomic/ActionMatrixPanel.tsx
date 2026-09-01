@@ -246,18 +246,18 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
                 >
                   {timerRunningState?.isRunning ? (
                     <>
-                      <Pause size={13} fill="currentColor" />
-                      <span>正在专注 ({formatTimerSeconds(timerRunningState.elapsedSeconds)}) · 暂停</span>
+                      <Pause size={13} fill="currentColor" className="shrink-0" />
+                      <span className="font-mono font-bold text-xs tracking-wider">{formatTimerSeconds(timerRunningState.elapsedSeconds)}</span>
                     </>
                   ) : timerRunningState?.isPaused ? (
                     <>
-                      <Play size={13} fill="currentColor" />
-                      <span>继续专注 (已计 {formatTimerSeconds(timerRunningState.elapsedSeconds)})</span>
+                      <Play size={13} fill="currentColor" className="shrink-0" />
+                      <span className="font-mono font-bold text-xs tracking-wider">{formatTimerSeconds(timerRunningState.elapsedSeconds)}</span>
                     </>
                   ) : (
                     <>
-                      <Play size={13} fill="currentColor" />
-                      <span>{nowFocus.completed ? '该任务已完成' : '启动计时'}</span>
+                      <Play size={13} fill="currentColor" className="shrink-0" />
+                      <span className="font-mono font-bold text-xs tracking-wider">{nowFocus.completed ? '已完成' : '00:00'}</span>
                     </>
                   )}
                 </button>

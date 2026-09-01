@@ -408,6 +408,33 @@ export function useAtomicWorkspace() {
 
       if (!target) return prev;
 
+      // 如果移走的是当前 nowFocus：安全结算并暂停 Timer，保存用时
+      if (prev.nowFocus?.id === id) {
+        try {
+          const nowSec = Math.floor(Date.now() / 1000);
+          const nowISO = new Date().toISOString();
+          const targetTitle = (prev.nowFocus.title || prev.nowFocus.rawText || '').trim();
+          const currentTasks = getAllTasks();
+          const updated = currentTasks.map(t => {
+            if (t.name.trim() === targetTitle && t.isRunning && !t.isPaused) {
+              const sessionTime = t.startTime ? nowSec - t.startTime : 0;
+              return {
+                ...t,
+                isRunning: false,
+                isPaused: true,
+                elapsedTime: (t.elapsedTime || 0) + sessionTime,
+                startTime: null,
+                pausedTime: nowSec,
+                updatedAt: nowISO,
+              };
+            }
+            return t;
+          });
+          saveAllTasks(updated);
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
+      }
+
       const nextData: AtomicWorkspaceData = {
         ...prev,
         pool: prev.pool.filter(i => i.id !== id),
@@ -427,6 +454,33 @@ export function useAtomicWorkspace() {
         (prev.nowFocus?.id === id ? prev.nowFocus : undefined);
 
       if (!target) return prev;
+
+      // 如果移走的是当前 nowFocus：安全结算并暂停 Timer，保存用时
+      if (prev.nowFocus?.id === id) {
+        try {
+          const nowSec = Math.floor(Date.now() / 1000);
+          const nowISO = new Date().toISOString();
+          const targetTitle = (prev.nowFocus.title || prev.nowFocus.rawText || '').trim();
+          const currentTasks = getAllTasks();
+          const updated = currentTasks.map(t => {
+            if (t.name.trim() === targetTitle && t.isRunning && !t.isPaused) {
+              const sessionTime = t.startTime ? nowSec - t.startTime : 0;
+              return {
+                ...t,
+                isRunning: false,
+                isPaused: true,
+                elapsedTime: (t.elapsedTime || 0) + sessionTime,
+                startTime: null,
+                pausedTime: nowSec,
+                updatedAt: nowISO,
+              };
+            }
+            return t;
+          });
+          saveAllTasks(updated);
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
+      }
 
       const nextData: AtomicWorkspaceData = {
         ...prev,

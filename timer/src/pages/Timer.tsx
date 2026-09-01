@@ -147,14 +147,18 @@ export default function TimerPage() {
         const existingIndex = currentTasks.findIndex(t => t.name === taskData.name && !t.parentId);
 
         if (existingIndex > -1) {
-          // 已经存在该任务：复用并置顶启动，不再产生重复条目
+          // 已经存在该任务：复用并置顶启动，安全继承并累加历史已用时
           const existingTask = currentTasks[existingIndex];
+          const oldSessionTime = (existingTask.isRunning && !existingTask.isPaused && existingTask.startTime)
+            ? nowSec - existingTask.startTime
+            : 0;
           const remainingTasks = currentTasks.filter((t, i) => i !== existingIndex);
           const updatedExisting = {
             ...existingTask,
             isRunning: true,
             isPaused: false,
             startTime: nowSec,
+            elapsedTime: (existingTask.elapsedTime || 0) + oldSessionTime,
             updatedAt: new Date().toISOString(),
           };
           const nextList = [
