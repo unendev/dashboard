@@ -100,6 +100,9 @@ function cleanOrphanInstantTasks(currentTasks: TimerTask[]): TimerTask[] {
   workspaceData.pool?.forEach(item => {
     validWorkspaceTitles.add((item.title || item.rawText).trim());
   });
+  workspaceData.completedArchive?.forEach(item => {
+    validWorkspaceTitles.add((item.title || item.rawText).trim());
+  });
 
   const filtered = currentTasks.filter(t => {
     if (t.categoryPath === '即时待办') {
