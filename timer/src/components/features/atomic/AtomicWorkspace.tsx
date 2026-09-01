@@ -21,6 +21,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
     allTags,
     selectedTag,
     setSelectedTag,
+    timerRunningState,
     addAtomicItem,
     updateItem,
     deleteItem,
@@ -134,13 +135,14 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
             nowFocus={nowFocus}
             nextQueue={nextQueue}
             obsidianVault={obsidianVault}
+            timerRunningState={timerRunningState}
             onToggleComplete={toggleComplete}
             onDelete={deleteItem}
             onUpdate={updateItem}
             onMoveToNow={moveToNow}
             onMoveToNext={moveToNext}
             onMoveToPool={moveToPool}
-            onStartTimer={handleStartTimerAndMinimize}
+            onStartTimer={startTimerForNow}
             onClearCompleted={clearAllCompleted}
           />
         </div>

@@ -460,21 +460,118 @@ export function useAtomicWorkspace() {
     });
   }, [persistData]);
 
-  // 12. 联动启动 Timer
-  const startTimerForNow = useCallback(() => {
+  // 12. 实时监测与同步 Timer 挂件的真实计时状态
+  const [timerRunningState, setTimerRunningState] = useState<{
+    isRunning: boolean;
+    isPaused: boolean;
+    elapsedSeconds: number;
+  }>({
+    isRunning: false,
+    isPaused: false,
+    elapsedSeconds: 0,
+  });
+
+  const checkTimerState = useCallback(() => {
+    if (!data.nowFocus) {
+      setTimerRunningState({ isRunning: false, isPaused: false, elapsedSeconds: 0 });
+      return;
+    }
+    const targetTitle = (data.nowFocus.title || data.nowFocus.rawText || '').trim();
+    const tasks = getAllTasks();
+    const matchedTask = tasks.find(t => t.name.trim() === targetTitle && !t.parentId);
+
+    if (!matchedTask) {
+      setTimerRunningState({ isRunning: false, isPaused: false, elapsedSeconds: 0 });
+      return;
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const currentRunningTime = matchedTask.isRunning && !matchedTask.isPaused && matchedTask.startTime
+      ? nowSec - matchedTask.startTime
+      : 0;
+    const totalElapsed = (matchedTask.elapsedTime || 0) + currentRunningTime;
+
+    setTimerRunningState({
+      isRunning: !!(matchedTask.isRunning && !matchedTask.isPaused),
+      isPaused: !!matchedTask.isPaused,
+      elapsedSeconds: totalElapsed,
+    });
+  }, [data.nowFocus]);
+
+  useEffect(() => {
+    checkTimerState();
+    const timerId = setInterval(checkTimerState, 500);
+    const handleStorage = () => checkTimerState();
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      clearInterval(timerId);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [checkTimerState]);
+
+  // 13. 联动启动/暂停/继续 Timer
+  const toggleTimerForNow = useCallback(() => {
     if (!data.nowFocus) return;
-    const taskName = data.nowFocus.title || data.nowFocus.rawText;
+    const taskName = (data.nowFocus.title || data.nowFocus.rawText || '').trim();
     const tag = data.nowFocus.tags[0] || '即时待办';
     const initialSeconds = (data.nowFocus.estimateMinutes || 0) * 60;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const nowISO = new Date().toISOString();
 
-    if (window.electron) {
-      window.electron.send('start-task', {
-        name: taskName,
-        categoryPath: '即时待办',
-        instanceTagNames: [tag],
-        initialTime: initialSeconds,
-        autoStart: true,
-      });
+    const tasks = getAllTasks();
+    const existingIndex = tasks.findIndex(t => t.name.trim() === taskName && !t.parentId);
+
+    if (existingIndex > -1) {
+      const task = tasks[existingIndex];
+      if (task.isRunning && !task.isPaused) {
+        // 当前正在跑：暂停它！
+        const runningTime = task.startTime ? nowSec - task.startTime : 0;
+        const updated = tasks.map((t, i) =>
+          i === existingIndex
+            ? {
+                ...t,
+                isRunning: false,
+                isPaused: true,
+                elapsedTime: (t.elapsedTime || 0) + runningTime,
+                startTime: null,
+                pausedTime: nowSec,
+                updatedAt: nowISO,
+              }
+            : t
+        );
+        saveAllTasks(updated);
+        window.dispatchEvent(new Event('storage'));
+      } else {
+        // 当前暂停或未跑：启动/继续它！
+        const updated = tasks.map((t, i) => {
+          if (i === existingIndex) {
+            return {
+              ...t,
+              isRunning: true,
+              isPaused: false,
+              startTime: nowSec,
+              updatedAt: nowISO,
+            };
+          }
+          // 暂停其他
+          return t.isRunning && !t.isPaused
+            ? { ...t, isRunning: false, isPaused: true, pausedTime: nowSec, updatedAt: nowISO }
+            : t;
+        });
+        saveAllTasks(updated);
+        window.dispatchEvent(new Event('storage'));
+      }
+    } else {
+      // 发送 IPC 启动
+      if (window.electron) {
+        window.electron.send('start-task', {
+          name: taskName,
+          categoryPath: '即时待办',
+          instanceTagNames: [tag],
+          initialTime: initialSeconds,
+          autoStart: true,
+        });
+      }
     }
   }, [data.nowFocus]);
 
@@ -496,6 +593,7 @@ export function useAtomicWorkspace() {
     allTags,
     selectedTag,
     setSelectedTag,
+    timerRunningState,
     addAtomicItem,
     updateItem,
     deleteItem,
@@ -508,6 +606,6 @@ export function useAtomicWorkspace() {
     moveToPool,
     reorderNextQueue,
     setObsidianVault,
-    startTimerForNow,
+    startTimerForNow: toggleTimerForNow,
   };
 }

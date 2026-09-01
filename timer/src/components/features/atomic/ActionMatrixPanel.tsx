@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, ListOrdered, Play, CheckCircle2, Trash2, ArrowUpCircle, ExternalLink, Sparkles, GripVertical } from 'lucide-react';
+import { Flame, ListOrdered, Play, Pause, CheckCircle2, Trash2, ArrowUpCircle, ExternalLink, Sparkles } from 'lucide-react';
 import { AtomicItem } from '../../../types/atomic';
 import { AtomicCard } from './AtomicCard';
 import { openObsidianLink } from '../../../lib/atomic-parser';
@@ -8,6 +8,11 @@ interface ActionMatrixPanelProps {
   nowFocus: AtomicItem | null;
   nextQueue: AtomicItem[];
   obsidianVault?: string;
+  timerRunningState?: {
+    isRunning: boolean;
+    isPaused: boolean;
+    elapsedSeconds: number;
+  };
   onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onUpdate?: (id: string, newText: string) => void;
@@ -22,6 +27,7 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
   nowFocus,
   nextQueue,
   obsidianVault,
+  timerRunningState,
   onToggleComplete,
   onDelete,
   onUpdate,
@@ -33,6 +39,16 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
 }) => {
   const [isNowDragOver, setIsNowDragOver] = React.useState(false);
   const [isNextDragOver, setIsNextDragOver] = React.useState(false);
+
+  const formatTimerSeconds = (totalSec: number) => {
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   const [isEditingNow, setIsEditingNow] = React.useState(false);
   const [editNowValue, setEditNowValue] = React.useState(nowFocus?.rawText || nowFocus?.title || '');
@@ -214,12 +230,36 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
                   className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                     nowFocus.completed
                       ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                      : timerRunningState?.isRunning
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50'
+                      : timerRunningState?.isPaused
+                      ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-md shadow-amber-950/40'
                       : 'bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-900/50 hover:shadow-purple-900/80'
                   }`}
-                  title="发送到常驻 Timer 开始计时"
+                  title={
+                    timerRunningState?.isRunning
+                      ? '当前正在专注计时中，点击可暂停'
+                      : timerRunningState?.isPaused
+                      ? '当前已暂停，点击继续计时'
+                      : '发送到常驻 Timer 开始计时'
+                  }
                 >
-                  <Play size={13} fill="currentColor" />
-                  <span>{nowFocus.completed ? '该任务已完成' : '启动计时'}</span>
+                  {timerRunningState?.isRunning ? (
+                    <>
+                      <Pause size={13} fill="currentColor" />
+                      <span>正在专注 ({formatTimerSeconds(timerRunningState.elapsedSeconds)}) · 暂停</span>
+                    </>
+                  ) : timerRunningState?.isPaused ? (
+                    <>
+                      <Play size={13} fill="currentColor" />
+                      <span>继续专注 (已计 {formatTimerSeconds(timerRunningState.elapsedSeconds)})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={13} fill="currentColor" />
+                      <span>{nowFocus.completed ? '该任务已完成' : '启动计时'}</span>
+                    </>
+                  )}
                 </button>
 
                 <button
