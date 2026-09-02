@@ -9,7 +9,7 @@ interface AtomicQuickInputProps {
 
 export const AtomicQuickInput: React.FC<AtomicQuickInputProps> = ({ selectedTag, onAdd }) => {
   const [text, setText] = useState('');
-  const [target, setTarget] = useState<'pool' | 'now' | 'next'>('pool');
+  const [target, setTarget] = useState<'pool' | 'now' | 'next'>('now');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isInheritedTagActive = selectedTag && selectedTag !== 'all' && selectedTag !== 'none';
@@ -25,7 +25,7 @@ export const AtomicQuickInput: React.FC<AtomicQuickInputProps> = ({ selectedTag,
     if (!text.trim()) return;
     onAdd(text.trim(), target);
     setText('');
-    setTarget('pool'); // 提交后自动回归默认原子池，避免后续误入专注
+    setTarget('now'); // 提交后保持默认落在「当前」
   };
 
   return (
