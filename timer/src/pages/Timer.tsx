@@ -105,7 +105,7 @@ function cleanOrphanInstantTasks(currentTasks: TimerTask[]): TimerTask[] {
   });
 
   const filtered = currentTasks.filter(t => {
-    if (t.categoryPath === '即时待办') {
+    if (t.categoryPath === '即时待办' || !t.categoryPath) {
       return validWorkspaceTitles.has(t.name.trim());
     }
     return true;
@@ -321,21 +321,23 @@ export default function TimerPage() {
       });
     }
 
-    // 3. 其他顶级 Timer 历史任务
-    const topLevelTasks = tasks.filter((t) => !t.parentId);
-    topLevelTasks.forEach((t) => {
-      const title = t.name.trim();
-      if (title && title !== activeName && !seenNames.has(title)) {
-        seenNames.add(title);
-        list.push({
-          id: t.id,
-          name: title,
-          categoryPath: t.categoryPath || '',
-          instanceTag: t.instanceTag || '',
-          source: 'task',
-        });
-      }
-    });
+    // 3. 仅当工作台完全没有任何待切项时，才回退展示其他独立历史任务
+    if (list.length === 0) {
+      const topLevelTasks = tasks.filter((t) => !t.parentId && t.categoryPath !== '即时待办');
+      topLevelTasks.forEach((t) => {
+        const title = t.name.trim();
+        if (title && title !== activeName && !seenNames.has(title)) {
+          seenNames.add(title);
+          list.push({
+            id: t.id,
+            name: title,
+            categoryPath: t.categoryPath || '',
+            instanceTag: t.instanceTag || '',
+            source: 'task',
+          });
+        }
+      });
+    }
 
     return list;
   }, [workspaceData, tasks, activeTask]);
