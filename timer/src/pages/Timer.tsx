@@ -85,54 +85,19 @@ function useDoubleTap(callback: () => void, delay = 300) {
   };
 }
 
-// 自动对齐并清理已在工作台中删除的孤儿即时待办
-function cleanOrphanInstantTasks(currentTasks: TimerTask[]): TimerTask[] {
-  const workspaceData = getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null);
-  if (!workspaceData) return currentTasks;
-
-  const validWorkspaceTitles = new Set<string>();
-  if (workspaceData.nowFocus) {
-    validWorkspaceTitles.add((workspaceData.nowFocus.title || workspaceData.nowFocus.rawText).trim());
-  }
-  workspaceData.nextQueue?.forEach(item => {
-    validWorkspaceTitles.add((item.title || item.rawText).trim());
-  });
-  workspaceData.pool?.forEach(item => {
-    validWorkspaceTitles.add((item.title || item.rawText).trim());
-  });
-  workspaceData.completedArchive?.forEach(item => {
-    validWorkspaceTitles.add((item.title || item.rawText).trim());
-  });
-
-  const filtered = currentTasks.filter(t => {
-    if (t.categoryPath === '即时待办' || !t.categoryPath) {
-      return validWorkspaceTitles.has(t.name.trim());
-    }
-    return true;
-  });
-
-  if (filtered.length !== currentTasks.length) {
-    saveAllTasks(filtered);
-    return filtered;
-  }
-  return currentTasks;
-}
-
 export default function TimerPage() {
   const doubleTapCreate = useDoubleTap(openCreateWindow);
   const [isBlurred, setIsBlurred] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<SwitcherItem | null>(null);
   const [currentMode, setCurrentMode] = useState<TimerMode>('focus');
   const [globalTick, setGlobalTick] = useState(0);
-  const [tasks, setTasks] = useState<TimerTask[]>(() => cleanOrphanInstantTasks(getAllTasks()));
+  const [tasks, setTasks] = useState<TimerTask[]>(() => getAllTasks());
   const [workspaceData, setWorkspaceData] = useState<AtomicWorkspaceData | null>(() =>
     getUnifiedItem<AtomicWorkspaceData | null>('atomic-workspace-data-v1', null)
   );
 
   const refreshTasks = useCallback(() => {
-    const raw = getAllTasks();
-    const cleaned = cleanOrphanInstantTasks(raw);
-    setTasks(cleaned);
+    setTasks(getAllTasks());
   }, []);
 
   const refreshWorkspace = useCallback(() => {
@@ -141,7 +106,7 @@ export default function TimerPage() {
 
   const { startTimer, pauseTimer } = useLocalTimerControl({
     onTasksChange: (newTasks) => {
-      setTasks(cleanOrphanInstantTasks(newTasks));
+      setTasks(newTasks);
     },
   });
 
