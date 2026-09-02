@@ -2,9 +2,12 @@ import type { TimerTask } from '@dashboard/shared';
 
 /**
  * 获取当前逻辑日期字符串 (格式: YYYY-MM-DD)
+ * - 规则：每日以【凌晨 4:00 (04:00)】作为分界线换天。
+ * - 00:00 ~ 03:59:59 依然算作昨天的作息周期。
  */
-export function getLogicalDateString(): string {
-  const d = new Date();
+export function getLogicalDateString(now: Date = new Date()): string {
+  // 减去 4 小时偏移量，实现凌晨 4 点自然换天
+  const d = new Date(now.getTime() - 4 * 60 * 60 * 1000);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
