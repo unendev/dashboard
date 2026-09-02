@@ -112,13 +112,13 @@ export const AtomicPoolPanel: React.FC<AtomicPoolPanelProps> = ({
           </div>
         </div>
 
-        {/* 标签切换栏 */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+        {/* 标签切换栏：自适应流式折行，所有标签清晰展示不遮挡 */}
+        <div className="flex flex-wrap items-center gap-1.5 max-h-[60px] overflow-y-auto py-0.5">
           <button
             onClick={() => onSelectTag('all')}
             className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all ${
               selectedTag === 'all'
-                ? 'bg-purple-600/90 text-white shadow-sm'
+                ? 'bg-purple-600/90 text-white shadow-sm ring-1 ring-purple-400/40'
                 : 'bg-zinc-800/70 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -130,7 +130,7 @@ export const AtomicPoolPanel: React.FC<AtomicPoolPanelProps> = ({
               onClick={() => onSelectTag('none')}
               className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all ${
                 selectedTag === 'none'
-                  ? 'bg-purple-600/90 text-white shadow-sm'
+                  ? 'bg-purple-600/90 text-white shadow-sm ring-1 ring-purple-400/40'
                   : 'bg-zinc-800/70 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -147,7 +147,7 @@ export const AtomicPoolPanel: React.FC<AtomicPoolPanelProps> = ({
                 onClick={() => onSelectTag(tag)}
                 className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all flex items-center gap-1 ${
                   isSelected
-                    ? 'bg-purple-600/90 text-white shadow-sm'
+                    ? 'bg-purple-600/90 text-white shadow-sm ring-1 ring-purple-400/50'
                     : 'bg-zinc-800/70 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
                 }`}
               >

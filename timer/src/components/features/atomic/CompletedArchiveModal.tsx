@@ -107,9 +107,9 @@ export const CompletedArchiveModal: React.FC<CompletedArchiveModalProps> = ({
             </div>
           </div>
 
-          {/* 标签分类切换栏 */}
+          {/* 标签分类切换栏：自适应折行 */}
           {(allTags.length > 0 || untaggedCount > 0) && (
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar px-4 pb-2.5 pt-0.5">
+            <div className="flex flex-wrap items-center gap-1.5 max-h-[64px] overflow-y-auto px-4 pb-2.5 pt-0.5">
               <button
                 onClick={() => setSelectedTag('all')}
                 className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-all ${
