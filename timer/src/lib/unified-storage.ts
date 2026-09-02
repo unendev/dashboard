@@ -16,19 +16,20 @@ export async function hydrateFromUnifiedStorage(): Promise<void> {
     if (physicalData && typeof physicalData === 'object') {
       let hasHydratedAny = false;
       Object.keys(physicalData).forEach(key => {
-        const localValue = localStorage.getItem(key);
-        // 如果本地 localStorage 为空或者物理文件有有效数据，进行对齐
-        if (!localValue && physicalData[key] !== undefined) {
+        if (physicalData[key] !== undefined) {
           const strValue = typeof physicalData[key] === 'string' 
             ? physicalData[key] 
             : JSON.stringify(physicalData[key]);
-          localStorage.setItem(key, strValue);
-          hasHydratedAny = true;
+          const localValue = localStorage.getItem(key);
+          if (localValue !== strValue) {
+            localStorage.setItem(key, strValue);
+            hasHydratedAny = true;
+          }
         }
       });
 
       if (hasHydratedAny) {
-        console.log('[UnifiedStorage] Hydrated local storage from physical storage file.');
+        console.log('[UnifiedStorage] Synced local storage with physical authority file.');
         window.dispatchEvent(new Event('storage'));
       }
     }
