@@ -154,11 +154,9 @@ export function useAtomicWorkspace() {
     }
   }, [persistData, selectedTag]);
 
-  // 2. 删除原子项 (级联同步清理 Timer 挂件任务)
+  // 2. 删除原子项 (仅从工作台待办中移除，保留历史已计时间流水)
   const deleteItem = useCallback((id: string) => {
     setData(prev => {
-      const targetItem = prev.pool.find(i => i.id === id) || (prev.nowFocus?.id === id ? prev.nowFocus : null) || prev.nextQueue.find(i => i.id === id);
-
       const nextData: AtomicWorkspaceData = {
         ...prev,
         pool: prev.pool.filter(item => item.id !== id),
@@ -166,26 +164,6 @@ export function useAtomicWorkspace() {
         nextQueue: prev.nextQueue.filter(item => item.id !== id),
       };
       persistData(nextData);
-
-      // 同步级联清理 Timer 悬浮挂件上的对应任务记录
-      if (targetItem) {
-        try {
-          const currentTimerTasks = getAllTasks();
-          const targetTitle = (targetItem.title || targetItem.rawText || '').trim();
-          const targetRaw = (targetItem.rawText || '').trim();
-          const filteredTimerTasks = currentTimerTasks.filter(t => {
-            const name = t.name.trim();
-            return name !== targetTitle && name !== targetRaw;
-          });
-          if (filteredTimerTasks.length !== currentTimerTasks.length) {
-            saveAllTasks(filteredTimerTasks);
-            window.dispatchEvent(new Event('storage'));
-          }
-        } catch (e) {
-          console.error('[useAtomicWorkspace] Failed to cascade delete timer task:', e);
-        }
-      }
-
       return nextData;
     });
   }, [persistData]);
@@ -304,56 +282,27 @@ export function useAtomicWorkspace() {
     });
   }, [persistData]);
 
-  // 5. 单独删除一条已完成记录
+  // 5. 单独删除一条已完成记录 (仅从归档视图移除，保留历史时间账本)
   const deleteCompletedItem = useCallback((id: string) => {
     setData(prev => {
       const currentArchive = prev.completedArchive || [];
-      const target = currentArchive.find(i => i.id === id);
       const nextData: AtomicWorkspaceData = {
         ...prev,
         completedArchive: currentArchive.filter(i => i.id !== id),
       };
       persistData(nextData);
-
-      if (target) {
-        try {
-          const currentTimerTasks = getAllTasks();
-          const targetTitle = (target.title || target.rawText || '').trim();
-          const filtered = currentTimerTasks.filter(t => t.name.trim() !== targetTitle);
-          if (filtered.length !== currentTimerTasks.length) {
-            saveAllTasks(filtered);
-            window.dispatchEvent(new Event('storage'));
-          }
-        } catch (_) {}
-      }
-
       return nextData;
     });
   }, [persistData]);
 
-  // 6. 清空所有已完成归档
+  // 6. 清空所有已完成归档 (仅清空归档视图，保留历史时间账本)
   const clearAllCompleted = useCallback(() => {
     setData(prev => {
-      const currentArchive = prev.completedArchive || [];
-      const completedTitles = new Set(currentArchive.map(i => (i.title || i.rawText).trim()));
-
       const nextData: AtomicWorkspaceData = {
         ...prev,
         completedArchive: [],
       };
       persistData(nextData);
-
-      try {
-        const currentTimerTasks = getAllTasks();
-        const filtered = currentTimerTasks.filter(t => !completedTitles.has(t.name.trim()));
-        if (filtered.length !== currentTimerTasks.length) {
-          saveAllTasks(filtered);
-          window.dispatchEvent(new Event('storage'));
-        }
-      } catch (e) {
-        console.error('[useAtomicWorkspace] Failed to cascade clear completed timer tasks:', e);
-      }
-
       return nextData;
     });
   }, [persistData]);
