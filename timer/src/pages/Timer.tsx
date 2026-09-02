@@ -124,13 +124,15 @@ export default function TimerPage() {
         console.log('[Timer Renderer] on-start-task:', taskData);
         setCurrentMode('focus');
 
-        // 查找是否已经存在同名顶级任务
+        // 查找今天是否已经存在该任务记录
         const currentTasks = getAllTasks();
         const nowSec = Math.floor(Date.now() / 1000);
-        const existingIndex = currentTasks.findIndex(t => t.name === taskData.name && !t.parentId);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const taskName = taskData.name.trim();
+        const existingIndex = currentTasks.findIndex(t => t.name.trim() === taskName && t.date === todayStr && !t.parentId);
 
         if (existingIndex > -1) {
-          // 已经存在该任务：复用并置顶启动，安全继承并累加历史已用时
+          // 已经存在今天该任务：复用并置顶启动
           const existingTask = currentTasks[existingIndex];
           const oldSessionTime = (existingTask.isRunning && !existingTask.isPaused && existingTask.startTime)
             ? nowSec - existingTask.startTime
@@ -150,7 +152,7 @@ export default function TimerPage() {
           ];
           saveAllTasks(nextList);
         } else {
-          // 不存在：暂停其他正在运行的任务并新建
+          // 今天尚未创建过该任务：暂停其他任务并为今天新建独立 session
           const updated = currentTasks.map(t => (t.isRunning && !t.isPaused ? { ...t, isRunning: false, isPaused: true, pausedTime: nowSec } : t));
           saveAllTasks(updated);
 
@@ -159,7 +161,7 @@ export default function TimerPage() {
             : (typeof taskData.instanceTagNames === 'string' ? taskData.instanceTagNames : '');
 
           createTask({
-            name: taskData.name,
+            name: taskName,
             categoryPath: taskData.categoryPath || '即时待办',
             instanceTag: tag,
             initialTime: taskData.initialTime || 0,
@@ -170,7 +172,7 @@ export default function TimerPage() {
             pausedTime: 0,
             children: [],
             parentId: taskData.parentId || null,
-            date: new Date().toISOString().split('T')[0],
+            date: todayStr,
           });
         }
         refreshTasks();
@@ -369,7 +371,8 @@ export default function TimerPage() {
     const taskName = item.name.trim();
     const tag = item.instanceTag || '即时待办';
     const currentTasks = getAllTasks();
-    const existingIndex = currentTasks.findIndex(t => t.name.trim() === taskName && !t.parentId);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const existingIndex = currentTasks.findIndex(t => t.name.trim() === taskName && t.date === todayStr && !t.parentId);
 
     if (existingIndex > -1) {
       const existingTask = currentTasks[existingIndex];
@@ -404,7 +407,7 @@ export default function TimerPage() {
         pausedTime: 0,
         children: [],
         parentId: null,
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr,
       });
     }
 

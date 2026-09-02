@@ -62,9 +62,41 @@ export function useLocalTimerControl(options: UseLocalTimerControlOptions = {}) 
       const tasks = getAllTasks();
       const now = Math.floor(Date.now() / 1000);
       const nowISO = new Date().toISOString();
+      const todayStr = new Date().toISOString().split('T')[0];
 
-      const runningTasks = findAllRunningTasks(taskId, tasks);
-      let updatedTasks = updateTasksRecursive(tasks, (task) => {
+      const target = tasks.find(t => t.id === taskId);
+      let targetIdToStart = taskId;
+      let effectiveTasks = [...tasks];
+
+      if (target && target.date && target.date !== todayStr) {
+        const existingToday = tasks.find(t => t.name.trim() === target.name.trim() && t.date === todayStr);
+        if (existingToday) {
+          targetIdToStart = existingToday.id;
+        } else {
+          const newTask: TimerTask = {
+            id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            name: target.name,
+            categoryPath: target.categoryPath || '即时待办',
+            instanceTag: target.instanceTag || '',
+            initialTime: 0,
+            elapsedTime: 0,
+            isRunning: false,
+            isPaused: true,
+            startTime: null,
+            pausedTime: 0,
+            children: [],
+            parentId: null,
+            date: todayStr,
+            createdAt: nowISO,
+            updatedAt: nowISO,
+          };
+          effectiveTasks.unshift(newTask);
+          targetIdToStart = newTask.id;
+        }
+      }
+
+      const runningTasks = findAllRunningTasks(targetIdToStart, effectiveTasks);
+      let updatedTasks = updateTasksRecursive(effectiveTasks, (task) => {
         if (runningTasks.some(r => r.id === task.id)) {
           const runningTime = task.startTime ? now - task.startTime : 0;
           return {
@@ -77,7 +109,7 @@ export function useLocalTimerControl(options: UseLocalTimerControlOptions = {}) 
             updatedAt: nowISO,
           };
         }
-        if (task.id === taskId) {
+        if (task.id === targetIdToStart) {
           return {
             ...task,
             isRunning: true,
