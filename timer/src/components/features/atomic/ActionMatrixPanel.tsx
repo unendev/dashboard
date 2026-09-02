@@ -4,6 +4,7 @@ import { AtomicItem } from '../../../types/atomic';
 import { AtomicCard } from './AtomicCard';
 import { openObsidianLink } from '../../../lib/atomic-parser';
 import { getAllTasks } from '../../../lib/local-timer-storage';
+import { getTotalAccumulatedSeconds, formatTotalAccumulatedTime } from '../../../lib/timer-domain';
 
 interface ActionMatrixPanelProps {
   nowFocus: AtomicItem | null;
@@ -57,29 +58,15 @@ export const ActionMatrixPanel: React.FC<ActionMatrixPanelProps> = ({
   const totalAccumulatedSeconds = React.useMemo(() => {
     if (!nowFocus) return 0;
     const taskName = (nowFocus.title || nowFocus.rawText || '').trim();
-    let total = 0;
     try {
       const allTasks = getAllTasks();
-      allTasks.forEach(t => {
-        if (t.name.trim() === taskName) {
-          total += (t.elapsedTime || 0);
-          if (t.isRunning && !t.isPaused && t.startTime) {
-            const nowSec = Math.floor(Date.now() / 1000);
-            total += (nowSec - t.startTime);
-          }
-        }
-      });
-    } catch { }
-    return total;
+      return getTotalAccumulatedSeconds(allTasks, taskName);
+    } catch {
+      return 0;
+    }
   }, [nowFocus, timerRunningState]);
 
-  const formatTotalTime = (seconds: number) => {
-    if (seconds <= 0) return '0m';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
-  };
+  const formatTotalTime = formatTotalAccumulatedTime;
 
   const [isEditingNow, setIsEditingNow] = React.useState(false);
   const [editNowValue, setEditNowValue] = React.useState(nowFocus?.rawText || nowFocus?.title || '');
