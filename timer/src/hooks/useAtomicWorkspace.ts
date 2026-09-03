@@ -207,12 +207,47 @@ export function useAtomicWorkspace() {
     });
   }, [persistData, settleRunningTimerByName]);
 
-  // 3. 更新原子项文本 (支持编辑后重新解析 #标签 [[双链]] ~估时)
+  // 3. 更新原子项文本 (支持编辑后重新解析 #标签 [[双链]] ~估时，并级联继承历史时间账本)
   const updateItem = useCallback((id: string, newRawText: string) => {
     const parsed = parseAtomicInput(newRawText.trim());
-    if (!parsed.title && !parsed.rawText) return;
+    const newTitle = (parsed.title || parsed.rawText || '').trim();
+    if (!newTitle) return;
 
     setData(prev => {
+      // 1. 查找旧标题
+      const targetItem =
+        prev.pool.find(i => i.id === id) ||
+        (prev.nowFocus?.id === id ? prev.nowFocus : null) ||
+        prev.nextQueue.find(i => i.id === id) ||
+        (prev.completedArchive || []).find(i => i.id === id);
+
+      const oldTitle = targetItem ? (targetItem.title || targetItem.rawText || '').trim() : '';
+
+      // 2. 若标题发生修改，级联将时间流水账本中的历史记录同步更名，无缝继承累计时间
+      if (oldTitle && oldTitle !== newTitle) {
+        try {
+          const currentTasks = getAllTasks();
+          let tasksChanged = false;
+          const updatedTasks = currentTasks.map(t => {
+            if (t.name.trim() === oldTitle) {
+              tasksChanged = true;
+              return {
+                ...t,
+                name: newTitle,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return t;
+          });
+          if (tasksChanged) {
+            saveAllTasks(updatedTasks);
+            window.dispatchEvent(new Event('storage'));
+          }
+        } catch (err) {
+          console.error('[useAtomicWorkspace] Failed to cascade rename timer tasks:', err);
+        }
+      }
+
       const updateFn = (item: AtomicItem): AtomicItem => {
         if (item.id !== id) return item;
         return {
