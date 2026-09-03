@@ -154,9 +154,48 @@ export function useAtomicWorkspace() {
     }
   }, [persistData, selectedTag]);
 
+  // 辅助函数：当某个正在计时的任务被打勾完成/移除当前时，优雅结算并暂停其计时流水
+  const settleRunningTimerByName = useCallback((taskName?: string) => {
+    if (!taskName || !taskName.trim()) return;
+    try {
+      const currentTasks = getAllTasks();
+      const now = Math.floor(Date.now() / 1000);
+      const nowISO = new Date().toISOString();
+      const trimmed = taskName.trim();
+      let hasChanged = false;
+
+      const updated = currentTasks.map(t => {
+        if (t.name.trim() === trimmed && t.isRunning && !t.isPaused) {
+          const runningTime = t.startTime ? Math.max(0, now - t.startTime) : 0;
+          hasChanged = true;
+          return {
+            ...t,
+            isRunning: false,
+            isPaused: true,
+            elapsedTime: (t.elapsedTime || 0) + runningTime,
+            startTime: null,
+            pausedTime: now,
+            updatedAt: nowISO,
+          };
+        }
+        return t;
+      });
+
+      if (hasChanged) {
+        saveAllTasks(updated);
+        window.dispatchEvent(new Event('storage'));
+      }
+    } catch (err) {
+      console.error('[useAtomicWorkspace] Failed to settle running timer:', err);
+    }
+  }, []);
+
   // 2. 删除原子项 (仅从工作台待办中移除，保留历史已计时间流水)
   const deleteItem = useCallback((id: string) => {
     setData(prev => {
+      if (prev.nowFocus?.id === id) {
+        settleRunningTimerByName(prev.nowFocus.title || prev.nowFocus.rawText);
+      }
       const nextData: AtomicWorkspaceData = {
         ...prev,
         pool: prev.pool.filter(item => item.id !== id),
@@ -166,7 +205,7 @@ export function useAtomicWorkspace() {
       persistData(nextData);
       return nextData;
     });
-  }, [persistData]);
+  }, [persistData, settleRunningTimerByName]);
 
   // 3. 更新原子项文本 (支持编辑后重新解析 #标签 [[双链]] ~估时)
   const updateItem = useCallback((id: string, newRawText: string) => {
@@ -198,13 +237,14 @@ export function useAtomicWorkspace() {
     });
   }, [persistData]);
 
-  // 4. 切换完成状态（打勾后自动归入已完成归档，若为当前项则自动推进下一项）
+  // 4. 切换完成状态（打勾后自动归入已完成归档，若为当前项则结算计时并自动推进下一项）
   const toggleComplete = useCallback((id: string) => {
     setData(prev => {
       const currentArchive = prev.completedArchive || [];
 
       // 1. 如果在 nowFocus
       if (prev.nowFocus?.id === id) {
+        settleRunningTimerByName(prev.nowFocus.title || prev.nowFocus.rawText);
         const completedItem: AtomicItem = {
           ...prev.nowFocus,
           completed: true,
@@ -224,6 +264,7 @@ export function useAtomicWorkspace() {
       // 2. 如果在 pool
       const poolItem = prev.pool.find(i => i.id === id);
       if (poolItem) {
+        settleRunningTimerByName(poolItem.title || poolItem.rawText);
         const completedItem: AtomicItem = {
           ...poolItem,
           completed: true,
@@ -241,6 +282,7 @@ export function useAtomicWorkspace() {
       // 3. 如果在 nextQueue
       const nextItem = prev.nextQueue.find(i => i.id === id);
       if (nextItem) {
+        settleRunningTimerByName(nextItem.title || nextItem.rawText);
         const completedItem: AtomicItem = {
           ...nextItem,
           completed: true,
@@ -257,7 +299,7 @@ export function useAtomicWorkspace() {
 
       return prev;
     });
-  }, [persistData]);
+  }, [persistData, settleRunningTimerByName]);
 
   // 4. 恢复已完成项回到任务池
   const restoreCompletedItem = useCallback((id: string) => {
