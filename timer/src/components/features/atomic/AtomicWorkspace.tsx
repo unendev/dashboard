@@ -68,6 +68,15 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
     }, 200);
   };
 
+  // 恢复历史任务为当前专注后，自动启动计时并收起工作台
+  const handleRestoreAndClose = (id: string) => {
+    restoreCompletedItem(id);
+    setIsCompletedModalOpen(false);
+    setTimeout(() => {
+      handleClose();
+    }, 200);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-[#111113] text-zinc-200 select-none overflow-hidden font-sans border border-zinc-800/80 rounded-xl shadow-2xl">
       {/* 1. 顶部标题栏 + 快捷工具 (支持全顶栏按住拖拽窗口) */}
@@ -192,7 +201,7 @@ export const AtomicWorkspace: React.FC<AtomicWorkspaceProps> = ({ onClose }) => 
         completedList={completedArchive}
         obsidianVault={obsidianVault}
         onClose={() => setIsCompletedModalOpen(false)}
-        onRestore={restoreCompletedItem}
+        onRestore={handleRestoreAndClose}
         onDeleteSingle={deleteCompletedItem}
         onClearAll={clearAllCompleted}
       />
