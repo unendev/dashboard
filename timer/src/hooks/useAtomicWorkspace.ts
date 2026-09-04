@@ -336,28 +336,55 @@ export function useAtomicWorkspace() {
     });
   }, [persistData, settleRunningTimerByName]);
 
-  // 4. 恢复已完成项回到任务池
+  // 4. 恢复已完成项回到「当前专注」并自动启动计时
   const restoreCompletedItem = useCallback((id: string) => {
+    let restoredTarget: AtomicItem | undefined;
+
     setData(prev => {
       const currentArchive = prev.completedArchive || [];
       const target = currentArchive.find(i => i.id === id);
       if (!target) return prev;
+
+      // 如果当前已有正在计时的 nowFocus，先安全结算并暂停
+      if (prev.nowFocus) {
+        settleRunningTimerByName(prev.nowFocus.title || prev.nowFocus.rawText);
+      }
 
       const restoredItem: AtomicItem = {
         ...target,
         completed: false,
         completedAt: undefined,
       };
+      restoredTarget = restoredItem;
+
+      // 如果原先有 nowFocus，将其推入 nextQueue 队列顶部
+      const oldNow = prev.nowFocus;
+      const newNext = oldNow ? [oldNow, ...prev.nextQueue] : prev.nextQueue;
 
       const nextData: AtomicWorkspaceData = {
         ...prev,
         completedArchive: currentArchive.filter(i => i.id !== id),
-        pool: [restoredItem, ...prev.pool],
+        nowFocus: restoredItem,
+        nextQueue: newNext,
       };
       persistData(nextData);
       return nextData;
     });
-  }, [persistData]);
+
+    // 自动触发启动计时，无缝衔接专注心流
+    if (restoredTarget && window.electron) {
+      const taskName = (restoredTarget.title || restoredTarget.rawText || '').trim();
+      const tag = (restoredTarget.tags && restoredTarget.tags[0]) || '即时待办';
+      const initialSeconds = (restoredTarget.estimateMinutes || 0) * 60;
+      window.electron.send('start-task', {
+        name: taskName,
+        categoryPath: '即时待办',
+        instanceTagNames: [tag],
+        initialTime: initialSeconds,
+        autoStart: true,
+      });
+    }
+  }, [persistData, settleRunningTimerByName]);
 
   // 5. 单独删除一条已完成记录 (仅从归档视图移除，保留历史时间账本)
   const deleteCompletedItem = useCallback((id: string) => {

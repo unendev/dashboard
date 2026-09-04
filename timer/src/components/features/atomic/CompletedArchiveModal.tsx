@@ -207,11 +207,11 @@ export const CompletedArchiveModal: React.FC<CompletedArchiveModalProps> = ({
               <div className="shrink-0 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => onRestore(item.id)}
-                  className="p-1.5 rounded-lg bg-zinc-800/90 hover:bg-purple-600 hover:text-white text-zinc-400 text-[10px] font-medium flex items-center gap-1 transition-all"
-                  title="恢复回任务池"
+                  className="p-1.5 rounded-lg bg-zinc-800/90 hover:bg-orange-600 hover:text-white text-zinc-400 text-[10px] font-medium flex items-center gap-1 transition-all"
+                  title="恢复为当前专注并启动计时"
                 >
                   <RotateCcw size={11} />
-                  <span>恢复</span>
+                  <span>恢复为当前</span>
                 </button>
 
                 <button
