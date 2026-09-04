@@ -294,7 +294,7 @@ function createToolWindow(type, existingWindow) {
     settings: { width: 300, height: 350, title: '设置', route: '/settings', alwaysOnTop: true, skipTaskbar: true },
     create: { width: 500, height: 600, title: '新建任务', route: '/create', alwaysOnTop: true, skipTaskbar: true },
     promptLibrary: { width: 700, height: 600, title: '提示词库', route: '/prompt-library', alwaysOnTop: false, skipTaskbar: false },
-    linkStation: { width: 340, height: 550, title: 'Link Station', route: '/link-station', alwaysOnTop: true, skipTaskbar: true },
+    linkStation: { width: 520, height: 600, title: 'Link Station', route: '/link-station', alwaysOnTop: true, skipTaskbar: true },
   };
   const config = configs[type];
   console.log(`[Main] Creating window type: ${type}`, config);
@@ -302,8 +302,8 @@ function createToolWindow(type, existingWindow) {
   let x, y;
   if (mainWindow) {
     const [mainX, mainY] = mainWindow.getPosition();
-    x = mainX - config.width - 10;
-    y = mainY;
+    x = Math.max(10, mainX - config.width - 10);
+    y = Math.max(10, mainY);
   }
 
   const win = new BrowserWindow({

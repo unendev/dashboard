@@ -325,7 +325,7 @@ export default function LinkStation() {
         <div className="flex h-screen bg-[#111113] text-zinc-300 font-sans text-sm overflow-hidden select-none">
 
             {/* Sidebar */}
-            <div className="w-24 flex-shrink-0 bg-[#0c0c0e] border-r border-zinc-800/80 flex flex-col no-drag">
+            <div className="w-28 flex-shrink-0 bg-[#0c0c0e] border-r border-zinc-800/80 flex flex-col no-drag">
                 <div className="p-3 py-2.5 flex items-center justify-between border-b border-zinc-800/40">
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Groups</span>
                     <button onClick={() => setIsCreatingGroup(true)} className="text-zinc-500 hover:text-white transition-colors p-0.5 rounded hover:bg-zinc-800">
