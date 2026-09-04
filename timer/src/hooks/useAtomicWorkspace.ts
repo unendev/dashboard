@@ -415,12 +415,17 @@ export function useAtomicWorkspace() {
 
   // 4. 恢复已完成项回到「当前专注」并自动启动计时
   const restoreCompletedItem = useCallback((id: string) => {
-    let restoredTarget: AtomicItem | undefined;
+    // 1. 同步获取目标项，避免 React 异步 updater 导致闭包失效
+    const target = (data.completedArchive || []).find(i => i.id === id);
+    if (!target) return;
+
+    const taskName = (target.title || target.rawText || '').trim();
+    const tag = (target.tags && target.tags[0]) || '即时待办';
+    const initialSeconds = (target.estimateMinutes || 0) * 60;
 
     setData(prev => {
       const currentArchive = prev.completedArchive || [];
-      const target = currentArchive.find(i => i.id === id);
-      if (!target) return prev;
+      const itemToRestore = currentArchive.find(i => i.id === id) || target;
 
       // 如果当前已有正在计时的 nowFocus，先安全结算并暂停
       if (prev.nowFocus) {
@@ -428,11 +433,10 @@ export function useAtomicWorkspace() {
       }
 
       const restoredItem: AtomicItem = {
-        ...target,
+        ...itemToRestore,
         completed: false,
         completedAt: undefined,
       };
-      restoredTarget = restoredItem;
 
       // 如果原先有 nowFocus，将其推入 nextQueue 队列顶部
       const oldNow = prev.nowFocus;
@@ -448,14 +452,9 @@ export function useAtomicWorkspace() {
       return nextData;
     });
 
-    // 自动触发启动计时，无缝衔接专注心流
-    if (restoredTarget) {
-      const taskName = (restoredTarget.title || restoredTarget.rawText || '').trim();
-      const tag = (restoredTarget.tags && restoredTarget.tags[0]) || '即时待办';
-      const initialSeconds = (restoredTarget.estimateMinutes || 0) * 60;
-      activateAndStartTimerByName(taskName, tag, initialSeconds);
-    }
-  }, [persistData, settleRunningTimerByName, activateAndStartTimerByName]);
+    // 2. 100% 确定就地启动计时，无缝衔接专注心流
+    activateAndStartTimerByName(taskName, tag, initialSeconds);
+  }, [data.completedArchive, persistData, settleRunningTimerByName, activateAndStartTimerByName]);
 
   // 5. 单独删除一条已完成记录 (仅从归档视图移除，保留历史时间账本)
   const deleteCompletedItem = useCallback((id: string) => {
@@ -484,17 +483,18 @@ export function useAtomicWorkspace() {
 
   // 7. 移动到「当前」(拖拽/点击进入立即自动启动计时)
   const moveToNow = useCallback((id: string) => {
-    let movedTarget: AtomicItem | undefined;
+    const target =
+      data.pool.find(i => i.id === id) ||
+      data.nextQueue.find(i => i.id === id) ||
+      (data.nowFocus?.id === id ? data.nowFocus : undefined);
+
+    if (!target || data.nowFocus?.id === id) return;
+
+    const taskName = (target.title || target.rawText || '').trim();
+    const tag = (target.tags && target.tags[0]) || '即时待办';
+    const initialSeconds = (target.estimateMinutes || 0) * 60;
 
     setData(prev => {
-      let target: AtomicItem | undefined =
-        prev.pool.find(i => i.id === id) ||
-        prev.nextQueue.find(i => i.id === id) ||
-        (prev.nowFocus?.id === id ? prev.nowFocus : undefined);
-
-      if (!target || prev.nowFocus?.id === id) return prev;
-      movedTarget = target;
-
       const oldNow = prev.nowFocus;
       const filteredNext = prev.nextQueue.filter(i => i.id !== id);
       const newNext = oldNow ? [oldNow, ...filteredNext] : filteredNext;
@@ -509,13 +509,8 @@ export function useAtomicWorkspace() {
       return nextData;
     });
 
-    if (movedTarget) {
-      const taskName = (movedTarget.title || movedTarget.rawText || '').trim();
-      const tag = (movedTarget.tags && movedTarget.tags[0]) || '即时待办';
-      const initialSeconds = (movedTarget.estimateMinutes || 0) * 60;
-      activateAndStartTimerByName(taskName, tag, initialSeconds);
-    }
-  }, [persistData, activateAndStartTimerByName]);
+    activateAndStartTimerByName(taskName, tag, initialSeconds);
+  }, [data.pool, data.nextQueue, data.nowFocus, persistData, activateAndStartTimerByName]);
 
   // 8. 移动到「接下来」
   const moveToNext = useCallback((id: string) => {
