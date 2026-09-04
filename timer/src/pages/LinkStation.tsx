@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Plus,
-    Trash2,
     Search,
     Layout,
-    Check,
-    X,
-    Edit2
+    ChevronDown,
+    ChevronRight,
+    Edit2,
+    FolderInput,
+    ExternalLink
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -64,7 +65,7 @@ const guessTitleFromUrl = (url: string) => {
     }
 };
 
-// --- Custom Components ---
+// --- Dark Context Menu ---
 
 const ContextMenu = ({ x, y, options, onClose }: { x: number, y: number, options: { label: string, onClick: () => void, icon?: any, danger?: boolean }[], onClose: () => void }) => {
     useEffect(() => {
@@ -75,8 +76,8 @@ const ContextMenu = ({ x, y, options, onClose }: { x: number, y: number, options
 
     return (
         <div
-            className="fixed z-[100] bg-[#222] border border-[#333] rounded-lg shadow-2xl py-1 min-w-[120px] animate-in fade-in zoom-in duration-100"
-            style={{ left: Math.min(x, window.innerWidth - 130), top: Math.min(y, window.innerHeight - 150) }}
+            className="fixed z-[100] bg-[#1a1a1c] border border-zinc-700/60 rounded-lg shadow-2xl py-1 min-w-[140px] animate-in fade-in zoom-in duration-100 backdrop-blur-md"
+            style={{ left: Math.min(x, window.innerWidth - 150), top: Math.min(y, window.innerHeight - 180) }}
             onClick={(e) => e.stopPropagation()}
         >
             {options.map((opt, i) => (
@@ -84,11 +85,12 @@ const ContextMenu = ({ x, y, options, onClose }: { x: number, y: number, options
                     key={i}
                     onClick={() => { opt.onClick(); onClose(); }}
                     className={cn(
-                        "w-full px-3 py-1.5 text-xs text-left hover:bg-[#333] transition-colors",
-                        opt.danger ? "text-red-400" : "text-neutral-300"
+                        "w-full px-3 py-1.5 text-xs text-left hover:bg-zinc-800 transition-colors flex items-center gap-1.5",
+                        opt.danger ? "text-red-400 hover:text-red-300" : "text-zinc-300 hover:text-white"
                     )}
                 >
-                    {opt.label}
+                    {opt.icon && <opt.icon size={12} className="shrink-0 opacity-70" />}
+                    <span className="truncate">{opt.label}</span>
                 </button>
             ))}
         </div>
@@ -159,7 +161,7 @@ export default function LinkStation() {
             setIsCreatingGroup(false);
             return;
         }
-        const newGroup: LinkGroup = { id: Date.now().toString(), name: newGroupName };
+        const newGroup: LinkGroup = { id: Date.now().toString(), name: newGroupName.trim() };
         setGroups([...groups, newGroup]);
         setActiveGroupId(newGroup.id);
         setNewGroupName('');
@@ -168,12 +170,12 @@ export default function LinkStation() {
 
     const handleRenameGroup = (id: string, newName: string) => {
         if (!newName.trim()) return setEditingGroupId(null);
-        setGroups(groups.map(g => g.id === id ? { ...g, name: newName } : g));
+        setGroups(groups.map(g => g.id === id ? { ...g, name: newName.trim() } : g));
         setEditingGroupId(null);
     };
 
     const handleDeleteGroup = (id: string) => {
-        if (!confirm('Delete folder?')) return;
+        if (!confirm('确定删除该分组吗？')) return;
         setGroups(groups.filter(g => g.id !== id));
         setLinks(links.filter(l => l.groupId !== id));
         setSections(sections.filter(s => s.groupId !== id));
@@ -186,7 +188,7 @@ export default function LinkStation() {
         const newSection: LinkSection = {
             id: Date.now().toString(),
             groupId: activeGroupId,
-            title: newSectionTitle,
+            title: newSectionTitle.trim(),
             collapsed: false,
             createdAt: Date.now()
         };
@@ -197,14 +199,14 @@ export default function LinkStation() {
 
     const handleRenameSection = (id: string, newTitle: string) => {
         if (!newTitle.trim()) return setEditingSectionId(null);
-        setSections(sections.map(s => s.id === id ? { ...s, title: newTitle } : s));
+        setSections(sections.map(s => s.id === id ? { ...s, title: newTitle.trim() } : s));
         setEditingSectionId(null);
     };
 
     const handleAddLink = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newLinkUrl) return;
-        let finalUrl = newLinkUrl;
+        if (!newLinkUrl.trim()) return;
+        let finalUrl = newLinkUrl.trim();
         if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
         const newLink: LinkItem = {
             id: Date.now().toString(),
@@ -236,7 +238,7 @@ export default function LinkStation() {
     };
 
     const handleDeleteSection = (id: string) => {
-        if (!confirm("Delete section?")) return;
+        if (!confirm("确定删除该分类吗？分类下的链接将移至未分类")) return;
         setSections(sections.filter(s => s.id !== id));
         setLinks(links.map(l => l.sectionId === id ? { ...l, sectionId: undefined } : l));
     };
@@ -250,86 +252,100 @@ export default function LinkStation() {
         ? links.filter(l => l.title.toLowerCase().includes(searchQuery.toLowerCase()) || l.url.includes(searchQuery))
         : currentGroupLinks;
 
+    // 渲染卡片：双列紧凑卡片，暗黑移动气泡，呼吸感充足
     const renderLinkCard = (link: LinkItem) => (
         <div
             key={link.id}
             onClick={() => window.electron.send('open-external-link', link.url)}
-            className="group relative bg-[#1c1c1c] hover:bg-[#242424] border border-[#262626] hover:border-[#333] rounded-md p-2 transition-all cursor-pointer mb-1.5"
+            className="group relative bg-[#1c1c1f] hover:bg-[#26262b] border border-zinc-800/80 hover:border-zinc-700 rounded-lg p-2.5 transition-all cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[46px]"
+            title={`点击在浏览器打开: ${link.url}`}
         >
-            <div className="flex gap-2.5 items-center">
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <input
-                        value={link.title}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => handleUpdateLink(link.id, { title: e.target.value })}
-                        className="bg-transparent font-medium text-neutral-200 text-[13px] w-full focus:outline-none focus:bg-[#111] rounded px-0.5 truncate placeholder:text-neutral-700"
-                        placeholder="Untitled"
-                    />
-                    <div className="h-3.5 mt-0.5">
-                        <input
-                            onClick={(e) => e.stopPropagation()}
-                            placeholder={link.note ? "" : "Add note..."}
-                            value={link.note || ''}
-                            onChange={(e) => handleUpdateLink(link.id, { note: e.target.value })}
-                            className={cn(
-                                "bg-transparent text-[10px] w-full focus:outline-none focus:text-neutral-400 transition-all",
-                                link.note ? "text-neutral-500" : "text-neutral-700 opacity-0 group-hover:opacity-100"
-                            )}
-                        />
-                    </div>
-                </div>
+            <div className="flex items-start justify-between gap-1.5 w-full">
+                <input
+                    value={link.title}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => handleUpdateLink(link.id, { title: e.target.value })}
+                    className="bg-transparent font-medium text-zinc-200 text-xs w-full focus:outline-none focus:bg-[#111] rounded px-0.5 truncate placeholder:text-zinc-600"
+                    placeholder="Untitled"
+                />
 
-                {/* Actions Only on Hover */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    <div className="relative p-1 hover:bg-[#333] rounded cursor-pointer transition-colors group/move">
-                        <Edit2 size={12} className="text-neutral-600" />
-                        <select
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            value={link.sectionId || ''}
-                            onChange={(e) => handleMoveLinkToSection(link.id, e.target.value || undefined)}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <option value="">Move...</option>
-                            <option value="">(Inbox)</option>
-                            {currentGroupSections.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                        </select>
-                    </div>
+                {/* 悬浮操作按钮 */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setContextMenu({
+                                x: rect.left,
+                                y: rect.bottom + 4,
+                                options: [
+                                    { label: '移至 (未分类)', icon: FolderInput, onClick: () => handleMoveLinkToSection(link.id, undefined) },
+                                    ...currentGroupSections.map(s => ({
+                                        label: `移至 ${s.title}`,
+                                        icon: FolderInput,
+                                        onClick: () => handleMoveLinkToSection(link.id, s.id)
+                                    })),
+                                    { label: '删除', danger: true, onClick: () => handleDeleteLink(link.id, e) }
+                                ]
+                            });
+                        }}
+                        className="p-1 hover:bg-zinc-700/60 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
+                        title="移动分类 / 更多"
+                    >
+                        <Edit2 size={11} />
+                    </button>
                     <button
                         onClick={(e) => handleDeleteLink(link.id, e)}
-                        className="p-1 hover:text-red-400 text-neutral-600 transition-all font-bold text-xs"
+                        className="p-1 hover:bg-red-500/20 rounded text-zinc-500 hover:text-red-400 transition-colors font-bold text-xs"
+                        title="删除链接"
                     >
                         ×
                     </button>
                 </div>
             </div>
+
+            {/* 备注行（有内容或悬浮时显示） */}
+            <div className="mt-1 h-3.5 flex items-center">
+                <input
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder={link.note ? "" : "备注..."}
+                    value={link.note || ''}
+                    onChange={(e) => handleUpdateLink(link.id, { note: e.target.value })}
+                    className={cn(
+                        "bg-transparent text-[10px] w-full focus:outline-none focus:text-zinc-300 transition-all",
+                        link.note ? "text-zinc-500" : "text-zinc-600 opacity-0 group-hover:opacity-100"
+                    )}
+                />
+            </div>
         </div>
     );
 
     return (
-        <div className="flex h-screen bg-[#111] text-neutral-300 font-sans text-sm overflow-hidden select-none">
+        <div className="flex h-screen bg-[#111113] text-zinc-300 font-sans text-sm overflow-hidden select-none">
 
-            {/* Sidebar (No Icons, Larger Font) */}
-            <div className="w-24 flex-shrink-0 bg-[#0a0a0a] border-r border-[#222] flex flex-col no-drag">
-                <div className="p-3 py-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-neutral-600 uppercase tracking-widest">Groups</span>
-                    <button onClick={() => setIsCreatingGroup(true)} className="hover:text-white transition-colors">
-                        <Plus size={12} />
+            {/* Sidebar */}
+            <div className="w-24 flex-shrink-0 bg-[#0c0c0e] border-r border-zinc-800/80 flex flex-col no-drag">
+                <div className="p-3 py-2.5 flex items-center justify-between border-b border-zinc-800/40">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Groups</span>
+                    <button onClick={() => setIsCreatingGroup(true)} className="text-zinc-500 hover:text-white transition-colors p-0.5 rounded hover:bg-zinc-800">
+                        <Plus size={13} />
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-2 space-y-0.5 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 custom-scrollbar">
                     {/* Fixed Inbox */}
                     <button
                         onClick={() => setActiveGroupId('default')}
                         className={cn(
-                            "w-full px-2 py-1.5 rounded transition-all text-left text-[14px]",
-                            activeGroupId === 'default' ? "bg-[#222] text-white font-medium" : "hover:bg-[#151515] text-neutral-500"
+                            "w-full px-2 py-1.5 rounded-md transition-all text-left text-[13px] font-medium",
+                            activeGroupId === 'default' ? "bg-[#222227] text-white shadow-sm" : "hover:bg-[#18181c] text-zinc-400"
                         )}
                     >
                         Inbox
                     </button>
 
-                    <div className="my-1 border-t border-[#222] opacity-30 mx-2" />
+                    <div className="my-1.5 border-t border-zinc-800/60 mx-1" />
 
                     {/* Group List */}
                     {[...groups].sort((a, b) => {
@@ -352,15 +368,15 @@ export default function LinkStation() {
                                         x: e.clientX,
                                         y: e.clientY,
                                         options: [
-                                            { label: 'Rename', onClick: () => setEditingGroupId(group.id) },
-                                            { label: 'Delete', danger: true, onClick: () => handleDeleteGroup(group.id) }
+                                            { label: '重命名', onClick: () => setEditingGroupId(group.id) },
+                                            { label: '删除分组', danger: true, onClick: () => handleDeleteGroup(group.id) }
                                         ]
                                     });
                                 }}
                                 onClick={() => setActiveGroupId(group.id)}
                                 className={cn(
-                                    "w-full px-2 py-1.5 rounded transition-all cursor-pointer mb-0.5 text-[14px]",
-                                    activeGroupId === group.id ? "bg-[#222] text-white font-medium" : "hover:bg-[#151515] text-neutral-500"
+                                    "w-full px-2 py-1.5 rounded-md transition-all cursor-pointer mb-0.5 text-[13px] font-medium",
+                                    activeGroupId === group.id ? "bg-[#222227] text-white shadow-sm" : "hover:bg-[#18181c] text-zinc-400"
                                 )}
                             >
                                 {isEditing ? (
@@ -383,11 +399,11 @@ export default function LinkStation() {
                     })}
 
                     {isCreatingGroup && (
-                        <div className="px-2 py-1">
+                        <div className="px-1 py-1">
                             <input
                                 autoFocus
-                                className="w-full bg-[#111] text-xs text-white rounded px-1.5 py-1 focus:outline-none border border-[#333]"
-                                placeholder="..."
+                                className="w-full bg-[#18181c] text-xs text-white rounded px-2 py-1 focus:outline-none border border-zinc-700"
+                                placeholder="分组名..."
                                 value={newGroupName}
                                 onChange={(e) => setNewGroupName(e.target.value)}
                                 onKeyDown={(e) => {
@@ -401,28 +417,33 @@ export default function LinkStation() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col h-full bg-[#111]">
+            <div className="flex-1 flex flex-col h-full bg-[#111113]">
                 {/* Header (Drag Region) */}
-                <div className="h-10 border-b border-[#222] flex items-center px-3 justify-between drag-region">
+                <div className="h-10 border-b border-zinc-800/80 flex items-center px-3 justify-between drag-region shrink-0">
                     <div className="flex items-center gap-2 no-drag min-w-0">
-                        <span className="font-bold text-neutral-100 text-xs truncate">{activeGroup?.name || 'Search'}</span>
+                        <span className="font-bold text-white text-xs truncate">{activeGroup?.name || '搜索'}</span>
+                        <span className="text-[10px] text-zinc-500 font-mono">({displayLinks.length})</span>
                     </div>
 
                     <div className="flex-1 h-full" />
 
                     <div className="flex items-center gap-2 no-drag">
                         {!searchQuery && (
-                            <button onClick={() => setIsAddingSection(true)} className="text-neutral-600 hover:text-neutral-200">
-                                <Layout size={14} />
+                            <button
+                                onClick={() => setIsAddingSection(true)}
+                                className="text-zinc-500 hover:text-zinc-200 p-1 rounded hover:bg-zinc-800 transition-colors"
+                                title="添加新分类"
+                            >
+                                <Layout size={13} />
                             </button>
                         )}
                         <input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Find..."
-                            className="w-20 bg-transparent border border-[#222] rounded px-2 py-0.5 text-[10px] focus:outline-none focus:border-neutral-700 transition-colors"
+                            placeholder="查找..."
+                            className="w-24 bg-[#18181c] border border-zinc-800 rounded px-2 py-0.5 text-[11px] text-zinc-200 focus:outline-none focus:border-zinc-700 transition-colors"
                         />
-                        <button onClick={() => window.close()} className="hover:text-white text-neutral-600 transition-colors px-1">
+                        <button onClick={() => window.close()} className="hover:text-white text-zinc-500 transition-colors px-1 text-base leading-none">
                             ×
                         </button>
                     </div>
@@ -433,63 +454,86 @@ export default function LinkStation() {
                     {/* Inline Section Add */}
                     {isAddingSection && (
                         <div className="px-3 pt-2">
-                            <form onSubmit={handleConfirmAddSection} className="flex items-center gap-2 bg-[#1a1a1a] p-1.5 rounded border border-[#222]">
+                            <form onSubmit={handleConfirmAddSection} className="flex items-center gap-2 bg-[#1a1a1c] p-1.5 rounded-lg border border-zinc-700/60">
                                 <input
                                     autoFocus
                                     value={newSectionTitle}
                                     onChange={(e) => setNewSectionTitle(e.target.value)}
-                                    placeholder="Section name..."
-                                    className="flex-1 bg-transparent text-xs text-white focus:outline-none"
+                                    placeholder="分类名称 (如: VTUBER, AVG, 攻略)..."
+                                    className="flex-1 bg-transparent text-xs text-white focus:outline-none px-1"
                                 />
-                                <button type="submit" className="text-blue-500 hover:text-blue-400 px-1 text-xs">OK</button>
+                                <button type="submit" className="text-purple-400 hover:text-purple-300 font-medium px-2 text-xs">确认</button>
+                                <button type="button" onClick={() => setIsAddingSection(false)} className="text-zinc-500 hover:text-zinc-300 px-1 text-xs">取消</button>
                             </form>
                         </div>
                     )}
 
                     {/* Quick Add Link */}
-                    <div className="p-3 pb-1">
+                    <div className="p-3 pb-2 shrink-0">
                         <form onSubmit={handleAddLink} className="relative group/input">
                             <input
                                 type="text"
-                                placeholder="Paste URL..."
+                                placeholder="粘贴链接或频道网址 (按回车秒级添加)..."
                                 value={newLinkUrl}
                                 onChange={(e) => setNewLinkUrl(e.target.value)}
-                                className="w-full bg-[#181818] border border-[#222] rounded px-3 py-2 text-[11px] text-neutral-200 focus:outline-none focus:border-[#333] transition-all placeholder:text-neutral-800"
+                                className="w-full bg-[#18181c] border border-zinc-800/90 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-600"
                             />
                         </form>
                     </div>
 
-                    {/* Links List */}
-                    <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
-                        <div className="pt-1">
-                            {displayLinks.filter(l => searchQuery || !l.sectionId).map(renderLinkCard)}
-                        </div>
+                    {/* Links List - 双列紧凑网格布局 */}
+                    <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar space-y-3">
+                        {/* 未分类链接 (如果有) */}
+                        {(() => {
+                            const unclassified = displayLinks.filter(l => searchQuery || !l.sectionId);
+                            if (unclassified.length === 0) return null;
+                            return (
+                                <div>
+                                    {!searchQuery && currentGroupSections.length > 0 && (
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 px-0.5">
+                                            未分类 ({unclassified.length})
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        {unclassified.map(renderLinkCard)}
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
+                        {/* 各分类下的链接（支持折叠/展开） */}
                         {!searchQuery && currentGroupSections.map(section => {
                             const sectionLinks = currentGroupLinks.filter(l => l.sectionId === section.id);
                             const isEditing = editingSectionId === section.id;
 
                             return (
-                                <div key={section.id} className="mt-4">
+                                <div key={section.id} className="pt-1">
+                                    {/* 分类标题栏 */}
                                     <div
-                                        className="flex items-center gap-2 mb-1.5 cursor-pointer group px-0.5"
+                                        className="flex items-center gap-1.5 mb-1.5 cursor-pointer group px-0.5 select-none"
                                         onContextMenu={(e) => {
                                             e.preventDefault();
                                             setContextMenu({
                                                 x: e.clientX,
                                                 y: e.clientY,
                                                 options: [
-                                                    { label: 'Rename', onClick: () => setEditingSectionId(section.id) },
-                                                    { label: 'Delete', danger: true, onClick: () => handleDeleteSection(section.id) }
+                                                    { label: '重命名分类', onClick: () => setEditingSectionId(section.id) },
+                                                    { label: '删除分类', danger: true, onClick: () => handleDeleteSection(section.id) }
                                                 ]
                                             });
                                         }}
                                     >
                                         <div className="flex items-center gap-1.5 flex-1" onClick={() => handleToggleSection(section.id)}>
+                                            {section.collapsed ? (
+                                                <ChevronRight size={12} className="text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                                            ) : (
+                                                <ChevronDown size={12} className="text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                                            )}
+
                                             {isEditing ? (
                                                 <input
                                                     autoFocus
-                                                    className="bg-[#222] text-[10px] font-bold text-white px-1 rounded focus:outline-none"
+                                                    className="bg-[#222] text-[11px] font-bold text-white px-1.5 py-0.5 rounded focus:outline-none"
                                                     defaultValue={section.title}
                                                     onBlur={(e) => handleRenameSection(section.id, e.target.value)}
                                                     onKeyDown={(e) => {
@@ -500,19 +544,27 @@ export default function LinkStation() {
                                                 />
                                             ) : (
                                                 <span className={cn(
-                                                    "text-[10px] font-bold uppercase tracking-widest transition-colors",
-                                                    section.collapsed ? "text-neutral-700" : "text-neutral-600"
+                                                    "text-[11px] font-bold uppercase tracking-wider transition-colors",
+                                                    section.collapsed ? "text-zinc-600 group-hover:text-zinc-400" : "text-zinc-400 group-hover:text-zinc-200"
                                                 )}>
                                                     {section.title}
+                                                    <span className="text-[10px] text-zinc-600 font-mono font-normal ml-1">({sectionLinks.length})</span>
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex-1 border-t border-[#1a1a1a]" />
+                                        <div className="flex-1 border-t border-zinc-800/40" />
                                     </div>
 
+                                    {/* 分类内容：双列网格 */}
                                     {!section.collapsed && (
-                                        <div className="pl-1 border-l border-[#1a1a1a] ml-1 space-y-0.5">
-                                            {sectionLinks.map(renderLinkCard)}
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {sectionLinks.length > 0 ? (
+                                                sectionLinks.map(renderLinkCard)
+                                            ) : (
+                                                <div className="col-span-2 text-center text-zinc-600 text-[11px] py-2 bg-[#161618]/40 rounded border border-dashed border-zinc-800/60">
+                                                    暂无链接，右侧悬浮可将链接移入
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -526,8 +578,8 @@ export default function LinkStation() {
             {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
 
             <style>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 2px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; }
+                .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #26262a; border-radius: 4px; }
                 .drag-region { -webkit-app-region: drag; }
                 .no-drag { -webkit-app-region: no-drag; }
             `}</style>
