@@ -3,6 +3,7 @@ import { AtomicItem, AtomicWorkspaceData } from '../types/atomic';
 import { parseAtomicInput, DEFAULT_OBSIDIAN_VAULT } from '../lib/atomic-parser';
 import { getUnifiedItem, setUnifiedItem } from '../lib/unified-storage';
 import { getAllTasks, saveAllTasks } from '../lib/local-timer-storage';
+import { getLogicalDateString } from '../lib/timer-domain';
 
 const STORAGE_KEY = 'atomic-workspace-data-v1';
 const VAULT_STORAGE_KEY = 'atomic-workspace-obsidian-vault';
@@ -140,19 +141,95 @@ export function useAtomicWorkspace() {
     });
 
     // 如果目标是「当前」，直接自动启动计时！
-    if (targetList === 'now' && window.electron) {
-      const taskName = newItem.title || newItem.rawText;
+    if (targetList === 'now') {
+      const taskName = (newItem.title || newItem.rawText || '').trim();
       const tag = newItem.tags[0] || '即时待办';
       const initialSeconds = (newItem.estimateMinutes || 0) * 60;
-      window.electron.send('start-task', {
-        name: taskName,
-        categoryPath: '即时待办',
-        instanceTagNames: [tag],
-        initialTime: initialSeconds,
-        autoStart: true,
-      });
+      activateAndStartTimerByName(taskName, tag, initialSeconds);
     }
   }, [persistData, selectedTag]);
+
+  // 辅助函数：将某个任务置为当前运行状态，并在当天流水账本创建/激活 Session 开启计时
+  const activateAndStartTimerByName = useCallback((taskName?: string, tag: string = '即时待办', initialSeconds: number = 0) => {
+    if (!taskName || !taskName.trim()) return;
+    try {
+      const tasks = getAllTasks();
+      const now = Math.floor(Date.now() / 1000);
+      const nowISO = new Date().toISOString();
+      const todayStr = getLogicalDateString();
+      const trimmed = taskName.trim();
+
+      // 1. 查找今天属于此任务的 Session
+      let todaySession = tasks.find(t => t.name.trim() === trimmed && t.date === todayStr && !t.parentId);
+      let effectiveTasks = [...tasks];
+
+      if (!todaySession) {
+        todaySession = {
+          id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          name: trimmed,
+          categoryPath: '即时待办',
+          instanceTag: tag,
+          initialTime: initialSeconds,
+          elapsedTime: 0,
+          isRunning: true,
+          isPaused: false,
+          startTime: now,
+          pausedTime: 0,
+          children: [],
+          parentId: null,
+          date: todayStr,
+          createdAt: nowISO,
+          updatedAt: nowISO,
+        };
+        effectiveTasks.unshift(todaySession);
+      }
+
+      const targetId = todaySession.id;
+      const updatedTasks = effectiveTasks.map(t => {
+        // 暂停其他所有任务
+        if (t.id !== targetId && t.isRunning && !t.isPaused) {
+          const runningTime = t.startTime ? Math.max(0, now - t.startTime) : 0;
+          return {
+            ...t,
+            isRunning: false,
+            isPaused: true,
+            elapsedTime: (t.elapsedTime || 0) + runningTime,
+            startTime: null,
+            pausedTime: now,
+            updatedAt: nowISO,
+          };
+        }
+        // 启动目标任务
+        if (t.id === targetId) {
+          return {
+            ...t,
+            isRunning: true,
+            isPaused: false,
+            startTime: now,
+            pausedTime: 0,
+            updatedAt: nowISO,
+          };
+        }
+        return t;
+      });
+
+      saveAllTasks(updatedTasks);
+      window.dispatchEvent(new Event('storage'));
+
+      // 联动 IPC 发送给主进程与悬浮窗
+      if (window.electron) {
+        window.electron.send('start-task', {
+          name: trimmed,
+          categoryPath: '即时待办',
+          instanceTagNames: [tag],
+          initialTime: initialSeconds,
+          autoStart: true,
+        });
+      }
+    } catch (err) {
+      console.error('[useAtomicWorkspace] Failed to activate timer directly:', err);
+    }
+  }, []);
 
   // 辅助函数：当某个正在计时的任务被打勾完成/移除当前时，优雅结算并暂停其计时流水
   const settleRunningTimerByName = useCallback((taskName?: string) => {
@@ -372,19 +449,13 @@ export function useAtomicWorkspace() {
     });
 
     // 自动触发启动计时，无缝衔接专注心流
-    if (restoredTarget && window.electron) {
+    if (restoredTarget) {
       const taskName = (restoredTarget.title || restoredTarget.rawText || '').trim();
       const tag = (restoredTarget.tags && restoredTarget.tags[0]) || '即时待办';
       const initialSeconds = (restoredTarget.estimateMinutes || 0) * 60;
-      window.electron.send('start-task', {
-        name: taskName,
-        categoryPath: '即时待办',
-        instanceTagNames: [tag],
-        initialTime: initialSeconds,
-        autoStart: true,
-      });
+      activateAndStartTimerByName(taskName, tag, initialSeconds);
     }
-  }, [persistData, settleRunningTimerByName]);
+  }, [persistData, settleRunningTimerByName, activateAndStartTimerByName]);
 
   // 5. 单独删除一条已完成记录 (仅从归档视图移除，保留历史时间账本)
   const deleteCompletedItem = useCallback((id: string) => {
@@ -438,19 +509,13 @@ export function useAtomicWorkspace() {
       return nextData;
     });
 
-    if (movedTarget && window.electron) {
-      const taskName = movedTarget.title || movedTarget.rawText;
-      const tag = movedTarget.tags[0] || '即时待办';
+    if (movedTarget) {
+      const taskName = (movedTarget.title || movedTarget.rawText || '').trim();
+      const tag = (movedTarget.tags && movedTarget.tags[0]) || '即时待办';
       const initialSeconds = (movedTarget.estimateMinutes || 0) * 60;
-      window.electron.send('start-task', {
-        name: taskName,
-        categoryPath: '即时待办',
-        instanceTagNames: [tag],
-        initialTime: initialSeconds,
-        autoStart: true,
-      });
+      activateAndStartTimerByName(taskName, tag, initialSeconds);
     }
-  }, [persistData]);
+  }, [persistData, activateAndStartTimerByName]);
 
   // 8. 移动到「接下来」
   const moveToNext = useCallback((id: string) => {
