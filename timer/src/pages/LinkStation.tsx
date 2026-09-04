@@ -252,15 +252,40 @@ export default function LinkStation() {
         ? links.filter(l => l.title.toLowerCase().includes(searchQuery.toLowerCase()) || l.url.includes(searchQuery))
         : currentGroupLinks;
 
-    // 渲染卡片：双列紧凑卡片，暗黑移动气泡，呼吸感充足
+    // 渲染卡片：双列紧凑卡片，暗黑移动气泡，无备注时不占多余空行
     const renderLinkCard = (link: LinkItem) => (
         <div
             key={link.id}
             onClick={() => window.electron.send('open-external-link', link.url)}
-            className="group relative bg-[#1c1c1f] hover:bg-[#26262b] border border-zinc-800/80 hover:border-zinc-700 rounded-lg p-2.5 transition-all cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[46px]"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setContextMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    options: [
+                        {
+                            label: link.note ? '修改备注' : '添加备注',
+                            icon: Edit2,
+                            onClick: () => {
+                                const val = prompt('输入备注信息:', link.note || '');
+                                if (val !== null) handleUpdateLink(link.id, { note: val.trim() });
+                            }
+                        },
+                        { label: '移至 (未分类)', icon: FolderInput, onClick: () => handleMoveLinkToSection(link.id, undefined) },
+                        ...currentGroupSections.map(s => ({
+                            label: `移至 ${s.title}`,
+                            icon: FolderInput,
+                            onClick: () => handleMoveLinkToSection(link.id, s.id)
+                        })),
+                        { label: '删除链接', danger: true, onClick: () => handleDeleteLink(link.id, e) }
+                    ]
+                });
+            }}
+            className="group relative bg-[#1c1c1f] hover:bg-[#26262b] border border-zinc-800/80 hover:border-zinc-700 rounded-lg px-2.5 py-1.5 transition-all cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-center"
             title={`点击在浏览器打开: ${link.url}`}
         >
-            <div className="flex items-start justify-between gap-1.5 w-full">
+            <div className="flex items-center justify-between gap-1.5 w-full">
                 <input
                     value={link.title}
                     onClick={(e) => e.stopPropagation()}
@@ -280,18 +305,26 @@ export default function LinkStation() {
                                 x: rect.left,
                                 y: rect.bottom + 4,
                                 options: [
+                                    {
+                                        label: link.note ? '修改备注' : '添加备注',
+                                        icon: Edit2,
+                                        onClick: () => {
+                                            const val = prompt('输入备注信息:', link.note || '');
+                                            if (val !== null) handleUpdateLink(link.id, { note: val.trim() });
+                                        }
+                                    },
                                     { label: '移至 (未分类)', icon: FolderInput, onClick: () => handleMoveLinkToSection(link.id, undefined) },
                                     ...currentGroupSections.map(s => ({
                                         label: `移至 ${s.title}`,
                                         icon: FolderInput,
                                         onClick: () => handleMoveLinkToSection(link.id, s.id)
                                     })),
-                                    { label: '删除', danger: true, onClick: () => handleDeleteLink(link.id, e) }
+                                    { label: '删除链接', danger: true, onClick: () => handleDeleteLink(link.id, e) }
                                 ]
                             });
                         }}
                         className="p-1 hover:bg-zinc-700/60 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
-                        title="移动分类 / 更多"
+                        title="移动分类 / 备注"
                     >
                         <Edit2 size={11} />
                     </button>
@@ -305,19 +338,20 @@ export default function LinkStation() {
                 </div>
             </div>
 
-            {/* 备注行（有内容或悬浮时显示） */}
-            <div className="mt-1 h-3.5 flex items-center">
-                <input
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder={link.note ? "" : "备注..."}
-                    value={link.note || ''}
-                    onChange={(e) => handleUpdateLink(link.id, { note: e.target.value })}
-                    className={cn(
-                        "bg-transparent text-[10px] w-full focus:outline-none focus:text-zinc-300 transition-all",
-                        link.note ? "text-zinc-500" : "text-zinc-600 opacity-0 group-hover:opacity-100"
-                    )}
-                />
-            </div>
+            {/* 仅在存在备注时才渲染备注行，绝不占用多余高度 */}
+            {link.note && (
+                <div
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const val = prompt('修改备注:', link.note || '');
+                        if (val !== null) handleUpdateLink(link.id, { note: val.trim() });
+                    }}
+                    className="mt-0.5 text-[10px] text-zinc-500 truncate hover:text-zinc-300 transition-colors cursor-text"
+                    title={`备注: ${link.note} (点击可修改)`}
+                >
+                    {link.note}
+                </div>
+            )}
         </div>
     );
 
