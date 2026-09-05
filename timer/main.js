@@ -469,61 +469,168 @@ function createMainWindow() {
   };
 
   mainWindow.on('resize', scheduleSave);
-  let dragEndTimeout = null;
-  let isProgrammaticMove = false;
+
+  // 贴边自动隐藏与智能拖拽脱离状态机 (Edge Docking & Auto-Hide State Machine)
+  let dockSide = null; // 'left' | 'right' | 'top' | null
+  let dockAnchorPos = 0; // dockSide 为 left/right 时记录 y，为 top 时记录 x
+  let isSlidOut = true;
+  let isUserDragging = false;
+  let dragCheckTimeout = null;
+  let ignoreMoveEventsUntil = 0;
+  let dockWatchInterval = null;
+
+  const PEEK_SIZE = 6; // 隐藏时露出的像素边条（方便定位和鼠标触碰唤醒）
+  const TRIGGER_DIST = 16; // 边缘触发唤醒的有效鼠标距离
+  const SNAP_THRESHOLD = 30; // 触发贴边吸附的距离阈值
+  const BUFFER = 24; // 离开窗口的缓冲距离，避免操作时误缩回
+
+  const stopDockWatcher = () => {
+    if (dockWatchInterval) {
+      clearInterval(dockWatchInterval);
+      dockWatchInterval = null;
+    }
+  };
+
+  const startDockWatcher = () => {
+    if (dockWatchInterval) return;
+    dockWatchInterval = setInterval(() => {
+      if (!mainWindow || mainWindow.isDestroyed() || !dockSide || isUserDragging) return;
+
+      const cursor = screen.getCursorScreenPoint();
+      const bounds = mainWindow.getBounds();
+      const display = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay();
+      const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
+
+      if (!isSlidOut) {
+        // 当前处于隐藏状态：当鼠标触碰对应的屏幕边缘或露出的边条时滑出
+        let shouldSlideOut = false;
+        if (dockSide === 'left') {
+          const inY = cursor.y >= dockAnchorPos - 10 && cursor.y <= dockAnchorPos + bounds.height + 10;
+          if (inY && cursor.x <= sx + PEEK_SIZE + TRIGGER_DIST) {
+            shouldSlideOut = true;
+          }
+        } else if (dockSide === 'right') {
+          const inY = cursor.y >= dockAnchorPos - 10 && cursor.y <= dockAnchorPos + bounds.height + 10;
+          if (inY && cursor.x >= sx + sw - PEEK_SIZE - TRIGGER_DIST) {
+            shouldSlideOut = true;
+          }
+        } else if (dockSide === 'top') {
+          const inX = cursor.x >= dockAnchorPos - 10 && cursor.x <= dockAnchorPos + bounds.width + 10;
+          if (inX && cursor.y <= sy + PEEK_SIZE + TRIGGER_DIST) {
+            shouldSlideOut = true;
+          }
+        }
+
+        if (shouldSlideOut) {
+          isSlidOut = true;
+          ignoreMoveEventsUntil = Date.now() + 300;
+          let targetX = bounds.x;
+          let targetY = bounds.y;
+          if (dockSide === 'left') { targetX = sx; targetY = dockAnchorPos; }
+          if (dockSide === 'right') { targetX = sx + sw - bounds.width; targetY = dockAnchorPos; }
+          if (dockSide === 'top') { targetX = dockAnchorPos; targetY = sy; }
+          mainWindow.setBounds({ x: targetX, y: targetY, width: bounds.width, height: bounds.height });
+        }
+      } else {
+        // 当前处于滑出展开状态：当鼠标完全离开窗口范围后，自动隐藏回收至边缘
+        let isCursorInside = false;
+        if (dockSide === 'left') {
+          isCursorInside =
+            cursor.x >= sx - BUFFER &&
+            cursor.x <= sx + bounds.width + BUFFER &&
+            cursor.y >= dockAnchorPos - BUFFER &&
+            cursor.y <= dockAnchorPos + bounds.height + BUFFER;
+        } else if (dockSide === 'right') {
+          isCursorInside =
+            cursor.x >= sx + sw - bounds.width - BUFFER &&
+            cursor.x <= sx + sw + BUFFER &&
+            cursor.y >= dockAnchorPos - BUFFER &&
+            cursor.y <= dockAnchorPos + bounds.height + BUFFER;
+        } else if (dockSide === 'top') {
+          isCursorInside =
+            cursor.x >= dockAnchorPos - BUFFER &&
+            cursor.x <= dockAnchorPos + bounds.width + BUFFER &&
+            cursor.y >= sy - BUFFER &&
+            cursor.y <= sy + bounds.height + BUFFER;
+        }
+
+        if (!isCursorInside) {
+          isSlidOut = false;
+          ignoreMoveEventsUntil = Date.now() + 300;
+          let targetX = bounds.x;
+          let targetY = bounds.y;
+          if (dockSide === 'left') { targetX = sx - bounds.width + PEEK_SIZE; targetY = dockAnchorPos; }
+          if (dockSide === 'right') { targetX = sx + sw - PEEK_SIZE; targetY = dockAnchorPos; }
+          if (dockSide === 'top') { targetX = dockAnchorPos; targetY = sy - bounds.height + PEEK_SIZE; }
+          mainWindow.setBounds({ x: targetX, y: targetY, width: bounds.width, height: bounds.height });
+        }
+      }
+    }, 100);
+  };
 
   mainWindow.on('move', () => {
-    scheduleSave();
-    if (isProgrammaticMove) {
-      isProgrammaticMove = false;
+    // 忽略由 setBounds 程序调用触发的 move 事件
+    if (Date.now() < ignoreMoveEventsUntil) {
       return;
     }
 
-    // 防抖处理拖拽吸附，在用户停止拖拽后平滑进行边缘对齐，绝不中断用户的连续拖拽
-    if (dragEndTimeout) clearTimeout(dragEndTimeout);
-    dragEndTimeout = setTimeout(() => {
+    // 用户正在真实拖拽窗口
+    isUserDragging = true;
+
+    if (dragCheckTimeout) clearTimeout(dragCheckTimeout);
+    dragCheckTimeout = setTimeout(() => {
+      isUserDragging = false;
       if (!mainWindow || mainWindow.isDestroyed()) return;
 
       const bounds = mainWindow.getBounds();
       const display = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay();
       const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
-      const SNAP_THRESHOLD = 24;
 
+      let newDockSide = null;
       let nextX = bounds.x;
       let nextY = bounds.y;
-      let snapped = false;
 
-      // 贴左边缘磁吸（始终完全可见，绝不推入屏幕外）
-      if (Math.abs(bounds.x - sx) < SNAP_THRESHOLD || bounds.x < sx) {
+      // 判定是否拖拽至屏幕边缘（吸附检测）
+      if (bounds.x >= sx - 20 && bounds.x <= sx + SNAP_THRESHOLD) {
+        newDockSide = 'left';
         nextX = sx;
-        snapped = true;
-      }
-      // 贴右边缘磁吸
-      else if (Math.abs((bounds.x + bounds.width) - (sx + sw)) < SNAP_THRESHOLD || (bounds.x + bounds.width) > (sx + sw)) {
+        dockAnchorPos = bounds.y;
+      } else if (bounds.x + bounds.width >= sx + sw - SNAP_THRESHOLD && bounds.x + bounds.width <= sx + sw + 20) {
+        newDockSide = 'right';
         nextX = sx + sw - bounds.width;
-        snapped = true;
-      }
-
-      // 贴顶边缘磁吸
-      if (Math.abs(bounds.y - sy) < SNAP_THRESHOLD || bounds.y < sy) {
+        dockAnchorPos = bounds.y;
+      } else if (bounds.y >= sy - 20 && bounds.y <= sy + SNAP_THRESHOLD) {
+        newDockSide = 'top';
         nextY = sy;
-        snapped = true;
-      }
-      // 贴底边缘磁吸
-      else if (Math.abs((bounds.y + bounds.height) - (sy + sh)) < SNAP_THRESHOLD || (bounds.y + bounds.height) > (sy + sh)) {
-        nextY = sy + sh - bounds.height;
-        snapped = true;
+        dockAnchorPos = bounds.x;
+      } else {
+        // 用户拖拽到了屏幕内部任意区域：彻底脱离吸附，自由悬浮
+        newDockSide = null;
       }
 
-      if (snapped && (nextX !== bounds.x || nextY !== bounds.y)) {
-        isProgrammaticMove = true;
+      dockSide = newDockSide;
+
+      if (dockSide) {
+        // 贴边对齐展开，启动自动隐藏轮询
+        isSlidOut = true;
+        ignoreMoveEventsUntil = Date.now() + 300;
         mainWindow.setBounds({ x: nextX, y: nextY, width: bounds.width, height: bounds.height });
         saveWindowState(mainWindow);
+        startDockWatcher();
+      } else {
+        // 自由悬浮模式：停止一切隐藏轮询
+        stopDockWatcher();
+        saveWindowState(mainWindow);
       }
-    }, 150);
+    }, 180);
   });
 
-  mainWindow.on('close', () => saveWindowState(mainWindow));
+  mainWindow.on('close', () => {
+    stopDockWatcher();
+    if (isSlidOut || !dockSide) {
+      saveWindowState(mainWindow);
+    }
+  });
 
   mainWindow.on('focus', () => {
     // 每次获取焦点时重新应用置顶
@@ -548,7 +655,7 @@ function createMainWindow() {
   });
 
   mainWindow.on('closed', () => {
-    stopHoverCheck();
+    stopDockWatcher();
     mainWindow = null;
     globalShortcut.unregisterAll();
   });
