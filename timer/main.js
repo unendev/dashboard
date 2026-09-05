@@ -590,19 +590,19 @@ function createMainWindow() {
       let nextX = bounds.x;
       let nextY = bounds.y;
 
-      // 判定是否拖拽至屏幕边缘（吸附检测）
-      if (bounds.x >= sx - 20 && bounds.x <= sx + SNAP_THRESHOLD) {
+      // 判定是否拖拽至屏幕边缘（吸附检测：无论贴近边缘还是直接塞出屏幕边界，均触发贴边吸附）
+      if (bounds.x <= sx + SNAP_THRESHOLD && (bounds.x + bounds.width) >= sx + 40) {
         newDockSide = 'left';
         nextX = sx;
-        dockAnchorPos = bounds.y;
-      } else if (bounds.x + bounds.width >= sx + sw - SNAP_THRESHOLD && bounds.x + bounds.width <= sx + sw + 20) {
+        dockAnchorPos = clamp(bounds.y, sy, Math.max(sy, sy + sh - bounds.height));
+      } else if (bounds.x + bounds.width >= sx + sw - SNAP_THRESHOLD && bounds.x <= sx + sw - 40) {
         newDockSide = 'right';
         nextX = sx + sw - bounds.width;
-        dockAnchorPos = bounds.y;
-      } else if (bounds.y >= sy - 20 && bounds.y <= sy + SNAP_THRESHOLD) {
+        dockAnchorPos = clamp(bounds.y, sy, Math.max(sy, sy + sh - bounds.height));
+      } else if (bounds.y <= sy + SNAP_THRESHOLD && (bounds.y + bounds.height) >= sy + 40) {
         newDockSide = 'top';
         nextY = sy;
-        dockAnchorPos = bounds.x;
+        dockAnchorPos = clamp(bounds.x, sx, Math.max(sx, sx + sw - bounds.width));
       } else {
         // 用户拖拽到了屏幕内部任意区域：彻底脱离吸附，自由悬浮
         newDockSide = null;
