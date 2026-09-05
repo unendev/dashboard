@@ -469,67 +469,8 @@ function createMainWindow() {
   };
 
   mainWindow.on('resize', scheduleSave);
-  let snapState = null; // 'left' | 'right' | null
-  let isDragging = false;
   let dragEndTimeout = null;
   let isProgrammaticMove = false;
-  let hoverCheckInterval = null;
-
-  const startHoverCheck = () => {
-    if (hoverCheckInterval) return;
-    console.log('[Main Process Hover Polling] Polling started.');
-    hoverCheckInterval = setInterval(() => {
-      if (!mainWindow || mainWindow.isDestroyed() || !snapState || isDragging) return;
-
-      const cursor = screen.getCursorScreenPoint();
-      const bounds = mainWindow.getBounds();
-      const display = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay();
-      const { x: sx, width: sw } = display.workArea;
-
-      // Check if window is currently slid out or hidden
-      const isHidden = (snapState === 'left' && bounds.x < sx) || (snapState === 'right' && bounds.x > sx + sw - bounds.width + 10);
-
-      if (isHidden) {
-        // Trigger slide out if cursor touches the edge where window is snapped
-        const triggerDistance = 10; // px distance from screen edge to trigger slide out
-        if (snapState === 'left' && cursor.x <= sx + triggerDistance) {
-          console.log(`[Main Process Hover Polling] Cursor at left edge (${cursor.x}). Slide OUT.`);
-          isProgrammaticMove = true;
-          mainWindow.setBounds({ x: sx, y: bounds.y, width: bounds.width, height: bounds.height });
-        } else if (snapState === 'right' && cursor.x >= sx + sw - triggerDistance) {
-          console.log(`[Main Process Hover Polling] Cursor at right edge (${cursor.x}). Slide OUT.`);
-          isProgrammaticMove = true;
-          mainWindow.setBounds({ x: sx + sw - bounds.width, y: bounds.y, width: bounds.width, height: bounds.height });
-        }
-      } else {
-        // If window is slid out, check if cursor leaves window bounds
-        const outBuffer = 20; // px buffer to avoid aggressive hiding
-        const isCursorOutside = 
-          cursor.x < bounds.x - outBuffer || 
-          cursor.x > bounds.x + bounds.width + outBuffer ||
-          cursor.y < bounds.y - outBuffer ||
-          cursor.y > bounds.y + bounds.height + outBuffer;
-
-        if (isCursorOutside) {
-          console.log(`[Main Process Hover Polling] Cursor outside bounds (${cursor.x}, ${cursor.y}). Hiding.`);
-          isProgrammaticMove = true;
-          if (snapState === 'left') {
-            mainWindow.setBounds({ x: sx - bounds.width + 4, y: bounds.y, width: bounds.width, height: bounds.height });
-          } else if (snapState === 'right') {
-            mainWindow.setBounds({ x: sx + sw - 4, y: bounds.y, width: bounds.width, height: bounds.height });
-          }
-        }
-      }
-    }, 150);
-  };
-
-  const stopHoverCheck = () => {
-    if (hoverCheckInterval) {
-      console.log('[Main Process Hover Polling] Polling stopped.');
-      clearInterval(hoverCheckInterval);
-      hoverCheckInterval = null;
-    }
-  };
 
   mainWindow.on('move', () => {
     scheduleSave();
@@ -537,66 +478,47 @@ function createMainWindow() {
       isProgrammaticMove = false;
       return;
     }
-    isDragging = true;
 
-    // Debounce the end of dragging
+    // 防抖处理拖拽吸附，在用户停止拖拽后平滑进行边缘对齐，绝不中断用户的连续拖拽
     if (dragEndTimeout) clearTimeout(dragEndTimeout);
     dragEndTimeout = setTimeout(() => {
-      isDragging = false;
       if (!mainWindow || mainWindow.isDestroyed()) return;
 
       const bounds = mainWindow.getBounds();
       const display = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay();
       const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
-      const SNAP_THRESHOLD = 40;
+      const SNAP_THRESHOLD = 24;
 
       let nextX = bounds.x;
       let nextY = bounds.y;
       let snapped = false;
 
-      console.log(`[Main Process Drag End] bounds.x: ${bounds.x}, bounds.y: ${bounds.y}, bounds.w: ${bounds.width}, bounds.h: ${bounds.height}, sx: ${sx}, sw: ${sw}`);
-
-      // Left edge snap (when pushed off-screen left)
-      if (bounds.x < sx) {
-        nextX = sx - bounds.width + 4;
-        snapState = 'left';
+      // 贴左边缘磁吸（始终完全可见，绝不推入屏幕外）
+      if (Math.abs(bounds.x - sx) < SNAP_THRESHOLD || bounds.x < sx) {
+        nextX = sx;
         snapped = true;
-        console.log(`[Main Process Snap] Snapped LEFT. nextX: ${nextX}`);
       }
-      // Right edge snap (when pushed off-screen right)
-      else if (bounds.x + bounds.width > sx + sw) {
-        nextX = sx + sw - 4;
-        snapState = 'right';
+      // 贴右边缘磁吸
+      else if (Math.abs((bounds.x + bounds.width) - (sx + sw)) < SNAP_THRESHOLD || (bounds.x + bounds.width) > (sx + sw)) {
+        nextX = sx + sw - bounds.width;
         snapped = true;
-        console.log(`[Main Process Snap] Snapped RIGHT. nextX: ${nextX}`);
-      } else {
-        snapState = null;
-        console.log(`[Main Process Snap] No Snap.`);
       }
 
-      // Top edge snap
-      if (Math.abs(bounds.y - sy) < SNAP_THRESHOLD) {
+      // 贴顶边缘磁吸
+      if (Math.abs(bounds.y - sy) < SNAP_THRESHOLD || bounds.y < sy) {
         nextY = sy;
         snapped = true;
       }
-      // Bottom edge snap
-      else if (Math.abs((bounds.y + bounds.height) - (sy + sh)) < SNAP_THRESHOLD) {
+      // 贴底边缘磁吸
+      else if (Math.abs((bounds.y + bounds.height) - (sy + sh)) < SNAP_THRESHOLD || (bounds.y + bounds.height) > (sy + sh)) {
         nextY = sy + sh - bounds.height;
         snapped = true;
       }
 
-      if (snapped) {
+      if (snapped && (nextX !== bounds.x || nextY !== bounds.y)) {
         isProgrammaticMove = true;
         mainWindow.setBounds({ x: nextX, y: nextY, width: bounds.width, height: bounds.height });
         saveWindowState(mainWindow);
-
-        if (snapState) {
-          startHoverCheck();
-        } else {
-          stopHoverCheck();
-        }
-      } else {
-        stopHoverCheck();
       }
     }, 150);
   });
